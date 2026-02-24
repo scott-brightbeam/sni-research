@@ -1,0 +1,40 @@
+# SNI Research Tool - Off-Limits Stories
+# Stories covered in previous weeks must not repeat.
+# This list is cumulative. Add new entries after each week's report publishes.
+# Format: company + topic. Both are checked (case-insensitive) against article title + text.
+
+week_7:
+  - company: Takeda
+    topic: Iambic AI drug discovery partnership
+  - company: Isomorphic Labs
+    topic: IsoDDE protein design
+  - company: Generate Biomedicines
+    topic: IPO filing
+
+week_8:
+  - company: Merck
+    topic: Mayo Clinic AI drug discovery partnership
+  - company: Medtronic
+    topic: Stealth AXiS FDA clearance
+  - company: Samsung
+    topic: HBM4 memory
+  - company: ERGO
+    topic: 1000 job cuts AI
+  - company: AIG
+    topic: AI beyond expectations results
+  - company: mea Platform
+    topic: 50m funding round
+  - company: Gallagher Re
+    topic: insurtech report
+  - company: Intrinsic
+    topic: Alphabet CEO
+  - company: Copan
+    topic: PhenoMATRIX
+  - company: Deloitte
+    topic: manufacturing AI analysis
+  - company: Michigan State
+    topic: AI diamonds research
+  - company: PYMNTS
+    topic: pharma AI operations
+  - company: Semiconductor
+    topic: equipment market GlobeNewsWire

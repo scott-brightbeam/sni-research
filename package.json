@@ -1,0 +1,21 @@
+{
+  "name": "sni-research",
+  "version": "1.0.0",
+  "description": "SNI AI News Research Tool - automated sector news scraping with date verification",
+  "type": "module",
+  "scripts": {
+    "fetch": "bun scripts/fetch.js",
+    "report": "bun scripts/report.js",
+    "score": "bun scripts/score.js",
+    "test-fetch": "bun scripts/fetch.js --test",
+    "test-report": "bun scripts/report.js --test",
+    "test-score": "bun scripts/score.js --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "cheerio": "^1.0.0",
+    "date-fns": "^3.6.0",
+    "js-yaml": "^4.1.0",
+    "rss-parser": "^3.13.0"
+  }
+}
