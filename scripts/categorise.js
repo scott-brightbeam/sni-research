@@ -28,7 +28,16 @@ function loadSectors() {
  */
 function containsAny(text, terms) {
   const lower = text.toLowerCase();
-  return terms.some(term => lower.includes(term.toLowerCase()));
+  return terms.some(term => {
+    const t = term.toLowerCase();
+    // Short terms (<=3 chars like "AI") need word-boundary matching
+    // to avoid substring false positives (e.g. "AI" inside "email", "detail")
+    if (t.length <= 3) {
+      const regex = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return regex.test(text);
+    }
+    return lower.includes(t);
+  });
 }
 
 /**
@@ -36,7 +45,14 @@ function containsAny(text, terms) {
  */
 function countBoosts(text, terms) {
   const lower = text.toLowerCase();
-  return terms.filter(term => lower.includes(term.toLowerCase())).length;
+  return terms.filter(term => {
+    const t = term.toLowerCase();
+    if (t.length <= 3) {
+      const regex = new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return regex.test(text);
+    }
+    return lower.includes(t);
+  }).length;
 }
 
 /**

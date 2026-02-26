@@ -17,14 +17,29 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, renameSync, readdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import Anthropic from '@anthropic-ai/sdk';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+// Bun ≥1.3 filters ANTHROPIC_API_KEY from automatic .env loading.
+// Load it manually as a workaround.
+function loadEnvKey(key) {
+  if (process.env[key]) return process.env[key];
+  try {
+    const envPath = join(ROOT, '.env');
+    const lines = readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const match = line.match(new RegExp(`^${key}=(.+)$`));
+      if (match) return match[1].trim();
+    }
+  } catch { /* .env missing is fine — heuristic mode */ }
+  return undefined;
+}
+
+const ANTHROPIC_API_KEY = loadEnvKey('ANTHROPIC_API_KEY');
 const MODEL = 'claude-haiku-4-5';
 const RATE_LIMIT_MS = 300; // Haiku is fast, no need for long delays
 
@@ -290,13 +305,13 @@ function moveToReview(article, reason, dryRun, stats) {
 
   // Move .json
   if (existsSync(article._jsonPath)) {
-    const dest = join(reviewDir, article._jsonPath.split('\\').pop());
+    const dest = join(reviewDir, article._jsonPath.split('/').pop());
     renameSync(article._jsonPath, dest);
   }
 
   // Move .md
   if (existsSync(article._mdPath)) {
-    const dest = join(reviewDir, article._mdPath.split('\\').pop());
+    const dest = join(reviewDir, article._mdPath.split('/').pop());
     renameSync(article._mdPath, dest);
   }
 
@@ -304,12 +319,12 @@ function moveToReview(article, reason, dryRun, stats) {
   if (existsSync(article._rawHtmlPath)) {
     const rawReviewDir = join(ROOT, 'data', 'review', 'raw', article._dateDir, article._sectorDir);
     mkdirSync(rawReviewDir, { recursive: true });
-    const dest = join(rawReviewDir, article._rawHtmlPath.split('\\').pop());
+    const dest = join(rawReviewDir, article._rawHtmlPath.split('/').pop());
     try { renameSync(article._rawHtmlPath, dest); } catch { /* raw HTML is non-critical */ }
   }
 
   // Write reason file alongside moved article
-  const slug = article._jsonPath.split('\\').pop().replace('.json', '');
+  const slug = article._jsonPath.split('/').pop().replace('.json', '');
   writeFileSync(
     join(reviewDir, `${slug}_review-reason.txt`),
     `Moved by score.js at ${new Date().toISOString()}\nReason: ${reason}\nTitle: ${article.title}\nURL: ${article.url}\n`

@@ -128,6 +128,12 @@ async function fetchPage(url, timeoutMs = 15000) {
 // ─── Article Extraction ───────────────────────────────────────────────────────
 
 function extractArticleText($) {
+  // Remove boilerplate elements that can leak keywords into article text.
+  // Evidence: Insurance Journal's <article> includes <div class="featured-stories">
+  // with sidebar links like "Munich Re Unit to Cut 1,000 Positions as AI Takes Over".
+  $('nav, footer, aside, [role="navigation"], [class*="sidebar"], [class*="footer"], [class*="nav-"], [class*="menu"], [class*="featured-stories"], [class*="related"]').remove();
+  $('script, style, noscript').remove();
+
   // Try common article containers
   const selectors = [
     'article .article-body',
@@ -294,6 +300,13 @@ async function processRssFeed(feedUrl, feedName, sector, window, stats, seen) {
     const fullText = extractArticleText($);
     const title = item.title || $('title').text() || '';
 
+    // Gate: skip thin/paywalled content
+    if (fullText.length < 300) {
+      skip(`Content too short (${fullText.length} chars, likely paywalled): ${title.slice(0, 50)}`);
+      stats.paywalled++;
+      continue;
+    }
+
     // Check off-limits
     const offLimitCheck = checkOffLimits(title, fullText, offLimits);
     if (offLimitCheck.blocked) {
@@ -404,6 +417,13 @@ async function processGeneralFeed(window, stats, seen) {
       const $ = cheerio.load(html);
       const fullText = extractArticleText($);
       const title = result.title || $('title').text() || '';
+
+      // Gate: skip thin/paywalled content
+      if (fullText.length < 300) {
+        skip(`Content too short (${fullText.length} chars, likely paywalled): ${title.slice(0, 50)}`);
+        stats.paywalled++;
+        continue;
+      }
 
       const offLimitCheck = checkOffLimits(title, fullText, offLimits);
       if (offLimitCheck.blocked) {

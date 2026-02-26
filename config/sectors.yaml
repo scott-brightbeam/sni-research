@@ -207,6 +207,13 @@ sectors:
       - "large language model"
       - "foundation model"
       - "generative AI"
+      # Unambiguous AI companies — their name IS an AI signal
+      - "OpenAI"
+      - "Anthropic"
+      - "DeepMind"
+      - "Mistral"
+      - "xAI"
+      - "Cohere"
     required_any_group_2:
       # Frontier labs, hyperscalers, or strategic AI themes
       - "OpenAI"
