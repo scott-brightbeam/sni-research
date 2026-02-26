@@ -29,6 +29,10 @@ const BRAVE_API_KEY = process.env.BRAVE_API_KEY;
 const RATE_LIMIT_MS = 1500; // 1.5 seconds between requests
 const MAX_ITEMS_PER_FEED = 20; // Cap per feed to prevent very large feeds stalling the run
 
+// Only these sector keys pass a hint to assignSector().
+// All other feed categories (cross_sector, ai_labs, tech_press, etc.) are categorised purely by content.
+const HINT_SECTORS = new Set(['biopharma', 'medtech', 'manufacturing', 'insurance']);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function log(msg) { console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`); }
@@ -316,7 +320,7 @@ async function processRssFeed(feedUrl, feedName, sector, window, stats, seen) {
     }
 
     // Assign sector
-    const assignedSector = assignSector(title, fullText, sector === 'cross_sector' ? null : sector);
+    const assignedSector = assignSector(title, fullText, HINT_SECTORS.has(sector) ? sector : null);
     if (!assignedSector) {
       skip(`No sector match: ${title.slice(0, 50)}`);
       continue;
@@ -490,11 +494,14 @@ async function main() {
   const seen = new Set(); // URL deduplication across all sources
 
   const rssFeeds = sourcesConfig.rss_feeds || {};
-  const sectorOrder = ['biopharma', 'medtech', 'manufacturing', 'insurance', 'cross_sector'];
+  const sectorOrder = [
+    'biopharma', 'medtech', 'manufacturing', 'insurance',
+    'cross_sector', 'ai_labs', 'tech_press', 'newsletters', 'wire_services',
+  ];
 
   // Process RSS feeds
   for (const sector of sectorOrder) {
-    if (args.sector && sector !== args.sector && sector !== 'cross_sector') continue;
+    if (args.sector && HINT_SECTORS.has(sector) && sector !== args.sector) continue;
     const feeds = rssFeeds[sector];
     if (!feeds) continue;
 
