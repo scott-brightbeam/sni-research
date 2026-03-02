@@ -1,6 +1,7 @@
 .env
 data/
-output/
+output/*
+!output/published/
 node_modules/
 *.log
 .DS_Store

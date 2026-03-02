@@ -127,20 +127,26 @@ async function runStage(name, fn, ctx) {
 // ─── Pipeline modes ──────────────────────────────────────────────────────────
 
 /**
- * Daily pipeline (Mon-Thu): fetch → score
+ * Daily pipeline (Mon-Thu, Sat-Sun): fetch → score
+ *
+ * Uses yesterday's date — the pipeline runs at 04:00, so very little
+ * will have been published today. Yesterday gives a full day of articles.
  */
 async function runDailyPipeline(ctx) {
-  log('Mode: DAILY (fetch → score)');
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateStr = yesterday.toISOString().slice(0, 10);
+  log(`Mode: DAILY (fetch → score) — date: ${dateStr}`);
   console.log('');
 
   await runStage('fetch', () => runFetch({
-    week: ctx.weekNumber,
-    year: ctx.year,
+    startDate: dateStr,
+    endDate: dateStr,
   }), ctx);
 
   await runStage('score', () => runScore({
-    week: ctx.weekNumber,
-    year: ctx.year,
+    startDate: dateStr,
+    endDate: dateStr,
   }), ctx);
 }
 
@@ -306,11 +312,21 @@ export async function runPipeline(args = {}) {
     log(`No --week specified, using current week: ${args.week}`);
   }
   const year = args.year || new Date().getFullYear();
-  const dateWindow = getWeekWindow(args.week, year);
 
   // Determine mode
   const dayOfWeek = new Date().getDay(); // 0=Sun, 5=Fri
   const mode = args.mode || (dayOfWeek === 5 ? 'friday' : 'daily');
+
+  // Date window: daily uses yesterday (runs at 04:00), friday uses full week
+  let dateWindow;
+  if (mode === 'daily') {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const d = yesterday.toISOString().slice(0, 10);
+    dateWindow = { start: d, end: d };
+  } else {
+    dateWindow = getWeekWindow(args.week, year);
+  }
 
   // Build pipeline context
   const ctx = {
