@@ -51,6 +51,15 @@
 			<key>Minute</key>
 			<integer>0</integer>
 		</dict>
+		<!-- Friday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>5</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
 		<!-- Saturday -->
 		<dict>
 			<key>Weekday</key>
