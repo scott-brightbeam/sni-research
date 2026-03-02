@@ -21,12 +21,13 @@
  *   bun scripts/pipeline.js --week 9 --dry-run
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import { acquireLock, releaseLock } from './lib/lock.js';
 import { getWeekWindow, getCurrentWeek, getISOWeekNumber } from './lib/week.js';
+import { sendAlert } from './lib/alert.js';
 import { runFetch } from './fetch.js';
 import { runScore } from './score.js';
 import { runDiscover } from './discover.js';
@@ -80,17 +81,86 @@ function checkDiskSpace() {
   }
 }
 
+// ─── Stage helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Format stage stats into a short string for macOS notifications.
+ */
+function formatStageStats(name, stats) {
+  if (!stats || Object.keys(stats).length === 0) return '';
+  switch (name) {
+    case 'fetch':        return `${stats.saved ?? '?'} saved`;
+    case 'score':
+    case 'score-discover':
+                         return `${stats.kept ?? '?'} kept, ${stats.moved ?? 0} flagged`;
+    case 'discover':     return `${stats.added ?? 0} new`;
+    case 'report':       return 'built';
+    case 'draft':        return stats.draftPath ? 'ready' : 'no output';
+    case 'review':       return stats.pass === false ? 'needs work' : 'pass';
+    case 'evaluate':     return stats.score ? `${stats.score}/10` : 'done';
+    case 'verify-links': return `${stats.broken ?? 0} broken`;
+    case 'notify':       return stats.sent ? 'sent' : 'saved';
+    default: {
+      const [k, v] = Object.entries(stats)[0] || [];
+      return k ? `${k}: ${v}` : '';
+    }
+  }
+}
+
+/**
+ * Delete review directory contents for a date range.
+ * Removes data/review/<date>/ and data/review/raw/<date>/ for each day.
+ */
+function cleanupReview(startDate, endDate) {
+  const reviewDir = join(ROOT, 'data', 'review');
+  const rawDir = join(reviewDir, 'raw');
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const ds = d.toISOString().slice(0, 10);
+    const datePath = join(reviewDir, ds);
+    const rawPath = join(rawDir, ds);
+    if (existsSync(datePath)) rmSync(datePath, { recursive: true });
+    if (existsSync(rawPath)) rmSync(rawPath, { recursive: true });
+  }
+}
+
+/**
+ * Auto-delete flagged articles unless >10% were flagged.
+ * If threshold exceeded, keeps review dir and sends macOS alert.
+ */
+function handleScoreCleanup(scoreResult, startDate, endDate) {
+  const { total, moved } = scoreResult.stats || {};
+  if (!total || total === 0 || !moved) return;
+
+  const pct = ((moved / total) * 100).toFixed(1);
+
+  if (moved / total > 0.10) {
+    // >10% flagged — something may be wrong, keep for review
+    sendAlert('SNI Pipeline — Review needed',
+      `⚠ ${moved}/${total} articles flagged (${pct}%) — kept in data/review/ for manual check`);
+    warn(`Score threshold exceeded: ${moved}/${total} (${pct}%) flagged — review dir preserved`);
+  } else {
+    // ≤10% — normal, clean up
+    cleanupReview(startDate, endDate);
+    log(`Cleaned review dir: ${moved} flagged articles deleted (${pct}%)`);
+  }
+}
+
 // ─── Stage runner ────────────────────────────────────────────────────────────
 
 /**
- * Run a pipeline stage with timing and error capture.
+ * Run a pipeline stage with timing, error capture, and macOS notification.
  *
  * @param {string} name — stage name
  * @param {() => Promise<object>} fn — stage function
  * @param {object} ctx — PipelineContext (stages array gets appended)
+ * @param {object} [opts]
+ * @param {string} [opts.nextStage] — name of next stage (shown in notification)
  * @returns {StageResult}
  */
-async function runStage(name, fn, ctx) {
+async function runStage(name, fn, ctx, { nextStage } = {}) {
   const stageStart = Date.now();
   log(`━━━ Stage: ${name} ━━━`);
 
@@ -121,6 +191,13 @@ async function runStage(name, fn, ctx) {
   log(`${name}: ${result.status} (${elapsed}s)`);
   console.log('');
 
+  // macOS notification at stage boundary
+  const icon = result.status === 'success' ? '✓' : '✗';
+  const statsLine = formatStageStats(name, result.stats);
+  const next = nextStage ? ` → ${nextStage}` : '';
+  const body = `${icon} ${name}${statsLine ? ': ' + statsLine : ''} (${elapsed}s)${next}`;
+  sendAlert('SNI Pipeline', body);
+
   return result;
 }
 
@@ -138,16 +215,19 @@ async function runDailyPipeline(ctx) {
   const dateStr = yesterday.toISOString().slice(0, 10);
   log(`Mode: DAILY (fetch → score) — date: ${dateStr}`);
   console.log('');
+  sendAlert('SNI Pipeline', `Starting daily pipeline — ${dateStr}`);
 
   await runStage('fetch', () => runFetch({
     startDate: dateStr,
     endDate: dateStr,
-  }), ctx);
+  }), ctx, { nextStage: 'score' });
 
-  await runStage('score', () => runScore({
+  const scoreResult = await runStage('score', () => runScore({
     startDate: dateStr,
     endDate: dateStr,
   }), ctx);
+
+  handleScoreCleanup(scoreResult, dateStr, dateStr);
 }
 
 /**
@@ -158,45 +238,50 @@ async function runDailyPipeline(ctx) {
 async function runFridayPipeline(ctx) {
   log('Mode: FRIDAY (full pipeline)');
   console.log('');
+  sendAlert('SNI Pipeline', `Starting friday pipeline — week ${ctx.weekNumber}`);
 
   // Fetch
   await runStage('fetch', () => runFetch({
     week: ctx.weekNumber,
     year: ctx.year,
-  }), ctx);
+  }), ctx, { nextStage: 'score' });
 
   // Score (initial pass — RSS + search articles)
-  await runStage('score', () => runScore({
+  const scoreResult = await runStage('score', () => runScore({
     week: ctx.weekNumber,
     year: ctx.year,
-  }), ctx);
+  }), ctx, { nextStage: 'discover' });
+
+  handleScoreCleanup(scoreResult, ctx.dateWindow.start, ctx.dateWindow.end);
 
   // Discover (multi-model story discovery — finds articles we missed)
   const discoverResult = await runStage('discover', () => runDiscover({
     week: ctx.weekNumber,
     year: ctx.year,
-  }), ctx);
+  }), ctx, { nextStage: 'score-discover' });
 
   // Score again if discover added new articles
   if (discoverResult.status === 'success' && discoverResult.stats?.added > 0) {
     log(`Discovery added ${discoverResult.stats.added} articles — running second score pass`);
-    await runStage('score-discover', () => runScore({
+    const scoreDiscoverResult = await runStage('score-discover', () => runScore({
       week: ctx.weekNumber,
       year: ctx.year,
-    }), ctx);
+    }), ctx, { nextStage: 'report' });
+
+    handleScoreCleanup(scoreDiscoverResult, ctx.dateWindow.start, ctx.dateWindow.end);
   }
 
   // Report (research pack — always generated as fallback content)
   await runStage('report', () => runReport({
     week: ctx.weekNumber,
     year: ctx.year,
-  }), ctx);
+  }), ctx, { nextStage: 'draft' });
 
   // Draft (depends on score completing for confidence fields)
   const draftResult = await runStage('draft', () => runDraft({
     week: ctx.weekNumber,
     year: ctx.year,
-  }), ctx);
+  }), ctx, { nextStage: 'review' });
 
   // Review, evaluate, and link-check only run if draft succeeded
   if (draftResult.status !== 'failed' && draftResult.stats?.draftPath) {
@@ -205,17 +290,17 @@ async function runFridayPipeline(ctx) {
     // Self-review (Claude mechanical quality gate)
     await runStage('review', () => runReview({
       draft: draftPath,
-    }), ctx);
+    }), ctx, { nextStage: 'evaluate' });
 
     // Evaluate (GPT-5.2 + Gemini Pro 3.1 editorial review)
     await runStage('evaluate', () => runEvaluate({
       draft: draftPath,
-    }), ctx);
+    }), ctx, { nextStage: 'verify-links' });
 
     // Link verification
     await runStage('verify-links', () => runLinkCheck({
       draft: draftPath,
-    }), ctx);
+    }), ctx, { nextStage: 'notify' });
   } else {
     // Draft failed — skip review, evaluate, and links
     warn('Draft failed — skipping review, evaluation and link verification');
@@ -427,6 +512,10 @@ export async function runPipeline(args = {}) {
   console.log(`  Summary: ${summaryPath}`);
   console.log('═══════════════════════════════════════════════');
   console.log('');
+
+  // Pipeline-complete notification
+  sendAlert('SNI Pipeline',
+    `Pipeline complete — ${ctx.stages.length} stages, ${failedCount} failed (${totalElapsed}s)`);
 
   return ctx;
 }
