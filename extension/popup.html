@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      padding: 16px;
+      margin: 0;
+      color: #333;
+    }
+    h1 {
+      font-size: 15px;
+      margin: 0 0 12px 0;
+      color: #1a1a1a;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .status.offline {
+      background: #fee;
+      color: #c33;
+      border: 1px solid #fcc;
+    }
+    .status.online {
+      background: #efe;
+      color: #363;
+      border: 1px solid #cfc;
+    }
+    .field {
+      margin-bottom: 10px;
+    }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field .value {
+      font-size: 13px;
+      color: #1a1a1a;
+      word-break: break-word;
+    }
+    select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    button#save {
+      width: 100%;
+      padding: 10px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button#save:hover { background: #1d4ed8; }
+    button#save:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
+    }
+    .result.saved {
+      display: block;
+      background: #efe;
+      color: #363;
+      border: 1px solid #cfc;
+    }
+    .result.error {
+      display: block;
+      background: #fee;
+      color: #c33;
+      border: 1px solid #fcc;
+    }
+    .result.duplicate {
+      display: block;
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+  </style>
+</head>
+<body>
+  <h1>SNI Research Saver</h1>
+  <div id="serverStatus" class="status">Checking server...</div>
+
+  <div id="articleInfo" style="display:none;">
+    <div class="field">
+      <label>Title</label>
+      <div class="value" id="pageTitle"></div>
+    </div>
+
+    <div class="field">
+      <label>URL</label>
+      <div class="value" id="pageUrl" style="font-size:11px; color:#666;"></div>
+    </div>
+
+    <div class="field">
+      <label>Sector</label>
+      <select id="sectorSelect">
+        <option value="">Auto-detect</option>
+        <option value="general">General AI</option>
+        <option value="biopharma">Pharma & Biopharma</option>
+        <option value="medtech">MedTech</option>
+        <option value="manufacturing">Manufacturing</option>
+        <option value="insurance">Insurance</option>
+      </select>
+    </div>
+
+    <button id="save">Save Article</button>
+
+    <div id="result" class="result"></div>
+  </div>
+</body>
+<script src="popup.js"></script>
+</html>

@@ -1,0 +1,54 @@
+.sni-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 22px;
+  padding: 0 8px;
+  margin-left: 8px;
+  border: 1px solid #2563eb;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.sni-save-btn:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.sni-save-btn:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+
+.sni-save-btn.saving {
+  background: #f0f0f0;
+  color: #666;
+  border-color: #ccc;
+}
+
+.sni-save-btn.saved {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.sni-save-btn.duplicate {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+.sni-save-btn.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}

@@ -9,13 +9,19 @@
     "score": "bun scripts/score.js",
     "test-fetch": "bun scripts/fetch.js --test",
     "test-report": "bun scripts/report.js --test",
-    "test-score": "bun scripts/score.js --dry-run"
+    "test-score": "bun scripts/score.js --dry-run",
+    "server": "bun scripts/server.js",
+    "ingest": "bun scripts/ingest.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.43.0",
     "cheerio": "^1.0.0",
     "date-fns": "^3.6.0",
+    "diff": "^8.0.3",
+    "js-tiktoken": "^1.0.21",
     "js-yaml": "^4.1.0",
+    "openai": "^6.25.0",
     "rss-parser": "^3.13.0"
   }
 }

@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "SNI Research Saver",
+  "version": "1.0.0",
+  "description": "Save articles to SNI Research Tool",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["http://localhost:3847/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.google.com/search*",
+        "https://www.google.co.uk/search*",
+        "https://www.google.ie/search*",
+        "https://news.google.com/*"
+      ],
+      "js": ["content-google.js"],
+      "css": ["content-google.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

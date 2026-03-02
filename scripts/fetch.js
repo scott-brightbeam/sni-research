@@ -5,11 +5,14 @@
  *
  * Usage:
  *   bun scripts/fetch.js --test              # Last 7 days
+ *   bun scripts/fetch.js --week 9            # ISO week 9 of current year (Mon–Fri)
+ *   bun scripts/fetch.js --week 9 --year 2026
  *   bun scripts/fetch.js --start-date 2026-02-13 --end-date 2026-02-20
  *   bun scripts/fetch.js --sector insurance  # Single sector only
+ *   bun scripts/fetch.js --dry-run           # Show what would happen, skip fetches
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
@@ -17,6 +20,9 @@ import Parser from 'rss-parser';
 import * as cheerio from 'cheerio';
 import { verifyDate, isInWindow } from './verify.js';
 import { assignSector, checkOffLimits } from './categorise.js';
+import { slugify, ensureDir, fetchPage, isPaywalled, extractArticleText,
+         saveArticle, saveFlagged, USER_AGENT } from './lib/extract.js';
+import { getWeekWindow } from './lib/week.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -42,17 +48,13 @@ function skip(msg) { console.log(`[${new Date().toISOString().slice(11, 19)}]   
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function slugify(str) {
-  return str.toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .slice(0, 60)
-    .replace(/-+$/, '');
-}
-
-function ensureDir(dir) { mkdirSync(dir, { recursive: true }); }
-
 function getDateWindow(args) {
+  // --week flag takes precedence (uses lib/week.js ISO week calculation)
+  if (args.week) {
+    const year = args.year || new Date().getFullYear();
+    const { start, end } = getWeekWindow(args.week, year);
+    return { startDate: start, endDate: end };
+  }
   const today = new Date();
   if (args.test) {
     const start = new Date(today);
@@ -70,147 +72,18 @@ function getDateWindow(args) {
   return { startDate: d, endDate: d };
 }
 
-function parseArgs() {
+function parseArgs(argv) {
   const args = {};
-  const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--test') args.test = true;
     if (argv[i] === '--start-date') args.startDate = argv[++i];
     if (argv[i] === '--end-date') args.endDate = argv[++i];
     if (argv[i] === '--sector') args.sector = argv[++i];
+    if (argv[i] === '--week') args.week = parseInt(argv[++i], 10);
+    if (argv[i] === '--year') args.year = parseInt(argv[++i], 10);
+    if (argv[i] === '--dry-run') args.dryRun = true;
   }
   return args;
-}
-
-function isPaywalled(url) {
-  const blocked = sourcesConfig.paywall_domains || [];
-  return blocked.some(domain => url.includes(domain));
-}
-
-// ─── HTTP Fetching ────────────────────────────────────────────────────────────
-
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
-
-async function fetchPage(url, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-
-    if (res.status === 403 || res.status === 401 || res.status === 429) {
-      clearTimeout(timeout);
-      return { error: `HTTP ${res.status}`, html: null, headers: null };
-    }
-    if (!res.ok) {
-      clearTimeout(timeout);
-      return { error: `HTTP ${res.status}`, html: null, headers: null };
-    }
-
-    // Race res.text() against the same timeout to prevent infinite hangs
-    const html = await Promise.race([
-      res.text(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('body-read-timeout')), timeoutMs)),
-    ]);
-    clearTimeout(timeout);
-    const headers = {};
-    res.headers.forEach((v, k) => { headers[k] = v; });
-    return { html, headers, error: null };
-  } catch (e) {
-    clearTimeout(timeout);
-    return { error: e.message, html: null, headers: null };
-  }
-}
-
-// ─── Article Extraction ───────────────────────────────────────────────────────
-
-function extractArticleText($) {
-  // Remove boilerplate elements that can leak keywords into article text.
-  // Evidence: Insurance Journal's <article> includes <div class="featured-stories">
-  // with sidebar links like "Munich Re Unit to Cut 1,000 Positions as AI Takes Over".
-  $('nav, footer, aside, [role="navigation"], [class*="sidebar"], [class*="footer"], [class*="nav-"], [class*="menu"], [class*="featured-stories"], [class*="related"]').remove();
-  $('script, style, noscript').remove();
-
-  // Try common article containers
-  const selectors = [
-    'article .article-body',
-    'article .post-content',
-    'article .entry-content',
-    '[class*="article-content"]',
-    '[class*="post-content"]',
-    '[class*="story-body"]',
-    'article',
-    'main',
-    '.content',
-  ];
-  for (const sel of selectors) {
-    const el = $(sel);
-    if (el.length) {
-      const text = el.text().replace(/\s+/g, ' ').trim();
-      if (text.length > 200) return text.slice(0, 10000);
-    }
-  }
-  return $('body').text().replace(/\s+/g, ' ').trim().slice(0, 10000);
-}
-
-// ─── File Saving ──────────────────────────────────────────────────────────────
-
-function saveArticle(article, sector, stats) {
-  const dateDir = article.date_published;
-  const verifiedDir = join(ROOT, 'data', 'verified', dateDir, sector);
-  const rawDir = join(ROOT, 'data', 'raw', dateDir, sector);
-  ensureDir(verifiedDir);
-  ensureDir(rawDir);
-
-  const slug = slugify(article.title);
-  const filename = `${slug}`;
-
-  // Save metadata JSON
-  const jsonPath = join(verifiedDir, `${filename}.json`);
-  writeFileSync(jsonPath, JSON.stringify(article, null, 2));
-
-  // Save readable MD
-  const mdContent = `---
-title: ${article.title}
-url: ${article.url}
-source: ${article.source}
-date_published: ${article.date_published}
-date_verified_method: ${article.date_verified_method}
-date_confidence: ${article.date_confidence}
-sector: ${sector}
-scraped_at: ${article.scraped_at}
----
-
-${article.full_text || article.snippet || ''}
-`;
-  writeFileSync(join(verifiedDir, `${filename}.md`), mdContent);
-
-  // Save raw HTML
-  if (article._raw_html) {
-    writeFileSync(join(rawDir, `${filename}.html`), article._raw_html);
-  }
-
-  stats.saved++;
-  ok(`Saved [${sector}] ${article.title.slice(0, 70)}`);
-}
-
-function saveFlagged(article, reason, stats) {
-  const flaggedDir = join(ROOT, 'data', 'flagged');
-  ensureDir(flaggedDir);
-  const slug = slugify(article.title || article.url);
-  writeFileSync(
-    join(flaggedDir, `${new Date().toISOString().slice(0, 10)}-${slug}.json`),
-    JSON.stringify({ ...article, flagged_reason: reason }, null, 2)
-  );
-  stats.flagged++;
-  skip(`Flagged: ${article.title?.slice(0, 60) || article.url} — ${reason}`);
 }
 
 // ─── RSS Processing ───────────────────────────────────────────────────────────
@@ -330,6 +203,7 @@ async function processRssFeed(feedUrl, feedName, sector, window, stats, seen) {
       title: title.trim(),
       url,
       source: feedName,
+      source_type: 'automated',
       date_published: dateResult.date,
       date_verified_method: dateResult.method,
       date_confidence: dateResult.confidence,
@@ -446,6 +320,7 @@ async function processGeneralFeed(window, stats, seen) {
         title: title.trim(),
         url,
         source: new URL(url).hostname.replace('www.', ''),
+        source_type: 'automated',
         date_published: dateResult.date,
         date_verified_method: dateResult.method,
         date_confidence: dateResult.confidence,
@@ -464,8 +339,7 @@ async function processGeneralFeed(window, stats, seen) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-async function main() {
-  const args = parseArgs();
+export async function runFetch(args = {}) {
   const window = getDateWindow(args);
 
   console.log('');
@@ -473,12 +347,30 @@ async function main() {
   console.log('  SNI Research Tool - Fetch');
   console.log(`  Date window: ${window.startDate} → ${window.endDate}`);
   if (args.test) console.log('  Mode: TEST (last 7 days)');
+  if (args.week) console.log(`  Mode: WEEK ${args.week}${args.year ? ` (${args.year})` : ''}`);
   if (args.sector) console.log(`  Sector filter: ${args.sector}`);
+  if (args.dryRun) console.log('  Mode: DRY RUN');
   console.log('═══════════════════════════════════════════════');
   console.log('');
 
   if (!BRAVE_API_KEY) {
     warn('BRAVE_API_KEY not configured - general feed will be skipped');
+  }
+
+  // Dry-run: show what would happen without fetching
+  if (args.dryRun) {
+    const rssFeeds = sourcesConfig.rss_feeds || {};
+    let totalFeeds = 0;
+    for (const sector of ['biopharma', 'medtech', 'manufacturing', 'insurance', 'cross_sector', 'ai_labs', 'tech_press', 'newsletters', 'wire_services']) {
+      const feeds = rssFeeds[sector];
+      if (!feeds) continue;
+      if (args.sector && HINT_SECTORS.has(sector) && sector !== args.sector) continue;
+      log(`  ${sector}: ${feeds.length} feeds`);
+      totalFeeds += feeds.length;
+    }
+    const queries = sourcesConfig.general_search_queries || [];
+    log(`Would fetch ${totalFeeds} RSS feeds, ${queries.length} Brave queries`);
+    return { dryRun: true, totalFeeds, braveQueries: queries.length, window };
   }
 
   const stats = {
@@ -534,21 +426,40 @@ async function main() {
   console.log(`Run next: bun scripts/report.js ${args.test ? '--test' : `--start-date ${window.startDate} --end-date ${window.endDate}`}`);
 
   // Save run stats
-  ensureDir(join(ROOT, 'data'));
-  writeFileSync(
-    join(ROOT, 'data', `last-run-${window.endDate}.json`),
-    JSON.stringify({ ...stats, window, elapsed: `${elapsed}s`, completedAt: new Date().toISOString() }, null, 2)
-  );
+  const runStats = { ...stats, window, elapsed: `${elapsed}s`, completedAt: new Date().toISOString() };
+  try {
+    ensureDir(join(ROOT, 'data'));
+    writeFileSync(
+      join(ROOT, 'data', `last-run-${window.endDate}.json`),
+      JSON.stringify(runStats, null, 2)
+    );
+  } catch (err) {
+    warn(`Failed to save run stats: ${err.message}`);
+  }
+
+  return runStats;
 }
 
-// Catch unhandled rejections (e.g. from AbortController edge cases) without crashing
-process.on('unhandledRejection', (reason) => {
-  console.warn(`[unhandledRejection] ${reason}`);
-});
+// ─── CLI entry point ─────────────────────────────────────────────────────────
 
-main()
-  .then(() => process.exit(0))
-  .catch(e => {
-    console.error('Fatal error:', e);
-    process.exit(1);
+if (import.meta.main) {
+  // Catch unhandled rejections (e.g. from AbortController edge cases) without crashing
+  process.on('unhandledRejection', (reason) => {
+    console.warn(`[unhandledRejection] ${reason}`);
   });
+
+  const args = parseArgs(process.argv.slice(2));
+  runFetch(args)
+    .then(stats => {
+      if (stats.dryRun) {
+        log(`Result: dry-run (${stats.totalFeeds} feeds, ${stats.braveQueries} Brave queries)`);
+      } else {
+        log(`Result: saved=${stats.saved} flagged=${stats.flagged} errors=${stats.fetchErrors}`);
+      }
+      process.exit(0);
+    })
+    .catch(e => {
+      console.error('Fatal error:', e);
+      process.exit(1);
+    });
+}

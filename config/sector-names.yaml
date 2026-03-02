@@ -1,0 +1,33 @@
+## Canonical sector display names — single source of truth
+## Used by report.js, draft.js, review.js
+## Replaces inline SECTOR_DISPLAY_NAMES in report.js
+
+general:
+  config: "General AI"
+  tldr: "In AI & tech"
+  body: "AI industry"
+  order: 1
+
+biopharma:
+  config: "Pharma & Biopharma"
+  tldr: "In Biopharma"
+  body: "Biopharma"
+  order: 2
+
+medtech:
+  config: "MedTech"
+  tldr: "In Medtech"
+  body: "MedTech and digital health"
+  order: 3
+
+manufacturing:
+  config: "Complex & Advanced Manufacturing"
+  tldr: "In Manufacturing"
+  body: "Complex manufacturing"
+  order: 4
+
+insurance:
+  config: "Insurance"
+  tldr: "In Insurance"
+  body: "Insurance"
+  order: 5

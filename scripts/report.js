@@ -6,6 +6,8 @@
  *
  * Usage:
  *   bun scripts/report.js --test              # Last 7 days
+ *   bun scripts/report.js --week 9            # ISO week 9 of current year
+ *   bun scripts/report.js --week 9 --year 2026
  *   bun scripts/report.js --start-date 2026-02-13 --end-date 2026-02-20
  */
 
@@ -13,6 +15,8 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
+import { getISOWeekNumber, getISOYearForWeek, getWeekWindow } from './lib/week.js';
+import { loadSectorNames } from './lib/prompt.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -20,18 +24,33 @@ const ROOT = join(__dirname, '..');
 const sectorsConfig = yaml.load(readFileSync(join(ROOT, 'config', 'sectors.yaml'), 'utf8'));
 const offLimits = yaml.load(readFileSync(join(ROOT, 'config', 'off-limits.yaml'), 'utf8'));
 
-function parseArgs() {
+// Canonical sector ordering and display names from config
+const sectorNamesConfig = loadSectorNames();
+const SECTOR_ORDER = Object.entries(sectorNamesConfig)
+  .sort((a, b) => a[1].order - b[1].order)
+  .map(([key]) => key);
+const SECTOR_DISPLAY_NAMES = Object.fromEntries(
+  Object.entries(sectorNamesConfig).map(([key, val]) => [key, val.config])
+);
+
+function parseArgs(argv) {
   const args = {};
-  const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--test') args.test = true;
     if (argv[i] === '--start-date') args.startDate = argv[++i];
     if (argv[i] === '--end-date') args.endDate = argv[++i];
+    if (argv[i] === '--week') args.week = parseInt(argv[++i], 10);
+    if (argv[i] === '--year') args.year = parseInt(argv[++i], 10);
   }
   return args;
 }
 
 function getDateWindow(args) {
+  if (args.week) {
+    const year = args.year || new Date().getFullYear();
+    const { start, end } = getWeekWindow(args.week, year);
+    return { startDate: start, endDate: end };
+  }
   const today = new Date();
   if (args.test) {
     const start = new Date(today);
@@ -110,11 +129,9 @@ function formatDate(dateStr) {
   } catch { return dateStr; }
 }
 
+// Replaced naive day-of-year/7 math with proper ISO week calculation
 function getWeekNumber(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00Z');
-  const startOfYear = new Date(d.getFullYear(), 0, 1);
-  const diff = d - startOfYear;
-  return Math.ceil(diff / (7 * 24 * 60 * 60 * 1000));
+  return getISOWeekNumber(dateStr);
 }
 
 function summariseSector(articles, sectorName, displayName) {
@@ -171,20 +188,12 @@ function generateReport(articles, window) {
   const grouped = groupBySector(deduplicated);
   const weeksRange = `${formatDate(window.startDate)} - ${formatDate(window.endDate)}`;
   const weekNum = getWeekNumber(window.endDate);
-
-  const sectorOrder = ['general', 'biopharma', 'medtech', 'manufacturing', 'insurance'];
-  const sectorDisplayNames = {
-    general: 'General AI',
-    biopharma: 'Pharma & Biopharma',
-    medtech: 'MedTech',
-    manufacturing: 'Complex & Advanced Manufacturing',
-    insurance: 'Insurance',
-  };
+  const weekYear = getISOYearForWeek(window.endDate);
 
   const offLimitConflicts = checkOffLimitsReport(deduplicated, offLimits);
   const weeksChecked = Object.keys(offLimits).join(', ');
 
-  let report = `# SNI Research Pack: Week ${weekNum}, 2026
+  let report = `# SNI Research Pack: Week ${weekNum}, ${weekYear}
 Generated: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
 Date range: ${weeksRange}
 Total verified articles: ${deduplicated.length}
@@ -195,10 +204,10 @@ Total verified articles: ${deduplicated.length}
 
   // Headline summary table
   report += `## Headlines Overview\n\n`;
-  for (const sector of sectorOrder) {
+  for (const sector of SECTOR_ORDER) {
     const articles = grouped[sector];
     if (!articles || articles.length === 0) continue;
-    const name = sectorDisplayNames[sector] || sector;
+    const name = SECTOR_DISPLAY_NAMES[sector] || sector;
     report += `**${name}** (${articles.length})\n`;
     for (const a of articles) {
       report += `• ${a.title} [${a.source}, ${a.date_published}]\n`;
@@ -209,9 +218,9 @@ Total verified articles: ${deduplicated.length}
   report += '---\n\n';
 
   // Detailed sector sections
-  for (const sector of sectorOrder) {
+  for (const sector of SECTOR_ORDER) {
     const sectorArticles = grouped[sector];
-    const displayName = sectorDisplayNames[sector] || sector;
+    const displayName = SECTOR_DISPLAY_NAMES[sector] || sector;
     if (sectorArticles && sectorArticles.length > 0) {
       report += summariseSector(sectorArticles, sector, displayName);
       report += '---\n\n';
@@ -233,22 +242,22 @@ Total verified articles: ${deduplicated.length}
 
   // Stats
   report += `## Collection Statistics\n`;
-  for (const sector of sectorOrder) {
+  for (const sector of SECTOR_ORDER) {
     const count = grouped[sector]?.length || 0;
-    const name = sectorDisplayNames[sector] || sector;
+    const name = SECTOR_DISPLAY_NAMES[sector] || sector;
     report += `- ${name}: ${count} articles\n`;
   }
 
-  return { report, stats: { total: deduplicated.length, bySector: Object.fromEntries(sectorOrder.map(s => [s, grouped[s]?.length || 0])) } };
+  return { report, stats: { total: deduplicated.length, bySector: Object.fromEntries(SECTOR_ORDER.map(s => [s, grouped[s]?.length || 0])) } };
 }
 
-async function main() {
-  const args = parseArgs();
+export async function runReport(args = {}) {
   const window = getDateWindow(args);
 
   console.log('');
   console.log('═══════════════════════════════════════════════');
   console.log('  SNI Research Tool - Report');
+  if (args.week) console.log(`  Week mode: Week ${args.week}, ${args.year || new Date().getFullYear()}`);
   console.log(`  Date window: ${window.startDate} → ${window.endDate}`);
   console.log('═══════════════════════════════════════════════');
   console.log('');
@@ -258,7 +267,7 @@ async function main() {
 
   if (articles.length === 0) {
     console.log('No articles found. Run fetch.js first.');
-    return;
+    return { total: 0, bySector: {}, reportPath: null };
   }
 
   const { report, stats } = generateReport(articles, window);
@@ -268,7 +277,12 @@ async function main() {
   const weekNum = getWeekNumber(window.endDate);
   const suffix = args.test ? 'test' : `week-${weekNum}`;
   const reportPath = join(ROOT, 'output', `${window.endDate}-${suffix}-research.md`);
-  writeFileSync(reportPath, report);
+  try {
+    writeFileSync(reportPath, report);
+  } catch (err) {
+    console.warn(`Failed to save report: ${err.message}`);
+    return { ...stats, reportPath: null };
+  }
 
   console.log('');
   console.log('═══════════════════════════════════════════════');
@@ -289,20 +303,28 @@ async function main() {
     if (!grouped[a.sector]) grouped[a.sector] = [];
     grouped[a.sector].push(a);
   }
-  const sectorOrder = ['general', 'biopharma', 'medtech', 'manufacturing', 'insurance'];
-  const sectorDisplayNames = { general: 'General AI', biopharma: 'Pharma & Biopharma', medtech: 'MedTech', manufacturing: 'Manufacturing', insurance: 'Insurance' };
-  for (const sector of sectorOrder) {
+  for (const sector of SECTOR_ORDER) {
     const sArticles = grouped[sector];
     if (!sArticles || sArticles.length === 0) continue;
-    console.log(`\n${sectorDisplayNames[sector] || sector} (${sArticles.length}):`);
+    console.log(`\n${SECTOR_DISPLAY_NAMES[sector] || sector} (${sArticles.length}):`);
     for (const a of sArticles) {
       console.log(`  • ${a.title.slice(0, 80)} [${a.date_published}]`);
     }
   }
   console.log('');
+
+  return { ...stats, reportPath };
 }
 
-main().catch(e => {
-  console.error('Fatal error:', e);
-  process.exit(1);
-});
+if (import.meta.main) {
+  const args = parseArgs(process.argv.slice(2));
+  runReport(args)
+    .then(stats => {
+      console.log(`Result: ${stats.total} articles, report: ${stats.reportPath || 'none'}`);
+      process.exit(0);
+    })
+    .catch(e => {
+      console.error('Fatal error:', e);
+      process.exit(1);
+    });
+}

@@ -1,8 +1,3 @@
-# SNI Research Tool - Off-Limits Stories
-# Stories covered in previous weeks must not repeat.
-# This list is cumulative. Add new entries after each week's report publishes.
-# Format: company + topic. Both are checked (case-insensitive) against article title + text.
-
 week_7:
   - company: Takeda
     topic: Iambic AI drug discovery partnership
@@ -10,7 +5,6 @@ week_7:
     topic: IsoDDE protein design
   - company: Generate Biomedicines
     topic: IPO filing
-
 week_8:
   - company: Merck
     topic: Mayo Clinic AI drug discovery partnership
@@ -38,3 +32,54 @@ week_8:
     topic: pharma AI operations
   - company: Semiconductor
     topic: equipment market GlobeNewsWire
+week_9:
+  - company: DeepSeek
+    topic: access US chipmakers
+  - company: The SaaSpocalypse
+    topic: stack war
+  - company: Nvidia Q4
+    topic: reinforces hardware layer's dominance
+  - company: AI
+    topic: chip capital surges toward specific positions
+  - company: A
+    topic: fictional memo rattles market value
+  - company: IQVIA
+    topic: Charles River discovery assets
+  - company: Bruker and Noetik
+    topic: spatial biology AI
+  - company: BreezeBio
+    topic: genetic medicine delivery
+  - company: DeepHealth
+    topic: CE mark remote imaging platform
+  - company: Oura
+    topic: proprietary women's health AI
+  - company: RLWRLD
+    topic: industrial robotics AI
+  - company: Axelera AI
+    topic: edge AI chips
+  - company: Apple
+    topic: Mac mini production US
+  - company: AI
+    topic: patents emerge competitive weapon
+  - company: Broker
+    topic: stocks fall AI displacement fear returns
+  - company: Concirrus
+    topic: Inspire underwriting platform
+  - company: General Magic
+    topic: SMS-based insurance AI
+  - company: The SaaSpocalypse'
+    topic: '''SaaSpocalypse'' sell-off'
+  - company: HSBC
+    topic: incumbents
+  - company: Nvidia
+    topic: reported Q4 revenue
+  - company: Anthropic
+    topic: pushed enterprise
+  - company: Meta
+    topic: deal AMD
+  - company: Bruker
+    topic: expanded collaboration Noetik
+  - company: State Farm, USAA and Allstate
+    topic: filed AI patents
+  - company: Clear Group CEO Mike Edgeley
+    topic: argued

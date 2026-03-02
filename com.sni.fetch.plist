@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.sni.fetch</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/scott/.bun/bin/bun</string>
+		<string>/Users/scott/Projects/sni-research-v2/scripts/pipeline.js</string>
+		<string>--mode</string>
+		<string>daily</string>
+	</array>
+
+	<key>StartCalendarInterval</key>
+	<array>
+		<!-- Monday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>1</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Tuesday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>2</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Wednesday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>3</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Thursday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>4</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Saturday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>6</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<!-- Sunday -->
+		<dict>
+			<key>Weekday</key>
+			<integer>7</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/scott/Projects/sni-research-v2</string>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/Users/scott/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>/Users/scott/Projects/sni-research-v2/logs/fetch.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/Users/scott/Projects/sni-research-v2/logs/fetch-error.log</string>
+
+	<key>Nice</key>
+	<integer>10</integer>
+</dict>
+</plist>
