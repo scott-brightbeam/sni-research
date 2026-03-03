@@ -45,7 +45,7 @@
 .filter-bar select:focus,
 .filter-bar input:focus {
   border-color: var(--terra);
-  box-shadow: 0 0 0 2px rgba(212, 113, 78, 0.2);
+  box-shadow: var(--focus-ring);
 }
 
 .table-wrapper { overflow-x: auto; }
@@ -70,7 +70,7 @@ th {
 
 td {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--hover-subtle);
   vertical-align: middle;
 }
 
@@ -122,3 +122,7 @@ tr:hover td { background: var(--surface-hover); }
 
 .btn-primary { background: var(--terra); color: white; }
 .btn-primary:hover { background: var(--terra-dark); }
+
+.filter-search { flex: 1; }
+.card-flush { padding: 0; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }

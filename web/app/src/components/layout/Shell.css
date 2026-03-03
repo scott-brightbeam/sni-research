@@ -22,3 +22,11 @@
   font-weight: 700;
   color: var(--text-primary);
 }
+
+.placeholder-text {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  color: var(--cloudy);
+  text-align: center;
+  padding: 40px;
+}

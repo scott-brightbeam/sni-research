@@ -4,9 +4,10 @@ import { formatDuration, formatRelativeTime } from '../lib/format'
 import './Dashboard.css'
 
 export default function Dashboard() {
-  const { status, loading } = useStatus()
+  const { status, loading, error } = useStatus()
 
   if (loading) return <div className="loading">Loading...</div>
+  if (error) return <div className="empty">Failed to load: {error}</div>
   if (!status) return <div className="empty">No data available</div>
 
   const { lastRun, articles, nextPipeline } = status

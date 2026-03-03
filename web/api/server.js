@@ -4,7 +4,7 @@ import { getArticles, getArticle, getFlaggedArticles } from './routes/articles.j
 const PORT = 3900
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'http://localhost:5173',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
@@ -51,7 +51,7 @@ const server = Bun.serve({
       }
 
       // Single article: /api/articles/:date/:sector/:slug
-      const articleMatch = path.match(/^\/api\/articles\/(\d{4}-\d{2}-\d{2})\/([^/]+)\/([^/]+)$/)
+      const articleMatch = path.match(/^\/api\/articles\/(\d{4}-\d{2}-\d{2})\/([\w-]+)\/([\w-]+)$/)
       if (articleMatch && req.method === 'GET') {
         const [, date, sector, slug] = articleMatch
         const article = await getArticle(date, sector, slug)

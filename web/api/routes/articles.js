@@ -1,71 +1,53 @@
-import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
-import { join, resolve, basename } from 'path'
+import { readFileSync, existsSync } from 'fs'
+import { join, resolve } from 'path'
+import { walkArticleDir, validateParam } from '../lib/walk.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
-export async function getArticles({ sector, date, week, search } = {}) {
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return { articles: [], total: 0 }
+export async function getArticles({ sector, date, search, limit, offset } = {}) {
+  const allMatched = []
 
-  const articles = []
-  const dates = readdirSync(verifiedDir)
-    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-    .sort()
-    .reverse()
-
-  for (const d of dates) {
-    if (date && d !== date) continue
-
-    const datePath = join(verifiedDir, d)
-    if (!statSync(datePath).isDirectory()) continue
-
-    const sectors = readdirSync(datePath).filter(s => {
-      const p = join(datePath, s)
-      return existsSync(p) && statSync(p).isDirectory()
-    })
-
-    for (const s of sectors) {
-      if (sector && s !== sector) continue
-
-      const sectorPath = join(datePath, s)
-      const files = readdirSync(sectorPath).filter(f => f.endsWith('.json'))
-
-      for (const f of files) {
-        try {
-          const raw = JSON.parse(readFileSync(join(sectorPath, f), 'utf-8'))
-          const slug = basename(f, '.json')
-
-          const article = {
-            slug,
-            title: raw.title,
-            url: raw.url,
-            source: raw.source,
-            sector: raw.sector || s,
-            date_published: raw.date_published || d,
-            date_confidence: raw.date_confidence,
-            date_verified_method: raw.date_verified_method,
-            snippet: raw.snippet || (raw.full_text || '').slice(0, 300),
-            score: raw.score ?? null,
-            keywords_matched: raw.keywords_matched || [],
-            scraped_at: raw.scraped_at,
-            source_type: raw.source_type
-          }
-
-          if (search) {
-            const hay = `${article.title} ${article.source} ${article.snippet}`.toLowerCase()
-            if (!hay.includes(search.toLowerCase())) continue
-          }
-
-          articles.push(article)
-        } catch { /* skip malformed files */ }
-      }
+  walkArticleDir('verified', (raw, { date: d, sector: s, slug }) => {
+    const article = {
+      slug,
+      title: raw.title,
+      url: raw.url,
+      source: raw.source,
+      sector: raw.sector || s,
+      date_published: raw.date_published || d,
+      date_confidence: raw.date_confidence,
+      date_verified_method: raw.date_verified_method,
+      snippet: raw.snippet || (raw.full_text || '').slice(0, 300),
+      score: raw.score ?? null,
+      keywords_matched: raw.keywords_matched || [],
+      scraped_at: raw.scraped_at,
+      source_type: raw.source_type,
     }
-  }
 
-  return { articles, total: articles.length }
+    if (search) {
+      const hay = `${article.title} ${article.source} ${article.snippet}`.toLowerCase()
+      if (!hay.includes(search.toLowerCase())) return
+    }
+
+    allMatched.push(article)
+  }, { sector, date })
+
+  const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
+  const off = Math.max(parseInt(offset) || 0, 0)
+
+  return {
+    articles: allMatched.slice(off, off + lim),
+    total: allMatched.length,
+    limit: lim,
+    offset: off,
+  }
 }
 
 export async function getArticle(date, sector, slug) {
+  validateParam(date, 'date')
+  validateParam(sector, 'sector')
+  validateParam(slug, 'slug')
+
   const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
   if (!existsSync(filePath)) return null
 
@@ -83,54 +65,26 @@ export async function getArticle(date, sector, slug) {
 }
 
 export async function getFlaggedArticles() {
-  const reviewDir = join(ROOT, 'data/review')
-  if (!existsSync(reviewDir)) return { articles: [], total: 0 }
-
   const articles = []
-  const dates = readdirSync(reviewDir)
-    .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-    .sort()
-    .reverse()
 
-  for (const d of dates) {
-    const datePath = join(reviewDir, d)
-    if (!statSync(datePath).isDirectory()) continue
+  walkArticleDir('review', (raw, { date, sector, slug, sectorPath }) => {
+    const reasonPath = join(sectorPath, `${slug}-reason.txt`)
+    const reason = existsSync(reasonPath)
+      ? readFileSync(reasonPath, 'utf-8').trim()
+      : null
 
-    const sectors = readdirSync(datePath).filter(s => {
-      const p = join(datePath, s)
-      return existsSync(p) && statSync(p).isDirectory()
+    articles.push({
+      slug,
+      title: raw.title,
+      url: raw.url,
+      source: raw.source,
+      sector: raw.sector || sector,
+      date_published: raw.date_published || date,
+      score: raw.score ?? null,
+      reason,
+      flagged: true,
     })
-
-    for (const s of sectors) {
-      const sectorPath = join(datePath, s)
-      const files = readdirSync(sectorPath).filter(f => f.endsWith('.json'))
-
-      for (const f of files) {
-        try {
-          const raw = JSON.parse(readFileSync(join(sectorPath, f), 'utf-8'))
-          const slug = basename(f, '.json')
-
-          // Check for reason file
-          const reasonPath = join(sectorPath, `${slug}-reason.txt`)
-          const reason = existsSync(reasonPath)
-            ? readFileSync(reasonPath, 'utf-8').trim()
-            : null
-
-          articles.push({
-            slug,
-            title: raw.title,
-            url: raw.url,
-            source: raw.source,
-            sector: raw.sector || s,
-            date_published: raw.date_published || d,
-            score: raw.score ?? null,
-            reason,
-            flagged: true
-          })
-        } catch { /* skip */ }
-      }
-    }
-  }
+  })
 
   return { articles, total: articles.length }
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useArticles } from '../hooks/useArticles'
+import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import SectorBadge from '../components/shared/SectorBadge'
 import { formatDate } from '../lib/format'
 import './Articles.css'
@@ -12,23 +14,26 @@ export default function Articles() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
 
-  const { articles, total, loading } = useArticles(
-    tab === 'all' ? { sector, date, search } : {}
-  )
+  const debouncedSearch = useDebouncedValue(search, 300)
+
+  const allResult = useArticles({ sector, date, search: debouncedSearch })
+  const flaggedResult = useFlaggedArticles()
+
+  const { articles, total, loading, error } = tab === 'all' ? allResult : flaggedResult
 
   return (
     <div>
       <div className="page-header">
         <h2>Articles</h2>
-        <button className="btn btn-primary">+ Ingest URL</button>
+        <button className="btn btn-primary" disabled>+ Ingest URL (coming soon)</button>
       </div>
 
       <div className="tabs">
         <button className={`tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-          All articles <span className="tab-count">({total})</span>
+          All articles <span className="tab-count">({allResult.total})</span>
         </button>
         <button className={`tab ${tab === 'flagged' ? 'active' : ''}`} onClick={() => setTab('flagged')}>
-          Flagged
+          Flagged <span className="tab-count">({flaggedResult.total})</span>
         </button>
       </div>
 
@@ -45,14 +50,16 @@ export default function Articles() {
             placeholder="Search articles..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1 }}
+            className="filter-search"
           />
         </div>
       )}
 
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card card-flush">
         {loading ? (
-          <div className="loading" style={{ padding: 40 }}>Loading...</div>
+          <div className="placeholder-text">Loading...</div>
+        ) : error ? (
+          <div className="placeholder-text">Failed to load articles: {error}</div>
         ) : (
           <div className="table-wrapper">
             <table>
@@ -62,7 +69,7 @@ export default function Articles() {
                   <th>Sector</th>
                   <th>Date</th>
                   <th>Score</th>
-                  <th>Confidence</th>
+                  <th>{tab === 'flagged' ? 'Reason' : 'Confidence'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,17 +83,17 @@ export default function Articles() {
                     <td className="cell-meta">{formatDate(a.date_published)}</td>
                     <td>
                       <span className={`score ${scoreClass(a.score)}`}>
-                        {a.score ?? '—'}
+                        {a.score ?? '\u2014'}
                       </span>
                     </td>
                     <td className="cell-meta cell-confidence">
-                      {a.date_confidence || '—'}
+                      {tab === 'flagged' ? (a.reason || '\u2014') : (a.date_confidence || '\u2014')}
                     </td>
                   </tr>
                 ))}
                 {articles.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: 40, color: 'var(--cloudy)' }}>
+                    <td colSpan={5} className="placeholder-text">
                       No articles found
                     </td>
                   </tr>

@@ -1,9 +1,9 @@
 export const SECTOR_COLOURS = {
-  general: { color: 'var(--terra)', bg: 'rgba(212, 113, 78, 0.15)' },
-  biopharma: { color: 'var(--sage)', bg: 'rgba(111, 165, 132, 0.15)' },
-  medtech: { color: 'var(--blue)', bg: 'rgba(124, 173, 214, 0.15)' },
-  manufacturing: { color: 'var(--brown)', bg: 'rgba(160, 139, 109, 0.15)' },
-  insurance: { color: 'var(--purple)', bg: 'rgba(173, 160, 208, 0.15)' },
+  general:       { color: 'var(--terra)',   bg: 'var(--terra-15)' },
+  biopharma:     { color: 'var(--sage)',    bg: 'var(--sage-15)' },
+  medtech:       { color: 'var(--blue)',    bg: 'var(--blue-15)' },
+  manufacturing: { color: 'var(--brown)',   bg: 'var(--brown-15)' },
+  insurance:     { color: 'var(--purple)',  bg: 'var(--purple-15)' },
 }
 
 export const SECTOR_LABELS = {

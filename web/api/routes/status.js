@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
+import { readdirSync, readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
+import { walkArticleDir } from '../lib/walk.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
@@ -48,44 +49,18 @@ function getLastRun() {
 }
 
 function getArticleCounts() {
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return { today: 0, total: 0, byDate: {}, bySector: {} }
-
   const byDate = {}
   const bySector = {}
   let total = 0
 
-  const dates = readdirSync(verifiedDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-
-  for (const date of dates) {
-    const datePath = join(verifiedDir, date)
-    if (!statSync(datePath).isDirectory()) continue
-
-    let dateCount = 0
-    const sectors = readdirSync(datePath).filter(s => {
-      const p = join(datePath, s)
-      return existsSync(p) && statSync(p).isDirectory()
-    })
-
-    for (const sector of sectors) {
-      const sectorPath = join(datePath, sector)
-      const articles = readdirSync(sectorPath).filter(f => f.endsWith('.json'))
-      dateCount += articles.length
-      bySector[sector] = (bySector[sector] || 0) + articles.length
-    }
-
-    byDate[date] = dateCount
-    total += dateCount
-  }
+  walkArticleDir('verified', (_raw, { date, sector }) => {
+    byDate[date] = (byDate[date] || 0) + 1
+    bySector[sector] = (bySector[sector] || 0) + 1
+    total++
+  })
 
   const today = new Date().toISOString().split('T')[0]
-
-  return {
-    today: byDate[today] || 0,
-    total,
-    byDate,
-    bySector
-  }
+  return { today: byDate[today] || 0, total, byDate, bySector }
 }
 
 function getNextPipeline() {
@@ -103,10 +78,14 @@ function getNextPipeline() {
   nextFriday.setDate(now.getDate() + daysUntilFriday)
   nextFriday.setHours(5, 30, 0, 0)
 
-  // Next daily fetch at 04:00 tomorrow
+  // Next daily fetch at 04:00
   const nextDaily = new Date(now)
-  nextDaily.setDate(now.getDate() + 1)
-  nextDaily.setHours(4, 0, 0, 0)
+  if (now.getHours() < 4) {
+    nextDaily.setHours(4, 0, 0, 0)       // today at 4am
+  } else {
+    nextDaily.setDate(now.getDate() + 1)
+    nextDaily.setHours(4, 0, 0, 0)       // tomorrow at 4am
+  }
 
   return {
     nextFriday: nextFriday.toISOString(),

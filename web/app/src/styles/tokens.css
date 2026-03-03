@@ -13,6 +13,13 @@
   --blue: #7CADD6;
   --brown: #A08B6D;
   --purple: #ADA0D0;
+  --terra-15: rgba(212, 113, 78, 0.15);
+  --sage-15: rgba(111, 165, 132, 0.15);
+  --blue-15: rgba(124, 173, 214, 0.15);
+  --brown-15: rgba(160, 139, 109, 0.15);
+  --purple-15: rgba(173, 160, 208, 0.15);
+  --stage-bg: rgba(255, 255, 255, 0.03);
+  --focus-ring: 0 0 0 2px rgba(212, 113, 78, 0.2);
   --shadow-subtle: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.2);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
