@@ -1,7 +1,5 @@
-const API_BASE = 'http://localhost:3900'
-
 export async function apiFetch(path, opts = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts
   })
