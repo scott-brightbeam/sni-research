@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ingest-server",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["scripts/server.js"],
+      "port": 3847
+    },
+    {
+      "name": "web-api",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["--watch", "web/api/server.js"],
+      "port": 3900
+    }
+  ]
+}

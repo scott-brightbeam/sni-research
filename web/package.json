@@ -1,0 +1,9 @@
+{
+  "name": "sni-web",
+  "private": true,
+  "scripts": {
+    "dev": "cd app && bun run dev",
+    "api": "cd api && bun run dev",
+    "build": "cd app && bun run build"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "sni-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch server.js",
+    "start": "bun server.js",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "date-fns": "^3.6.0",
+    "js-yaml": "^4.1.0"
+  }
+}
