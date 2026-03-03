@@ -3,10 +3,12 @@
   --terra-light: #e08a6a;
   --terra-dark: #c15f3c;
   --pampas: #1a1816;
-  --white: #242220;
+  --card-bg: #242220;
   --cloudy: #8a8778;
-  --dark: #e8e6dc;
+  --text-primary: #e8e6dc;
   --light-gray: rgba(255, 255, 255, 0.08);
+  --hover-subtle: rgba(255, 255, 255, 0.04);
+  --terra-bg: rgba(212, 113, 78, 0.1);
   --sage: #6FA584;
   --blue: #7CADD6;
   --brown: #A08B6D;
@@ -26,7 +28,7 @@
 body {
   font-family: 'Lora', Georgia, serif;
   background: var(--pampas);
-  color: var(--dark);
+  color: var(--text-primary);
 }
 
 h1, h2, h3, h4, h5, h6, button, input, select, textarea, .label {
