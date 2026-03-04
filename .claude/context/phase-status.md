@@ -70,25 +70,41 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 2: Draft Editor ⬜ Not started
+## Phase 2: Draft Editor 🔧 In progress (Tasks 1–4 of 9 complete)
 
-### What to build
-- `web/api/routes/draft.js` — GET/PUT /api/draft, GET /api/draft/history
-- Rewrite `web/app/src/pages/Draft.jsx` — side-by-side editor + preview
-- `web/app/src/hooks/useDraft.js` — load/save draft
-- Review overlay (quality gate flags inline)
-- Evaluation scores sidebar
-- Link verification badges
+### Design & Plan
+- Design doc: `docs/plans/2026-03-03-draft-editor-design.md`
+- Implementation plan: `docs/plans/2026-03-03-draft-editor-plan.md`
+- Execution method: subagent-driven-development (same session)
+
+### Completed tasks
+1. ✅ **react-markdown installed** (v10.1.0) — `web/app/package.json`
+2. ✅ **getDraft route** — `web/api/routes/draft.js` + 8 tests
+3. ✅ **saveDraft route** — added to draft.js + 4 tests (12 total)
+4. ✅ **getDraftHistory route** — added to draft.js + 2 tests (14 total)
+
+### Remaining tasks
+5. ⬜ Wire draft routes into server.js (import + route handlers + err.status passthrough)
+6. ⬜ useDraft hook (`web/app/src/hooks/useDraft.js`)
+7. ⬜ Draft page rewrite (`Draft.jsx` + `Draft.css`) — side-by-side editor + preview with link badges, review highlights
+8. ⬜ Full test suite + build verification
+9. ⬜ Update context files
+
+### Key decisions
+| Decision | Choice |
+|----------|--------|
+| Editor component | Plain textarea |
+| Markdown renderer | react-markdown (~50KB) |
+| Review flags | Inline markers in preview (highlighted with tooltip) |
+| Link badges | Icon after each link (✓/✗ with hover tooltip) |
+| API approach | Single bundled endpoint (GET returns everything, PUT returns full bundle) |
+| Eval scores | Placeholder panel ("No data" until pipeline generates evaluate-week-N.json) |
 
 ### Key data files
 - `output/draft-week-N.md` — the markdown draft
 - `output/review-week-N.json` — review results
 - `output/evaluate-week-N.json` — evaluation scores
 - `output/links-week-N.json` — link verification
-
-### Dependencies
-- None on Phase 1 changes (uses same API server, same Shell layout)
-- May need a markdown renderer (evaluate options when starting)
 
 ---
 
