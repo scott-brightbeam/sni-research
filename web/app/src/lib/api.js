@@ -23,3 +23,21 @@ export async function apiStream(path, body, signal) {
   }
   return res
 }
+
+export async function apiPatch(path, body) {
+  return apiFetch(path, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function apiDelete(path) {
+  return apiFetch(path, { method: 'DELETE' })
+}
+
+export async function apiPost(path, body) {
+  return apiFetch(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}

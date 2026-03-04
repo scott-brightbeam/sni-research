@@ -126,3 +126,185 @@ tr:hover td { background: var(--surface-hover); }
 .filter-search { flex: 1; }
 .card-flush { padding: 0; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Inline actions --- */
+.article-row { cursor: pointer; }
+.article-row.expanded td { background: var(--surface); }
+
+.cell-actions { position: relative; width: 180px; }
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+tr:hover .row-actions { opacity: 1; }
+
+.action-sector-select {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--cloudy);
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.action-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.flag-btn.flagged { color: var(--terra); }
+.delete-btn:hover { color: #e74c3c; }
+
+/* --- Delete confirm --- */
+.delete-confirm-row td {
+  background: rgba(231, 76, 60, 0.05);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+.btn-danger { background: #e74c3c; color: white; }
+.btn-danger:hover { background: #c0392b; }
+.btn-ghost { background: var(--surface); color: var(--text-primary); border: 1px solid var(--light-gray); }
+.btn-ghost:hover { background: var(--surface-hover); }
+
+.action-error {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+/* --- Detail panel --- */
+.detail-row td { padding: 0 !important; border-bottom: 2px solid var(--terra-15); }
+
+.detail-panel {
+  padding: 20px 24px;
+  background: var(--surface);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+}
+
+.detail-text h4, .detail-meta h4 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cloudy);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.detail-fulltext {
+  font-size: 14px;
+  line-height: 1.7;
+  max-height: 400px;
+  overflow-y: auto;
+  color: var(--text-primary);
+}
+
+.detail-meta dl { display: grid; grid-template-columns: 100px 1fr; gap: 6px 12px; font-size: 13px; }
+.detail-meta dt { color: var(--cloudy); font-family: 'Poppins', sans-serif; }
+.detail-meta dd { color: var(--text-primary); margin: 0; word-break: break-all; }
+.detail-meta a { color: var(--terra); text-decoration: none; }
+.detail-meta a:hover { text-decoration: underline; }
+
+.keyword-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.keyword-pill {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--terra-15);
+  color: var(--terra);
+}
+
+/* --- Ingest form --- */
+.ingest-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--light-gray);
+}
+
+.ingest-url { flex: 1; min-width: 300px; }
+
+.ingest-url,
+.ingest-sector {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  padding: 8px 14px;
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.ingest-url:focus,
+.ingest-sector:focus {
+  border-color: var(--terra);
+  box-shadow: var(--focus-ring);
+}
+
+.ingest-banner {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.ingest-success { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+.ingest-error { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+.ingest-duplicate { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
+.ingest-warning { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
+
+/* --- Updated indicator --- */
+.updated-indicator {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-left: auto;
+}
+
+/* --- Score manual badge --- */
+.score-manual {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--cloudy);
+  border: 1px solid var(--light-gray);
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '../lib/api'
 
 export function useArticles(filters = {}) {
@@ -6,6 +6,8 @@ export function useArticles(filters = {}) {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const lastFetchTs = useRef(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -20,6 +22,7 @@ export function useArticles(filters = {}) {
       setArticles(data.articles)
       setTotal(data.total)
       setLoading(false)
+      lastFetchTs.current = Date.now()
     } catch (err) {
       setError(err.message)
       setLoading(false)
@@ -28,5 +31,19 @@ export function useArticles(filters = {}) {
 
   useEffect(() => { load() }, [load])
 
-  return { articles, total, loading, error, reload: load }
+  // Poll for changes every 15s
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const { timestamp } = await apiFetch('/api/articles/last-updated')
+        setLastUpdated(timestamp)
+        if (timestamp > lastFetchTs.current) {
+          load()
+        }
+      } catch { /* ignore polling errors */ }
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [load])
+
+  return { articles, total, loading, error, reload: load, lastUpdated }
 }
