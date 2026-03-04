@@ -172,45 +172,45 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 4: Polish 📐 Designed, plan pending
+## Phase 4: Polish ✅ Complete
 
 ### Design & Plan
 - Design doc: `docs/plans/2026-03-04-phase4-polish-design.md` (9 sections, approved)
-- Implementation plan: pending (next step)
+- Implementation plan: `docs/plans/2026-03-04-phase4-polish-plan.md` (8 tasks with exact code)
+- Execution method: subagent-driven-development (same session)
 
-### What to build
+### Completed tasks
+1. ✅ **Inline article actions — API** — PATCH/DELETE `/api/articles/:date/:sector/:slug` (sector move, flag/unflag, soft delete to `data/deleted/`)
+2. ✅ **Manual ingest — API proxy** — POST `/api/articles/ingest` proxies to pipeline ingest server (port 3847), 30s timeout, ingest health check in status endpoint
+3. ✅ **Real-time updates** — GET `/api/articles/last-updated` (stat-based mtime), client polls every 15s, "Updated just now" indicator
+4. ✅ **Inline article actions — React UI** — hover-reveal actions, sector dropdown, flag toggle, delete with confirmation, detail panel (click-to-expand), ingest form with colour-coded banners
+5. ✅ **Config editor — API + write-validate-swap** — GET/PUT `/api/config/:name`, structural validation, `.tmp` → parse → validate → `.bak` → rename, js-yaml dependency
+6. ✅ **Config editor — React page** — Three tabs (Off-limits, Sources, Sectors), `useConfig` hook, inline editing, keyword pills, read-only sections
+7. ✅ **UI polish pass** — rgba() token compliance, hover/transition states, focus rings, inline style extraction, 3 new tokens
+8. ✅ **Context files updated**
 
-**Inline article actions (PATCH/DELETE):**
-- Hover-reveal actions cell per row: sector dropdown, flag toggle, delete button
-- PATCH `/api/articles/:date/:sector/:slug` — sector move, flag/unflag
-- DELETE `/api/articles/:date/:sector/:slug` — soft delete to `data/deleted/`
-- Inline confirmation for delete, 409 on slug collision
+### Verified
+- 68/68 API tests pass (279 assertions across 7 test files)
+- Vite build succeeds (230 modules, 0 errors)
+- Pipeline isolation confirmed (dry run succeeds)
 
-**Manual ingest:**
-- Inline form below Articles header (URL input, optional sector override)
-- POST `/api/articles/ingest` proxies to pipeline ingest server (port 3847)
-- 30s timeout, loading states ("Scraping..." → "Processing..."), colour-coded result banners
-- Ingest health check folded into existing `GET /api/status` response
+### What was built
 
-**Real-time updates:**
-- `GET /api/articles/last-updated` — stat all ~53 sector directories, return max mtime
-- Client polls every 15s, auto-reloads when timestamp is newer
-- "Updated just now" / "Updated 2m ago" indicator below filter bar
+**API (`web/api/`):**
+- `routes/articles.js` — added patchArticle, deleteArticle, ingestArticle, getLastUpdated
+- `routes/config.js` — getConfig, putConfig with write-validate-swap pattern
+- `routes/status.js` — added ingest health check
+- `lib/walk.js` — added moveArticle, deleteArticle helpers
+- `config.test.js` — 20 tests for config read/write/validation
+- `server.js` — 5 new route handlers wired
 
-**Article detail panel:**
-- Click row to expand inline detail below it (one expanded at a time)
-- Full text (scrollable, max-height 400px), metadata grid, keyword pills, actions
-
-**Config editor (`/config` route):**
-- Three tabs: Off-limits | Sources | Sectors
-- Structured forms (not YAML editor), add/remove per item
-- Write-validate-swap pattern: serialize → .tmp → parse back → validate → .bak → rename
-- Structural validation schemas per config file
-- Preview before save (added/removed/modified summary)
-- `js-yaml` dependency added to `web/api/package.json`
-
-**UI polish:**
-- Spacing/padding audit, hover states, keyboard nav, loading skeletons, responsive check
+**React app (`web/app/src/`):**
+- `pages/Articles.jsx` — inline actions, detail panel, ingest form, real-time polling
+- `pages/Config.jsx` — three-tab config editor (OffLimitsTab, SourcesTab, SectorsTab)
+- `hooks/useConfig.js` — config load/save hook with mounted guard
+- `components/layout/Sidebar.jsx` — Config nav item + settings icon
+- `App.jsx` — Config route added
+- CSS polish across all pages — token compliance, hover states, focus rings
 
 ### Key decisions
 | Decision | Choice |
@@ -221,20 +221,8 @@ All 15 findings from final code review addressed:
 | Config write safety | Write-validate-swap with .bak backup |
 | Soft delete | Move to `data/deleted/` with `deleted_at` timestamp, no recovery UI |
 | Ingested article scores | Show "manual" badge (no scoring pipeline runs) |
-| Build order | Single phase, features 1-3 parallelisable, then sequential 4-8, polish last |
-
-### Build order
-| # | Feature | Depends on |
-|---|---------|-----------|
-| 1 | Inline article actions | None |
-| 2 | Manual ingest | None |
-| 3 | Real-time updates | None |
-| 4 | Article detail panel | After 1 |
-| 5 | Config editor — off-limits tab + API + write-validate-swap | js-yaml |
-| 6 | Config editor — sources tab | After 5 |
-| 7 | Config editor — sectors tab | After 5 |
-| 8 | Config page routing + sidebar link | After 5-7 |
-| 9 | UI polish pass | After everything |
+| Config page structure | Single component with three tab sub-components, shared useConfig hook |
+| Week number fix | ISO 8601 algorithm in Config.jsx (fixes known getWeekNumber bug) |
 
 ### Deferred
 - No undo for delete (soft delete is the safety net)

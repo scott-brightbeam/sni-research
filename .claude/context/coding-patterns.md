@@ -1,6 +1,6 @@
 # Coding Patterns
 
-Established conventions from Phase 1. Follow these in all new code.
+Established conventions from Phases 1–4. Follow these in all new code.
 
 ---
 
@@ -44,7 +44,7 @@ const server = Bun.serve({
 Async functions in `routes/*.js`, exported and imported by `server.js`.
 
 ```js
-// routes/example.js
+// routes/example.js — GET (read-only)
 import { walkArticleDir, validateParam } from '../lib/walk.js'
 
 export async function getThings(query) {
@@ -53,6 +53,43 @@ export async function getThings(query) {
   // Return plain objects — server.js wraps in json()
 }
 ```
+
+### Mutating route patterns (Phase 4)
+
+PATCH and DELETE for articles use the same regex capture + `validateParam` pattern:
+
+```js
+// PATCH /api/articles/:date/:sector/:slug
+const body = await req.json()
+// Validate each field explicitly — never spread raw body into fs writes
+if (body.flagged !== undefined) meta.flagged = Boolean(body.flagged)
+await writeFile(metaPath, JSON.stringify(meta, null, 2))
+return json(meta)
+```
+
+### Config route pattern (Phase 4)
+
+GET returns parsed JSON; PUT uses write-validate-swap:
+
+```js
+// routes/config.js
+import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'fs'
+
+export async function getConfig(name) {
+  return JSON.parse(readFileSync(configPath(name), 'utf-8'))
+}
+
+export async function putConfig(name, body) {
+  const tmp = path + '.tmp'
+  writeFileSync(tmp, JSON.stringify(body, null, 2))
+  JSON.parse(readFileSync(tmp, 'utf-8'))   // validate round-trip
+  copyFileSync(path, path + '.bak')        // backup
+  renameSync(tmp, path)                    // atomic swap
+  return JSON.parse(readFileSync(path, 'utf-8'))
+}
+```
+
+**Key:** Use static `import { readFileSync, ... } from 'fs'` — not dynamic `import('fs')`. Bun resolves static imports correctly in tests.
 
 ### Path resolution
 
@@ -120,6 +157,60 @@ export function useThings(filters = {}) {
   return { things, loading, error, reload: load }
 }
 ```
+
+### useConfig hook pattern (Phase 4)
+
+For config read/write with `saving` state and mounted guard:
+
+```js
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { apiFetch } from '../lib/api'
+
+export function useConfig(name) {
+  const mountedRef = useRef(true)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
+
+  // load() and save() guard all post-await state updates with:
+  //   if (!mountedRef.current) return
+  // save() re-throws errors so callers can react — but hook sets error state too.
+
+  return { data, loading, error, saving, save, reload: load }
+}
+```
+
+**Caller pattern** — all save handlers wrap in try/catch:
+```jsx
+async function handleSave() {
+  if (!draft) return
+  try {
+    await save(draft)
+    setDraft(null)
+  } catch {
+    // error state surfaced by hook — no extra handling needed
+  }
+}
+```
+
+### Mounted guard pattern (Phase 4)
+
+Any hook that does async work must guard post-await state updates:
+
+```js
+const mountedRef = useRef(true)
+useEffect(() => { return () => { mountedRef.current = false } }, [])
+
+// In async functions:
+const result = await apiFetch(...)
+if (!mountedRef.current) return
+setState(result)
+```
+
+Match the existing pattern in `useStatus.js` and `useConfig.js`.
 
 ### Page pattern
 
@@ -266,6 +357,11 @@ Each page has its own `.css` file imported at the top. Class names are unscoped 
 /* Sector badge backgrounds (15% opacity) */
 --terra-15, --sage-15, --blue-15, --brown-15, --purple-15
 
+/* Component backgrounds (Phase 4) */
+--code-bg: rgba(255,255,255,0.06);   /* Inline code */
+--pre-bg: rgba(0,0,0,0.3);          /* Code blocks */
+--terra-25: rgba(212,113,78,0.25);   /* Active toggle bg */
+
 /* Utility */
 --stage-bg: rgba(255,255,255,0.03);
 --focus-ring: 0 0 0 2px rgba(212,113,78,0.2);
@@ -295,7 +391,7 @@ export const SECTOR_COLOURS = {
 
 `web/api/tests/` using Bun's built-in test runner. Run with `cd web/api && bun test`.
 
-Currently: 48 tests, 246 assertions covering articles, status, draft, chat (threads, pins, usage), context assembly, and week calculation.
+Currently: 68 tests, 279 assertions covering articles (CRUD + inline actions), status, draft, chat (threads, pins, usage), context assembly, week calculation, config (read/write/validate-swap), ingest proxy, and last-updated polling.
 
 ### Build verification
 

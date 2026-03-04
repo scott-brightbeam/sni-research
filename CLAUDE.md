@@ -35,14 +35,14 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 - **API server:** `bun --watch web/api/server.js` (port 3900)
 - **Vite dev server:** `cd web/app && bun run dev` (port 5173, proxies `/api` to 3900)
 - **Pipeline ingest server:** `bun scripts/server.js` (port 3847 — rarely needed for UI work)
-- **Tests:** `cd web/api && bun test` (8 tests, 162 assertions)
+- **Tests:** `cd web/api && bun test` (68 tests, 279 assertions)
 - **Build:** `cd web/app && bun run build` (check for 0 errors)
 - **Launch configs:** `.claude/launch.json` has `web-api` and `ingest-server`
 
 ## Known issues
 
-- **`scripts/report.js` `getWeekNumber()`** uses naive day-of-year/7 math — produces wrong week numbers at year boundaries. Fix with date-fns when touched.
-- **Bun >=1.3 `.env` bug:** `process.env` doesn't auto-load `.env`. Pipeline scripts use `loadEnvKey()` workaround. Web API doesn't need API keys yet (Phase 3 will).
+- **`scripts/report.js` `getWeekNumber()`** uses naive day-of-year/7 math — produces wrong week numbers at year boundaries. Fix with date-fns when touched. (Web UI's `getCurrentWeekNumber()` in Config.jsx was fixed in Phase 4 with ISO 8601 algorithm.)
+- **Bun >=1.3 `.env` bug:** `process.env` doesn't auto-load `.env`. Pipeline scripts use `loadEnvKey()` workaround. Web API uses same workaround in `web/api/lib/env.js`.
 - **CORS:** API server only allows `localhost:5173`. If Vite port changes, update `server.js`.
 
 ## Current phase status
@@ -50,7 +50,7 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 - **Phase 1: Foundation** ✅ Complete (10 commits) — Dashboard, Articles, API server, design system
 - **Phase 2: Draft Editor** ✅ Complete — side-by-side editor, react-markdown preview, link badges, review highlights
 - **Phase 3: Co-pilot** ✅ Complete — streaming chat, thread/pin CRUD, article picker, model toggle, Draft panel
-- **Phase 4: Polish** 📐 Designed — design doc in `docs/plans/`, implementation plan pending
+- **Phase 4: Polish** ✅ Complete (10 commits) — article CRUD, detail panel, manual ingest, config editor, real-time polling, UI polish
 
 ## When to read context files
 
@@ -93,7 +93,8 @@ Analyse the current situation and invoke relevant skills:
 - **API routing:** `Bun.serve()` with regex matching on `url.pathname`. Route handlers in `web/api/routes/`.
 - **Path safety:** Route regex uses `([\w-]+)` captures. Handlers call `validateParam()` from `web/api/lib/walk.js`.
 - **React pages:** Self-contained in `web/app/src/pages/`. Hooks for data, CSS modules per page.
-- **Hooks:** Return `{ data, loading, error }` shape. Always handle all three states.
+- **Hooks:** Return `{ data, loading, error }` shape. Always handle all three states. Use `mountedRef` guard for post-await state updates.
+- **Config writes:** Write-validate-swap pattern (`→ .tmp → parse-back → .bak → rename`). See `coding-patterns.md`.
 - **Design system:** Dark mode. CSS custom properties in `web/app/src/styles/tokens.css`. Poppins (headings/UI) + Lora (body). See `coding-patterns.md` for full token list.
 - **No inline styles** — use CSS classes. No hardcoded `rgba()` — use tokens.
 
@@ -125,14 +126,15 @@ sni-research-v2/
 ├── web/              # ALL UI CODE LIVES HERE
 │   ├── api/          # Bun HTTP server (port 3900)
 │   │   ├── server.js
-│   │   ├── routes/   # articles.js, status.js (+ draft.js, chat.js in later phases)
-│   │   └── lib/      # walk.js (shared dir traversal + validation)
+│   │   ├── routes/   # articles.js, status.js, draft.js, chat.js, config.js
+│   │   ├── lib/      # walk.js, claude.js, env.js, context.js
+│   │   └── tests/    # 8 test files (68 tests, 279 assertions)
 │   └── app/          # Vite + React SPA
 │       └── src/
-│           ├── pages/       # Dashboard, Articles, Draft, Copilot
-│           ├── components/  # layout/ (Shell, Sidebar)
-│           ├── hooks/       # useStatus, useArticles, useFlaggedArticles, useDebouncedValue
-│           ├── lib/         # api.js (fetch wrapper), format.js (dates, colours)
+│           ├── pages/       # Dashboard, Articles, Draft, Copilot, Config
+│           ├── components/  # layout/ (Shell, Sidebar), DraftChatPanel
+│           ├── hooks/       # useStatus, useArticles, useFlaggedArticles, useDebouncedValue, useConfig
+│           ├── lib/         # api.js (fetch + stream wrappers), format.js (dates, colours)
 │           └── styles/      # tokens.css (design system)
 ├── docs/             # Specs, plans
 └── .claude/          # Context files, launch.json
