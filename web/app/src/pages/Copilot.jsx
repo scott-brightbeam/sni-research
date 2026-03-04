@@ -108,7 +108,7 @@ export default function Copilot() {
               </button>
             ))}
             {chat.threads.length === 0 && (
-              <div className="chat-empty" style={{ padding: '16px', fontSize: '12px' }}>
+              <div className="chat-empty chat-empty-sm">
                 No threads yet
               </div>
             )}
@@ -177,7 +177,7 @@ export default function Copilot() {
                           </button>
                         ))}
                         {articles.length === 0 && (
-                          <div style={{ padding: '12px', color: 'var(--cloudy)', fontSize: '12px' }}>
+                          <div className="picker-empty">
                             No articles this week
                           </div>
                         )}

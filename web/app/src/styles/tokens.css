@@ -18,6 +18,9 @@
   --blue-15: rgba(124, 173, 214, 0.15);
   --brown-15: rgba(160, 139, 109, 0.15);
   --purple-15: rgba(173, 160, 208, 0.15);
+  --code-bg: rgba(255, 255, 255, 0.06);
+  --pre-bg: rgba(0, 0, 0, 0.3);
+  --terra-25: rgba(212, 113, 78, 0.25);
   --stage-bg: rgba(255, 255, 255, 0.03);
   --focus-ring: 0 0 0 2px rgba(212, 113, 78, 0.2);
   --shadow-subtle: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.2);

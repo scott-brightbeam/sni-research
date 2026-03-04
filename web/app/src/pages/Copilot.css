@@ -91,6 +91,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-new-thread:hover {
@@ -161,6 +162,11 @@
   font-size: 14px;
 }
 
+.chat-empty-sm {
+  padding: 16px;
+  font-size: 12px;
+}
+
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -201,13 +207,13 @@
 .message.assistant ul,
 .message.assistant ol { padding-left: 20px; margin-bottom: 8px; }
 .message.assistant code {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--code-bg);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 13px;
 }
 .message.assistant pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--pre-bg);
   padding: 10px;
   border-radius: 6px;
   overflow-x: auto;
@@ -255,6 +261,7 @@
   font-size: 11px;
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
+  transition: all 0.15s;
 }
 
 .btn-pin:hover {
@@ -320,6 +327,11 @@
   font-weight: 600;
   color: var(--cloudy);
   cursor: pointer;
+  transition: all 0.15s;
+}
+
+.model-toggle button:hover:not(.active) {
+  color: var(--text-primary);
 }
 
 .model-toggle button.active {
@@ -337,6 +349,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-send:hover:not(:disabled) {
@@ -358,6 +371,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-stop:hover {
@@ -387,6 +401,7 @@
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-article-ref:hover {
@@ -440,4 +455,10 @@
 .article-picker-item-sector {
   color: var(--cloudy);
   font-size: 11px;
+}
+
+.picker-empty {
+  padding: 12px;
+  color: var(--cloudy);
+  font-size: 12px;
 }

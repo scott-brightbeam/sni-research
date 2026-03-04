@@ -41,7 +41,7 @@ export default function DraftChatPanel({ open, onClose, draftContent, week }) {
       </div>
 
       {chat.error && (
-        <div className="chat-error" style={{ margin: '8px 10px' }}>{chat.error}</div>
+        <div className="chat-error panel-chat-error">{chat.error}</div>
       )}
 
       <div className="panel-messages">

@@ -99,7 +99,7 @@ export default function Draft() {
         <button className={saveClass} disabled={!dirty || saving} onClick={save}>
           {saveLabel}
         </button>
-        {saveError && <span style={{ color: 'var(--terra)', fontSize: '12px' }}>{saveError}</span>}
+        {saveError && <span className="save-error">{saveError}</span>}
         {review && (
           <button
             className={`review-pill ${reviewPass ? 'pass' : 'fail'}`}

@@ -101,7 +101,10 @@
   cursor: pointer;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
+  transition: color 0.15s;
 }
+
+.readonly-week summary:hover { color: var(--text-primary); }
 
 .readonly-week ul {
   padding-left: 20px;
@@ -192,7 +195,7 @@
   padding: 2px 4px;
 }
 
-.sector-display-name:focus { border-bottom-color: var(--terra); }
+.sector-display-name:focus { border-bottom-color: var(--terra); box-shadow: var(--focus-ring); }
 .sector-key { font-size: 12px; color: var(--cloudy); }
 
 .keyword-group {
@@ -240,4 +243,4 @@
   outline: none;
 }
 
-.keyword-input:focus { border-color: var(--terra); }
+.keyword-input:focus { border-color: var(--terra); box-shadow: var(--focus-ring); }

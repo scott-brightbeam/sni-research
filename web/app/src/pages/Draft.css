@@ -47,6 +47,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-save:hover:not(:disabled) {
@@ -62,20 +63,28 @@
   background: var(--sage);
 }
 
+.save-error {
+  color: var(--terra);
+  font-size: 12px;
+}
+
 .review-pill {
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 500;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: none;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .review-pill.pass {
-  background: rgba(111, 165, 132, 0.15);
+  background: var(--sage-15);
   color: var(--sage);
 }
+
+.review-pill:hover { opacity: 0.8; }
 
 .review-pill.fail {
   background: var(--terra-15);
@@ -152,7 +161,7 @@
 .link-badge.dead { color: var(--terra); }
 
 .review-mark {
-  background: rgba(212, 113, 78, 0.25);
+  background: var(--terra-25);
   border-bottom: 2px solid var(--terra);
   cursor: help;
   position: relative;
@@ -168,6 +177,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .draft-chat-toggle:hover {
