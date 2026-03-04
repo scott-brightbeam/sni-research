@@ -1,5 +1,5 @@
 import { getStatus } from './routes/status.js'
-import { getArticles, getArticle, getFlaggedArticles } from './routes/articles.js'
+import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 
@@ -59,6 +59,17 @@ const server = Bun.serve({
         const article = await getArticle(date, sector, slug)
         if (!article) return json({ error: 'Not found' }, 404)
         return json(article)
+      }
+
+      if (articleMatch && req.method === 'PATCH') {
+        const [, date, sector, slug] = articleMatch
+        const body = await req.json()
+        return json(await patchArticle(date, sector, slug, body))
+      }
+
+      if (articleMatch && req.method === 'DELETE') {
+        const [, date, sector, slug] = articleMatch
+        return json(await deleteArticle(date, sector, slug))
       }
 
       // --- Draft ---
