@@ -409,13 +409,23 @@ async function generateDraft(anthropic, theme, researchContext, previousReport, 
   const totalInput = countTokens(system.template) + countTokens(userPrompt);
   log(`Draft generation: calling ${model} (input: ~${totalInput} tokens, max output: ${maxTokens})...`);
 
+  // Use streaming to avoid Bun connection timeouts on long generations
   const response = await withRetry(
-    () => anthropic.messages.create({
-      model,
-      max_tokens: maxTokens,
-      system: system.template,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
+    async () => {
+      const stream = anthropic.messages.stream({
+        model,
+        max_tokens: maxTokens,
+        system: system.template,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+
+      // Actively consume events to keep connection alive
+      let chunks = 0;
+      stream.on('text', () => { chunks++; });
+      const msg = await stream.finalMessage();
+      log(`Received ${chunks} text chunks via stream`);
+      return msg;
+    },
     { onRetry: (attempt, err) => warn(`Draft retry ${attempt}: ${err.message}`) }
   );
 
@@ -550,7 +560,7 @@ export async function runDraft(args = {}) {
     throw new Error('ANTHROPIC_API_KEY not found in .env — required for draft generation');
   }
 
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 }); // 10 min for long drafts
 
   // Step 1: Theme selection
   let theme;

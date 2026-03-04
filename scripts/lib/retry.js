@@ -18,11 +18,13 @@ const RETRY_STATUS_CODES = new Set([429, 503, 529]);
 export function shouldRetryApiError(error) {
   // Anthropic SDK includes status on the error object
   if (error.status && RETRY_STATUS_CODES.has(error.status)) return true;
+  // Anthropic SDK connection errors (wraps underlying ECONNRESET etc.)
+  if (error.constructor?.name === 'APIConnectionError') return true;
   // Network-level errors
   const msg = error.message || '';
   if (msg.includes('ECONNRESET') || msg.includes('ECONNREFUSED')) return true;
   if (msg.includes('ETIMEDOUT') || msg.includes('timed out') || msg.includes('timeout') || msg.includes('fetch failed')) return true;
-  if (msg.includes('network') || msg.includes('socket')) return true;
+  if (msg.includes('network') || msg.includes('socket') || msg.includes('Connection error')) return true;
   // Anthropic overloaded message
   if (msg.includes('overloaded')) return true;
   return false;
