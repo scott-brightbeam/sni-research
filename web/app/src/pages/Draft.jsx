@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import DraftChatPanel from '../components/DraftChatPanel'
 import './Draft.css'
 
 export default function Draft() {
@@ -13,6 +14,7 @@ export default function Draft() {
   } = useDraft()
 
   const [showFlags, setShowFlags] = useState(true)
+  const [panelOpen, setPanelOpen] = useState(false)
   const debouncedDraft = useDebouncedValue(draft, 300)
 
   const wordCount = useMemo(() => {
@@ -107,6 +109,13 @@ export default function Draft() {
             {reviewPass ? 'Pass' : `${reviewIssueCount} issue${reviewIssueCount !== 1 ? 's' : ''}`}
           </button>
         )}
+        <button
+          className={`draft-chat-toggle${panelOpen ? ' active' : ''}`}
+          onClick={() => setPanelOpen(p => !p)}
+          title="Toggle draft assistant"
+        >
+          Chat
+        </button>
       </div>
 
       <div className="draft-panes">
@@ -131,6 +140,13 @@ export default function Draft() {
         </span>
         <span>{wordCount.toLocaleString()} words</span>
       </div>
+
+      <DraftChatPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        draftContent={draft}
+        week={week}
+      />
     </div>
   )
 }

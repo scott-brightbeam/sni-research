@@ -158,6 +158,29 @@
   position: relative;
 }
 
+.draft-chat-toggle {
+  background: var(--surface);
+  border: 1px solid var(--light-gray);
+  border-radius: var(--radius);
+  color: var(--cloudy);
+  padding: 4px 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.draft-chat-toggle:hover {
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
+.draft-chat-toggle.active {
+  background: var(--terra-bg);
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
 .draft-footer {
   display: flex;
   justify-content: space-between;
