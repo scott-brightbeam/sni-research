@@ -57,7 +57,19 @@ export default function Draft() {
 
   if (loading) return <div className="loading">Loading...</div>
   if (error) return <div className="empty">Failed to load: {error}</div>
-  if (!draft && draft !== '') return <div className="empty">No draft found for this week</div>
+  if (!draft && draft !== '') return (
+    <div>
+      <div className="draft-toolbar">
+        <h2>Draft</h2>
+        <div className="week-nav">
+          <button disabled={!hasPrev} onClick={() => handleWeekNav(availableWeeks[weekIdx - 1])}>◀</button>
+          <span>Week {week}</span>
+          <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])}>▶</button>
+        </div>
+      </div>
+      <div className="empty">No draft found for this week</div>
+    </div>
+  )
 
   // Custom renderers for react-markdown
   const components = {

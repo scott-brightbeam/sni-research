@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
+import { getISOWeek } from '../lib/week.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 const OUTPUT = join(ROOT, 'output')
@@ -14,13 +15,27 @@ function readJsonSafe(path) {
 }
 
 function getAvailableWeeks() {
-  if (!existsSync(OUTPUT)) return []
-  const weeks = []
-  for (const f of readdirSync(OUTPUT)) {
-    const m = f.match(/^draft-week-(\d+)\.md$/)
-    if (m) weeks.push(parseInt(m[1]))
+  const weeks = new Set()
+
+  // Weeks with draft files
+  if (existsSync(OUTPUT)) {
+    for (const f of readdirSync(OUTPUT)) {
+      const m = f.match(/^draft-week-(\d+)\.md$/)
+      if (m) weeks.add(parseInt(m[1]))
+    }
   }
-  return weeks.sort((a, b) => a - b)
+
+  // Weeks with verified articles (same logic as status.js)
+  const verifiedDir = join(ROOT, 'data/verified')
+  if (existsSync(verifiedDir)) {
+    for (const dateDir of readdirSync(verifiedDir)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDir)) continue
+      const d = new Date(dateDir + 'T12:00:00Z')
+      if (!isNaN(d.getTime())) weeks.add(getISOWeek(d))
+    }
+  }
+
+  return [...weeks].sort((a, b) => a - b)
 }
 
 export async function getDraft({ week } = {}) {
@@ -38,11 +53,9 @@ export async function getDraft({ week } = {}) {
   }
 
   const draftPath = join(OUTPUT, `draft-week-${weekNum}.md`)
-  if (!existsSync(draftPath)) {
-    throw Object.assign(new Error(`Draft for week ${weekNum} not found`), { status: 404 })
-  }
+  const hasDraft = existsSync(draftPath)
 
-  const draft = readFileSync(draftPath, 'utf-8')
+  const draft = hasDraft ? readFileSync(draftPath, 'utf-8') : null
   const review = readJsonSafe(join(OUTPUT, `review-week-${weekNum}.json`))
   const links = readJsonSafe(join(OUTPUT, `links-week-${weekNum}.json`))
   const evaluate = readJsonSafe(join(OUTPUT, `evaluate-week-${weekNum}.json`))

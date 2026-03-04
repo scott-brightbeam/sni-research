@@ -6,8 +6,8 @@ describe('getDraft', () => {
     const result = await getDraft({})
     expect(result).toHaveProperty('week')
     expect(typeof result.week).toBe('number')
-    expect(typeof result.draft).toBe('string')
-    expect(result.draft.length).toBeGreaterThan(0)
+    // draft may be null for weeks with articles but no draft file
+    expect(result.draft === null || typeof result.draft === 'string').toBe(true)
     expect(result).toHaveProperty('review')
     expect(result).toHaveProperty('links')
     expect(result).toHaveProperty('evaluate')
@@ -21,13 +21,14 @@ describe('getDraft', () => {
     expect(result.draft).toContain('SNI')
   })
 
-  it('returns 404 error for non-existent week', async () => {
-    try {
-      await getDraft({ week: '999' })
-      throw new Error('Should have thrown')
-    } catch (err) {
-      expect(err.message).toContain('not found')
-    }
+  it('returns null draft for week without draft file', async () => {
+    const result = await getDraft({ week: '999' })
+    expect(result.week).toBe(999)
+    expect(result.draft).toBeNull()
+    expect(result.review).toBeNull()
+    expect(result.links).toBeNull()
+    expect(result.evaluate).toBeNull()
+    expect(Array.isArray(result.availableWeeks)).toBe(true)
   })
 
   it('returns null for missing companion files', async () => {
