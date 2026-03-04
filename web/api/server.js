@@ -1,5 +1,6 @@
 import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles } from './routes/articles.js'
+import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 
 const PORT = 3900
 
@@ -59,6 +60,23 @@ const server = Bun.serve({
         return json(article)
       }
 
+      // --- Draft ---
+      if (path === '/api/draft' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getDraft(query))
+      }
+
+      if (path === '/api/draft' && req.method === 'PUT') {
+        const query = parseQuery(req.url)
+        const body = await req.json()
+        return json(await saveDraft(query, body))
+      }
+
+      if (path === '/api/draft/history' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getDraftHistory(query))
+      }
+
       // --- Health ---
       if (path === '/api/health') {
         return json({ status: 'ok', port: PORT })
@@ -69,7 +87,7 @@ const server = Bun.serve({
 
     } catch (err) {
       console.error('API error:', err)
-      return json({ error: err.message }, 500)
+      return json({ error: err.message }, err.status || 500)
     }
   }
 })
