@@ -1,6 +1,7 @@
 import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
+import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 
 const PORT = 3900
 
@@ -75,6 +76,52 @@ const server = Bun.serve({
       if (path === '/api/draft/history' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await getDraftHistory(query))
+      }
+
+      // --- Chat ---
+      if (path === '/api/chat' && req.method === 'POST') {
+        return handleChat(req)
+      }
+
+      if (path === '/api/chat/threads' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await listThreads(query))
+      }
+
+      if (path === '/api/chat/threads' && req.method === 'POST') {
+        const body = await req.json()
+        return json(await createThread(body))
+      }
+
+      if (path === '/api/chat/threads' && req.method === 'PUT') {
+        const query = parseQuery(req.url)
+        const body = await req.json()
+        return json(await renameThread({ ...query, ...body }))
+      }
+
+      if (path === '/api/chat/history' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getHistory(query))
+      }
+
+      if (path === '/api/chat/pin' && req.method === 'POST') {
+        const body = await req.json()
+        return json(await createPin(body))
+      }
+
+      if (path === '/api/chat/pins' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await listPins(query))
+      }
+
+      if (path === '/api/chat/pin' && req.method === 'DELETE') {
+        const query = parseQuery(req.url)
+        return json(await deletePin(query))
+      }
+
+      if (path === '/api/chat/usage' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getUsage(query))
       }
 
       // --- Health ---
