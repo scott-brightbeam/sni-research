@@ -9,7 +9,20 @@ export async function getStatus() {
     lastRun: getLastRun(),
     articles: getArticleCounts(),
     nextPipeline: getNextPipeline(),
-    errors: getRecentErrors()
+    errors: getRecentErrors(),
+    ingestServer: await getIngestHealth(),
+  }
+}
+
+async function getIngestHealth() {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 2000)
+    const res = await fetch('http://127.0.0.1:3847/health', { signal: controller.signal })
+    clearTimeout(timeout)
+    return { online: res.ok }
+  } catch {
+    return { online: false }
   }
 }
 

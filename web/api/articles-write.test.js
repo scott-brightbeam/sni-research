@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
-import { patchArticle, deleteArticle } from './routes/articles.js'
+import { patchArticle, deleteArticle, ingestArticle } from './routes/articles.js'
+import { getStatus } from './routes/status.js'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const TEST_DATE = '2099-01-01'
@@ -119,5 +120,41 @@ describe('deleteArticle', () => {
     } catch (err) {
       expect(err.status).toBe(404)
     }
+  })
+})
+
+describe('ingestArticle', () => {
+  it('rejects missing URL', async () => {
+    try {
+      await ingestArticle({})
+      expect(true).toBe(false)
+    } catch (err) {
+      expect(err.message).toContain('url')
+    }
+  })
+
+  it('rejects invalid URL format', async () => {
+    try {
+      await ingestArticle({ url: 'not-a-url' })
+      expect(true).toBe(false)
+    } catch (err) {
+      expect(err.message).toContain('url')
+    }
+  })
+
+  // Integration test — only passes when ingest server is running on 3847
+  // Skipped by default since ingest server may not be available
+  it.skip('proxies to ingest server', async () => {
+    const result = await ingestArticle({ url: 'https://example.com' })
+    expect(result).toHaveProperty('status')
+  })
+})
+
+describe('getStatus with ingest health', () => {
+  it('includes ingestServer field', async () => {
+    const status = await getStatus()
+    expect(status).toHaveProperty('ingestServer')
+    expect(status.ingestServer).toHaveProperty('online')
+    expect(typeof status.ingestServer.online).toBe('boolean')
   })
 })

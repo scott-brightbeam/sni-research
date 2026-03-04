@@ -1,5 +1,5 @@
 import { getStatus } from './routes/status.js'
-import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle } from './routes/articles.js'
+import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 
@@ -70,6 +70,11 @@ const server = Bun.serve({
       if (articleMatch && req.method === 'DELETE') {
         const [, date, sector, slug] = articleMatch
         return json(await deleteArticle(date, sector, slug))
+      }
+
+      if (path === '/api/articles/ingest' && req.method === 'POST') {
+        const body = await req.json()
+        return json(await ingestArticle(body))
       }
 
       // --- Draft ---

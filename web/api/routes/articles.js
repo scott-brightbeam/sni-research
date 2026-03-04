@@ -3,6 +3,7 @@ import { join, resolve } from 'path'
 import { walkArticleDir, validateParam } from '../lib/walk.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
+const INGEST_URL = 'http://127.0.0.1:3847'
 
 export async function getArticles({ sector, date, search, limit, offset } = {}) {
   const allMatched = []
@@ -176,4 +177,53 @@ export async function deleteArticle(date, sector, slug) {
   if (existsSync(reviewPath)) rmSync(reviewPath)
 
   return { deleted: true, path: `data/deleted/${date}/${sector}/${slug}.json` }
+}
+
+export async function ingestArticle(body) {
+  if (!body.url || typeof body.url !== 'string') {
+    throw new Error('Missing or invalid url')
+  }
+
+  try {
+    new URL(body.url)
+  } catch {
+    throw new Error('Invalid url format')
+  }
+
+  const payload = { url: body.url }
+  if (body.sectorOverride) payload.sectorOverride = body.sectorOverride
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const res = await fetch(`${INGEST_URL}/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      const err = new Error(data.error || `Ingest server error ${res.status}`)
+      err.status = res.status
+      throw err
+    }
+
+    return data
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeout_err = new Error('Ingest request timed out after 30s')
+      timeout_err.status = 504
+      throw timeout_err
+    }
+    if (err.status) throw err
+    const conn_err = new Error('Ingest server unavailable')
+    conn_err.status = 503
+    throw conn_err
+  } finally {
+    clearTimeout(timeout)
+  }
 }
