@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'fs'
+import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import { walkArticleDir, validateParam } from '../lib/walk.js'
 
@@ -226,4 +226,28 @@ export async function ingestArticle(body) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+export async function getLastUpdated() {
+  const verifiedDir = join(ROOT, 'data/verified')
+  if (!existsSync(verifiedDir)) return { timestamp: 0 }
+
+  let maxMtime = 0
+
+  const dates = readdirSync(verifiedDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+  for (const d of dates) {
+    const datePath = join(verifiedDir, d)
+    if (!statSync(datePath).isDirectory()) continue
+
+    const sectors = readdirSync(datePath)
+    for (const s of sectors) {
+      const sectorPath = join(datePath, s)
+      try {
+        const mtime = statSync(sectorPath).mtimeMs
+        if (mtime > maxMtime) maxMtime = mtime
+      } catch { /* skip */ }
+    }
+  }
+
+  return { timestamp: maxMtime }
 }

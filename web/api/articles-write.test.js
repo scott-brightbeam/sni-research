@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
-import { patchArticle, deleteArticle, ingestArticle } from './routes/articles.js'
+import { patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
 import { getStatus } from './routes/status.js'
 
 const ROOT = resolve(import.meta.dir, '../..')
@@ -156,5 +156,19 @@ describe('getStatus with ingest health', () => {
     expect(status).toHaveProperty('ingestServer')
     expect(status.ingestServer).toHaveProperty('online')
     expect(typeof status.ingestServer.online).toBe('boolean')
+  })
+})
+
+describe('getLastUpdated', () => {
+  it('returns a timestamp object', async () => {
+    const result = await getLastUpdated()
+    expect(result).toHaveProperty('timestamp')
+    expect(typeof result.timestamp).toBe('number')
+  })
+
+  it('timestamp is a valid epoch ms', async () => {
+    const result = await getLastUpdated()
+    // Should be a reasonable timestamp (after 2020)
+    expect(result.timestamp).toBeGreaterThan(1577836800000)
   })
 })
