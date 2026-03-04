@@ -194,9 +194,150 @@ export async function getUsage({ period }) {
 
 // ─── Streaming Chat (Task 7) ────────────────────────────────────────────────
 
-// Placeholder — implemented in Task 7
 export async function handleChat(req) {
-  throw Object.assign(new Error('Not implemented yet'), { status: 501 })
+  const body = await req.json()
+  const { message, model, threadId, ephemeral, draftContext, articleRef } = body
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    throw Object.assign(new Error('message is required'), { status: 400 })
+  }
+
+  const selectedModel = MODELS.includes(model) ? model : DEFAULT_MODEL
+  const week = body.week || getISOWeek()
+
+  // Check daily ceiling
+  _checkDailyCeiling()
+
+  // If non-ephemeral and threadId provided, load history
+  let threadHistory = []
+  if (!ephemeral && threadId) {
+    threadHistory = await getHistory({ week, thread: threadId })
+  }
+
+  // Assemble context
+  const { systemPrompt, preamble, trimmedHistory } = assembleContext({
+    week,
+    threadHistory,
+    articleRef,
+    ephemeral: !!ephemeral,
+    draftContext,
+  })
+
+  // Build SDK messages array
+  const sdkMessages = []
+
+  // First message includes the preamble as a user message
+  if (preamble && trimmedHistory.length === 0) {
+    sdkMessages.push({ role: 'user', content: `${preamble}\n\n---\n\n${message}` })
+  } else if (preamble) {
+    sdkMessages.push({ role: 'user', content: preamble })
+    sdkMessages.push({ role: 'assistant', content: 'I\'ve reviewed the context. What would you like to discuss?' })
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message })
+  } else {
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message })
+  }
+
+  // Create abort controller linked to request signal
+  const abort = new AbortController()
+  if (req.signal) {
+    req.signal.addEventListener('abort', () => abort.abort())
+  }
+
+  const client = getClient()
+  const msgId = `msg_${generateId()}`
+  const userMsgId = `msg_${generateId()}`
+  const now = new Date().toISOString()
+
+  // Return SSE stream
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder()
+      const send = (data) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch { /* stream closed */ }
+      }
+
+      let fullText = ''
+      let usage = null
+
+      try {
+        const response = await client.messages.create({
+          model: selectedModel,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: sdkMessages,
+          stream: true,
+        })
+
+        for await (const event of response) {
+          if (abort.signal.aborted) break
+
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            fullText += event.delta.text
+            send({ type: 'delta', text: event.delta.text })
+          }
+
+          if (event.type === 'message_delta' && event.usage) {
+            usage = {
+              input_tokens: (response.usage?.input_tokens || 0) + (event.usage?.input_tokens || 0),
+              output_tokens: event.usage?.output_tokens || 0,
+            }
+          }
+
+          if (event.type === 'message_start' && event.message?.usage) {
+            usage = { ...usage, input_tokens: event.message.usage.input_tokens }
+          }
+        }
+
+        // Finalise usage from response
+        if (!usage) usage = { input_tokens: 0, output_tokens: 0 }
+
+        // Persist if not ephemeral
+        if (!ephemeral && threadId) {
+          const userMsg = { id: userMsgId, role: 'user', content: message, model: selectedModel, timestamp: now, usage: null, articleRef: articleRef || null }
+          const assistantMsg = { id: msgId, role: 'assistant', content: fullText, model: selectedModel, timestamp: new Date().toISOString(), usage, articleRef: null }
+
+          _appendMessage(week, threadId, userMsg)
+          _appendMessage(week, threadId, assistantMsg)
+          _updateThreadStats(week, threadId, usage.input_tokens, usage.output_tokens, selectedModel)
+          _autoNameThread(week, threadId, message)
+        }
+
+        // Record daily usage
+        _recordDailyUsage(usage.input_tokens, usage.output_tokens)
+
+        send({ type: 'done', id: msgId, usage })
+      } catch (err) {
+        if (!abort.signal.aborted) {
+          send({ type: 'error', message: err.message || 'Stream error' })
+        }
+      } finally {
+        try { controller.close() } catch { /* already closed */ }
+      }
+    }
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      ...corsHeaders,
+    },
+  })
 }
 
 // ─── Internal helpers (exported for Task 7) ─────────────────────────────────
