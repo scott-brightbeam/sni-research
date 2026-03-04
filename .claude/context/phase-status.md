@@ -70,7 +70,7 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 2: Draft Editor 🔧 In progress (Tasks 1–7 of 9 complete)
+## Phase 2: Draft Editor ✅ Complete
 
 ### Design & Plan
 - Design doc: `docs/plans/2026-03-03-draft-editor-design.md`
@@ -86,9 +86,15 @@ All 15 findings from final code review addressed:
 6. ✅ **useDraft hook** — `web/app/src/hooks/useDraft.js` — load/save/goToWeek/dirty tracking
 7. ✅ **Draft page rewrite** — `Draft.jsx` + `Draft.css` — side-by-side editor + react-markdown preview, link badges (✓/✗), review highlight overlays, week nav, save button, word count footer
 
-### Remaining tasks
-8. ⬜ Full test suite + build verification
-9. ⬜ Update context files (this file — final status)
+8. ✅ **Full verification** — 22 tests pass (195 assertions), Vite build clean (222 modules), pipeline isolation confirmed
+9. ✅ **Context files updated**
+
+### Verified
+- 22/22 API tests pass (195 assertions across 3 test files)
+- Vite build succeeds (222 modules, 0 errors)
+- Pipeline isolation confirmed (dry run succeeds)
+- Draft routes: GET /api/draft, PUT /api/draft, GET /api/draft/history
+- err.status passthrough in server.js catch block
 
 ### Key decisions
 | Decision | Choice |

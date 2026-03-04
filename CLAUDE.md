@@ -48,7 +48,7 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 ## Current phase status
 
 - **Phase 1: Foundation** ✅ Complete (10 commits) — Dashboard, Articles, API server, design system
-- **Phase 2: Draft Editor** 🔧 In progress (7/9 tasks — verification remaining)
+- **Phase 2: Draft Editor** ✅ Complete — side-by-side editor, react-markdown preview, link badges, review highlights
 - **Phase 3: Co-pilot** ⬜ Not started
 - **Phase 4: Polish** ⬜ Not started
 
