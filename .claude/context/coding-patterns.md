@@ -151,9 +151,81 @@ export async function apiFetch(path, opts = {}) {
 }
 ```
 
+### SSE streaming helper (Phase 3)
+
+`apiStream()` sits alongside `apiFetch()` in `lib/api.js`. It returns the raw `Response` so the caller can consume the `ReadableStream`:
+
+```js
+export async function apiStream(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || `API ${res.status}`)
+  }
+  return res // caller reads res.body (ReadableStream)
+}
+```
+
+Consumer parses SSE lines:
+```js
+const reader = res.body.getReader()
+const decoder = new TextDecoder()
+// Read chunks, split on \n\n, parse "data: {...}" lines
+```
+
 ### Vite proxy
 
 `vite.config.js` proxies `/api` to `http://localhost:3900`. React code uses relative paths (`/api/status`), never absolute URLs.
+
+### SSE streaming response (API side, Phase 3)
+
+Server returns `text/event-stream` using Bun's `ReadableStream`. SDK stream events are forwarded as SSE:
+
+```js
+return new Response(
+  new ReadableStream({
+    async start(controller) {
+      const enc = new TextEncoder()
+      const send = (obj) => controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`))
+      try {
+        const stream = client.messages.stream({ model, messages, system, max_tokens })
+        stream.on('text', text => send({ type: 'delta', text }))
+        const final = await stream.finalMessage()
+        send({ type: 'done', id: msgId, usage: final.usage })
+      } catch (err) {
+        send({ type: 'error', message: err.message })
+      }
+      controller.close()
+    }
+  }),
+  { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', ...corsHeaders } }
+)
+```
+
+### SDK client singleton (Phase 3)
+
+Lazy initialisation with `loadEnvKey()` workaround:
+
+```js
+// web/api/lib/claude.js
+import Anthropic from '@anthropic-ai/sdk'
+import { loadEnvKey } from './env.js'
+
+let _client = null
+export function getClient() {
+  if (_client) return _client
+  const key = loadEnvKey('ANTHROPIC_API_KEY')
+  if (!key) throw new Error('ANTHROPIC_API_KEY not found')
+  _client = new Anthropic({ apiKey: key })
+  return _client
+}
+```
+
+`loadEnvKey()` is copied from `scripts/lib/env.js` to `web/api/lib/env.js` (isolation constraint — no cross-boundary imports).
 
 ---
 
@@ -223,7 +295,7 @@ export const SECTOR_COLOURS = {
 
 `web/api/tests/` using Bun's built-in test runner. Run with `cd web/api && bun test`.
 
-Currently: 8 tests, 162 assertions covering articles and status endpoints.
+Currently: 22 tests, 195 assertions covering articles, status, and draft endpoints.
 
 ### Build verification
 

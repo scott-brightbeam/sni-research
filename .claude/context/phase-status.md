@@ -114,23 +114,69 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 3: Co-pilot ⬜ Not started
+## Phase 3: Co-pilot 📐 Designed, plan ready
 
-### What to build
-- `web/api/routes/chat.js` — POST /api/chat (SSE), GET /api/chat/history, POST/GET pins
-- Rewrite `web/app/src/pages/Copilot.jsx` — chat interface
-- `web/app/src/hooks/useChat.js` — SSE streaming + message history
-- Context assembly logic (article corpus + pins, <30k tokens)
-- Model toggle (Sonnet/Opus)
-- Pin system + persistence
+### Design & Plan
+- Design doc: `docs/plans/2026-03-04-copilot-design.md` (12 sections, approved)
+- Implementation plan: `docs/plans/2026-03-04-copilot-plan.md` (16 tasks with exact code)
+
+### Key decisions
+| Decision | Choice |
+|----------|--------|
+| Architecture | Shared `POST /api/chat` endpoint with `ephemeral` flag — DRY |
+| Context assembly | Tiered: all titles + full snippets for top ~30 by score, 28k token budget |
+| Threads | Multiple named per week (not one conversation per week) |
+| Draft panel | Ephemeral slide-out from Draft page, draft markdown as context |
+| Model toggle | Per-message everywhere — Sonnet (default) / Opus |
+| Models | `claude-sonnet-4-20250514`, `claude-opus-4-20250512` |
+| Token/cost counting | Per-message usage, per-thread totals, daily ceiling (500k), pricing lib |
+| Article injection | Explicit article picker in chat UI, not magic detection |
+| Thread naming | Auto-name from first message, renamable |
+| Pin format | Markdown + YAML frontmatter (pipeline-readable for future `draft.js` integration) |
+| Ad hoc materials | Deferred to Phase 4 — co-pilot + copy sufficient |
+
+### What to build (16 tasks)
+
+**API (`web/api/`):**
+- `lib/env.js` — `loadEnvKey()` copy (pipeline isolation)
+- `lib/week.js` — ISO 8601 week calc (replaces naive `getWeekNumber`)
+- `lib/pricing.js` — MODEL_PRICING, estimateCost, formatCost, formatTokens
+- `lib/claude.js` — Anthropic SDK lazy singleton client
+- `lib/context.js` — tiered context assembly (articles + pins + history, two system prompts)
+- `routes/chat.js` — all endpoints: streaming, threads CRUD, pins CRUD, usage
+- Wire 9 route handlers into `server.js`
+
+**React app (`web/app/src/`):**
+- `lib/api.js` — add `apiStream()` alongside existing `apiFetch`
+- `hooks/useChat.js` — full chat hook (threads, SSE, pins, usage, abort)
+- `hooks/useChatPanel.js` — lighter ephemeral hook for draft panel
+- Rewrite `pages/Copilot.jsx` + `Copilot.css` — thread sidebar + message list + input bar
+- `components/DraftChatPanel.jsx` + `DraftChatPanel.css` — slide-out panel
+- Integrate panel into `Draft.jsx` — toggle button + state
+
+**Modified files:**
+- `web/api/server.js` — import chat routes, add 9 route handlers
+- `web/app/src/pages/Draft.jsx` — panel toggle button + DraftChatPanel
+- `web/app/src/pages/Draft.css` — panel toggle styles
 
 ### Key data directories
-- `data/copilot/chats/week-N/` — JSONL conversation files (one per week)
-- `data/copilot/pins/week-N/` — pinned notes
+- `data/copilot/chats/week-N/` — `threads.json` index + `thread-*.jsonl` messages
+- `data/copilot/pins/week-N/` — `pins.json` index + `pin-*.md` files
 
 ### Dependencies
-- Anthropic SDK (add to web/api/package.json)
-- `loadEnvKey()` workaround for Bun >=1.3 .env bug (see pipeline pattern)
+- Anthropic SDK (`@anthropic-ai/sdk` ^0.78.0) — already in root `package.json`, Bun resolves it
+- `loadEnvKey()` — copied to `web/api/lib/env.js` (isolation, no cross-boundary imports)
+
+### Red team findings (all resolved in design)
+- Pipeline `draft.js` has no pin-reading code → defined pin format, deferred integration
+- `apiFetch()` can't handle SSE → add `apiStream()` helper
+- `getWeekNumber()` is buggy → new ISO 8601 impl in `web/api/lib/week.js`
+- Token/cost counting → full design with pricing lib + daily ceiling
+- Article injection → explicit picker, `articleRef` in request body
+- Stream cancellation → `AbortController` linked to request signal
+- Concurrent request protection → `sending` flag in hooks
+- Thread auto-naming → first 50 chars of first message
+- System prompts → two prompts defined (editorial analyst + draft assistant)
 
 ---
 

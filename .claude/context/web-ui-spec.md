@@ -68,10 +68,15 @@ All endpoints read from / write to the existing file-based data — no database.
 - `GET /api/draft/history?week=N` — list output artifacts for a week
 
 ### Co-pilot
-- `POST /api/chat` — send message, returns SSE stream of Claude's response
-- `GET /api/chat/history?week=N` — load saved conversation
-- `POST /api/chat/pin` — pin a Claude response as a note for draft context
+- `POST /api/chat` — send message, returns SSE stream. Body: `{message, model, threadId?, ephemeral?, draftContext?, articleRef?}`
+- `GET /api/chat/threads?week=N` — list threads for a week
+- `POST /api/chat/threads` — create thread. Body: `{name?, week}`
+- `PUT /api/chat/threads?id=X` — rename thread. Body: `{name}`
+- `GET /api/chat/history?week=N&thread=X` — load thread messages
+- `POST /api/chat/pin` — pin a message. Body: `{week, threadId, messageId, text}`
 - `GET /api/chat/pins?week=N` — list pinned notes
+- `DELETE /api/chat/pin?id=X` — remove a pin
+- `GET /api/chat/usage?period=today|week&week=N` — token usage + cost
 
 ### Config (read-only)
 - `GET /api/config/sectors` — sector definitions
@@ -80,24 +85,49 @@ All endpoints read from / write to the existing file-based data — no database.
 
 ## 4. Claude Co-pilot Detail
 
-### Context window management
-- On each message, the API assembles context: this week's article titles + snippets (not full text — too large), any pinned notes, the conversation history
-- If the user asks about a specific article, the API injects that article's full text into the next message
-- Target: keep context under 30k tokens so responses are fast and cheap
+> Full design: `docs/plans/2026-03-04-copilot-design.md` (12 sections). This section is a summary.
+
+### Two surfaces
+- **`/copilot` page** — full chat with thread sidebar, article injection, pins, usage display
+- **Draft chat panel** — ephemeral slide-out from Draft page (320px), draft markdown as context
+
+Both share `POST /api/chat` with an `ephemeral` flag.
+
+### Context assembly (`web/api/lib/context.js`)
+- **Tiered articles:** top ~30 by score get title + source + sector + date + full snippet; remaining get title + sector + source only (one line each)
+- **Pins:** all pins for the week appended
+- **History:** full thread messages, trimmed from oldest if over budget
+- **Article injection:** when `articleRef` is set, full article JSON is loaded and injected
+- **Token budget:** 28k tokens (leaving 2k for response), estimated at ~4 chars/token
+- **Two system prompts:** editorial analyst (co-pilot page) and draft assistant (panel)
 
 ### Model selection
-- Default: Sonnet for conversational back-and-forth (fast, cheap)
-- Toggle to Opus for deep analysis
-- Model choice shown in the UI, switchable per-message
+- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-20250512`
+- User principle: "Always use a toggle"
+
+### Token & cost counting
+- Per-message: SDK `usage` field stored in JSONL, returned in SSE `done` event
+- Per-thread: running totals in `threads.json` (`totalInputTokens`, `totalOutputTokens`, `estimatedCost`)
+- Daily ceiling: 500k tokens (in-memory counter, warning at 80%, 429 at 100%, resets on restart)
+- Pricing lib: `web/api/lib/pricing.js` with `MODEL_PRICING`, `estimateCost()`, `formatCost()`, `formatTokens()`
 
 ### Pinned notes
-- Any Claude response can be "pinned" — saved to `data/copilot/pins/week-N/`
-- Pinned notes are injected into `draft.js` context on Friday (read by the pipeline as supplementary editorial direction)
-- This is how daily co-pilot conversations feed into the automated Friday draft
+- Any assistant message can be pinned → saved to `data/copilot/pins/week-N/pin-*.md`
+- Format: markdown body with YAML frontmatter (`id`, `threadId`, `messageId`, `week`, `created`)
+- Pipeline-readable format for future `draft.js` integration (no pipeline changes in Phase 3)
+- Pins work from both co-pilot page and draft panel (pins always persist, even in ephemeral mode)
 
 ### Persistence
-- Conversations saved to `data/copilot/chats/week-N/` as JSONL
-- One file per week so Claude sees the full editorial arc
+- **Threads:** `data/copilot/chats/week-N/threads.json` (index) + `thread-*.jsonl` (messages)
+- **Multiple named threads per week** — auto-named from first message, renamable
+- **Draft panel:** ephemeral (React state only), messages survive panel close/open, clear on page nav
+
+### Streaming
+- SSE via Bun's `ReadableStream` + Anthropic SDK `messages.stream()`
+- Events: `{type:"delta", text:"..."}`, `{type:"done", id, usage}`, `{type:"error", message}`
+- Cancellation: `AbortController` linked to request signal
+- Error mid-stream: send error event then close
+- Daily ceiling exceeded: return 429 before streaming starts
 
 ## 5. Component Architecture
 
@@ -106,19 +136,21 @@ Pages are self-contained — hooks for data, components inline. Extract sub-comp
 ```
 web/app/src/
 ├── components/
-│   └── layout/
-│       ├── Shell.jsx          # App shell: sidebar + main content area
-│       ├── Shell.css
-│       ├── Sidebar.jsx        # Nav links + pipeline status indicator
-│       └── Sidebar.css
+│   ├── layout/
+│   │   ├── Shell.jsx          # App shell: sidebar + main content area
+│   │   ├── Shell.css
+│   │   ├── Sidebar.jsx        # Nav links + pipeline status indicator
+│   │   └── Sidebar.css
+│   ├── DraftChatPanel.jsx     # Slide-out chat panel for Draft page (Phase 3)
+│   └── DraftChatPanel.css
 ├── hooks/
 │   ├── useArticles.js         # Fetch + filter articles
 │   ├── useFlaggedArticles.js  # Fetch flagged articles from /api/articles/flagged
 │   ├── useDebouncedValue.js   # Generic debounce hook
 │   ├── useStatus.js           # Pipeline status polling (30s)
 │   ├── useDraft.js            # Load/save draft (Phase 2)
-│   ├── useChat.js             # SSE streaming + history (Phase 3)
-│   └── useWeek.js             # Current week context (when needed)
+│   ├── useChat.js             # Full chat: threads, SSE streaming, pins, usage, abort (Phase 3)
+│   └── useChatPanel.js        # Lighter ephemeral chat for draft panel (Phase 3)
 ├── pages/
 │   ├── Dashboard.jsx + .css   # Pipeline status, article stats, bar chart
 │   ├── Articles.jsx + .css    # Article table, filters, flagged tab
@@ -138,18 +170,21 @@ web/app/src/
 ### Phase 1: Foundation ✅
 Vite + React scaffold, Bun API server, Dashboard, Articles, routing, layout, design system.
 
-### Phase 2: Draft Editor
+### Phase 2: Draft Editor ✅
 - `/api/draft` endpoints (GET, PUT, history)
 - Side-by-side markdown editor + preview
 - Review/evaluation/link-check overlays
 - Save back to file
 
-### Phase 3: Co-pilot
-- `/api/chat` with SSE streaming (Anthropic SDK)
-- Chat UI component with message history
-- Context assembly (article corpus + pins)
-- Model toggle (Sonnet/Opus)
-- Pin system + persistence to `data/copilot/`
+### Phase 3: Co-pilot 📐
+- Design doc: `docs/plans/2026-03-04-copilot-design.md`
+- Implementation plan: `docs/plans/2026-03-04-copilot-plan.md` (16 tasks)
+- `/api/chat` with SSE streaming (Anthropic SDK) + threads + pins + usage
+- Two surfaces: `/copilot` page + draft chat panel (ephemeral)
+- Tiered context assembly (28k token budget)
+- Per-message model toggle (Sonnet/Opus)
+- Token/cost counting with daily ceiling
+- Article injection via explicit picker
 
 ### Phase 4: Polish
 - Article actions (sector override, flag, delete, manual ingest)
