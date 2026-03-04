@@ -6,5 +6,8 @@
     "dev": "bun --watch server.js",
     "start": "bun server.js",
     "test": "bun test"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
   }
 }

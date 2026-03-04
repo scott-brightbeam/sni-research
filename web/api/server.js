@@ -2,6 +2,7 @@ import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
+import { getConfig, putConfig } from './routes/config.js'
 
 const PORT = 3900
 
@@ -142,6 +143,17 @@ const server = Bun.serve({
       if (path === '/api/chat/usage' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await getUsage(query))
+      }
+
+      // --- Config ---
+      const configMatch = path.match(/^\/api\/config\/([\w-]+)$/)
+      if (configMatch && req.method === 'GET') {
+        return json(await getConfig(configMatch[1]))
+      }
+
+      if (configMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putConfig(configMatch[1], body))
       }
 
       // --- Health ---
