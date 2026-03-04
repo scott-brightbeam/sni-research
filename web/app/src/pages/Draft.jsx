@@ -55,21 +55,10 @@ export default function Draft() {
   const saveLabel = saving ? 'Saving...' : (savedAt && Date.now() - savedAt < 2000) ? 'Saved' : 'Save'
   const saveClass = `btn-save${(savedAt && Date.now() - savedAt < 2000) ? ' saved' : ''}`
 
+  const hasDraft = draft !== null && draft !== undefined
+
   if (loading) return <div className="loading">Loading...</div>
   if (error) return <div className="empty">Failed to load: {error}</div>
-  if (!draft && draft !== '') return (
-    <div>
-      <div className="draft-toolbar">
-        <h2>Draft</h2>
-        <div className="week-nav">
-          <button disabled={!hasPrev} onClick={() => handleWeekNav(availableWeeks[weekIdx - 1])}>◀</button>
-          <span>Week {week}</span>
-          <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])}>▶</button>
-        </div>
-      </div>
-      <div className="empty">No draft found for this week</div>
-    </div>
-  )
 
   // Custom renderers for react-markdown
   const components = {
@@ -108,7 +97,7 @@ export default function Draft() {
           <span>Week {week}</span>
           <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])}>▶</button>
         </div>
-        <button className={saveClass} disabled={!dirty || saving} onClick={save}>
+        <button className={saveClass} disabled={!hasDraft || !dirty || saving} onClick={save}>
           {saveLabel}
         </button>
         {saveError && <span className="save-error">{saveError}</span>}
@@ -123,6 +112,7 @@ export default function Draft() {
         )}
         <button
           className={`draft-chat-toggle${panelOpen ? ' active' : ''}`}
+          disabled={!hasDraft}
           onClick={() => setPanelOpen(p => !p)}
           title="Toggle draft assistant"
         >
@@ -130,28 +120,36 @@ export default function Draft() {
         </button>
       </div>
 
-      <div className="draft-panes">
-        <div className="draft-editor">
-          <textarea
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            spellCheck={false}
-          />
-        </div>
-        <div className="draft-preview">
-          <Markdown components={components}>{debouncedDraft}</Markdown>
-        </div>
-      </div>
+      {hasDraft ? (
+        <>
+          <div className="draft-panes">
+            <div className="draft-editor">
+              <textarea
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+            <div className="draft-preview">
+              <Markdown components={components}>{debouncedDraft}</Markdown>
+            </div>
+          </div>
 
-      <div className="draft-footer">
-        <span>
-          {evaluate
-            ? `Eval: ${JSON.stringify(evaluate).slice(0, 80)}`
-            : 'Evaluation: No data available'
-          }
-        </span>
-        <span>{wordCount.toLocaleString()} words</span>
-      </div>
+          <div className="draft-footer">
+            <span>
+              {evaluate
+                ? `Eval: ${JSON.stringify(evaluate).slice(0, 80)}`
+                : 'Evaluation: No data available'
+              }
+            </span>
+            <span>{wordCount.toLocaleString()} words</span>
+          </div>
+        </>
+      ) : (
+        <div className="draft-panes">
+          <div className="draft-empty-state">No draft found for week {week}</div>
+        </div>
+      )}
 
       <DraftChatPanel
         open={panelOpen}
