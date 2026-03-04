@@ -78,3 +78,18 @@ export async function saveDraft({ week } = {}, body = {}) {
   // Return the full bundle (re-read everything)
   return getDraft({ week: String(weekNum) })
 }
+
+export async function getDraftHistory({ week } = {}) {
+  if (!week || !/^\d+$/.test(week)) throw Object.assign(new Error('Invalid week'), { status: 400 })
+  const weekNum = parseInt(week)
+
+  return {
+    week: weekNum,
+    artifacts: {
+      draft: existsSync(join(OUTPUT, `draft-week-${weekNum}.md`)),
+      review: existsSync(join(OUTPUT, `review-week-${weekNum}.json`)),
+      links: existsSync(join(OUTPUT, `links-week-${weekNum}.json`)),
+      evaluate: existsSync(join(OUTPUT, `evaluate-week-${weekNum}.json`)),
+    },
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { getDraft, saveDraft } from './routes/draft.js'
+import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 
 describe('getDraft', () => {
   it('returns draft bundle for latest week when no week specified', async () => {
@@ -109,6 +109,26 @@ describe('saveDraft', () => {
       throw new Error('Should have thrown')
     } catch (err) {
       expect(err.message).toContain('draft')
+    }
+  })
+})
+
+describe('getDraftHistory', () => {
+  it('returns artifact existence map', async () => {
+    const result = await getDraftHistory({ week: '9' })
+    expect(result.week).toBe(9)
+    expect(result.artifacts.draft).toBe(true)
+    expect(result.artifacts.review).toBe(true)
+    expect(result.artifacts.links).toBe(true)
+    expect(result.artifacts.evaluate).toBe(false)
+  })
+
+  it('rejects invalid week', async () => {
+    try {
+      await getDraftHistory({ week: 'abc' })
+      throw new Error('Should have thrown')
+    } catch (err) {
+      expect(err.message).toContain('Invalid')
     }
   })
 })
