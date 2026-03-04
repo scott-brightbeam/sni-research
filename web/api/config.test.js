@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
 import { getConfig, putConfig } from './routes/config.js'
 
@@ -45,7 +45,8 @@ describe('putConfig', () => {
     writeFileSync(path, originalContent)
     const tmpPath = path + '.tmp'
     const bakPath = path + '.bak'
-    if (existsSync(tmpPath)) require('fs').rmSync(tmpPath)
+    if (existsSync(tmpPath)) rmSync(tmpPath)
+    if (existsSync(bakPath)) rmSync(bakPath)
   })
 
   it('writes and validates off-limits config', async () => {

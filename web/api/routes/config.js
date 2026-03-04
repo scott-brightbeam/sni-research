@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync } from 'fs'
+import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, renameSync } from 'fs'
 import { join, resolve } from 'path'
 import yaml from 'js-yaml'
 import { validateOffLimits, validateSources, validateSectors } from '../lib/config-validator.js'
@@ -47,7 +47,6 @@ export async function putConfig(name, data) {
     }
 
     // 6. Rename .tmp over original
-    const { renameSync } = await import('fs')
     renameSync(tmpPath, filePath)
 
     // 7. Return updated config
