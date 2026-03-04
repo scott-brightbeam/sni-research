@@ -23,6 +23,15 @@
   --shadow-subtle: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.2);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --danger: #e74c3c;
+  --danger-dark: #c0392b;
+  --danger-bg: rgba(231, 76, 60, 0.1);
+  --danger-bg-subtle: rgba(231, 76, 60, 0.05);
+  --danger-border: rgba(231, 76, 60, 0.2);
+  --success: #2ecc71;
+  --success-bg: rgba(46, 204, 113, 0.1);
+  --warning: #f1c40f;
+  --warning-bg: rgba(241, 196, 15, 0.1);
   --radius: 8px;
   --radius-lg: 12px;
   --surface: #2c2a27;

@@ -187,14 +187,18 @@ function ArticleRow({
 }) {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState(null)
 
   async function loadDetail() {
     if (detail) return
     setDetailLoading(true)
+    setDetailError(null)
     try {
       const data = await apiFetch(`/api/articles/${a.date_published}/${a.sector}/${a.slug}`)
       setDetail(data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      setDetailError(err.message)
+    }
     setDetailLoading(false)
   }
 
@@ -260,7 +264,7 @@ function ArticleRow({
       {isExpanded && (
         <tr className="detail-row">
           <td colSpan={5}>
-            <ArticleDetail article={a} detail={detail} loading={detailLoading} />
+            <ArticleDetail article={a} detail={detail} loading={detailLoading} error={detailError} />
           </td>
         </tr>
       )}
@@ -268,8 +272,9 @@ function ArticleRow({
   )
 }
 
-function ArticleDetail({ article, detail, loading }) {
+function ArticleDetail({ article, detail, loading, error }) {
   if (loading) return <div className="detail-panel"><div className="placeholder-text">Loading...</div></div>
+  if (error) return <div className="detail-panel"><div className="action-error">Failed to load details: {error}</div></div>
   const d = detail || article
 
   return (

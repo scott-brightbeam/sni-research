@@ -171,11 +171,11 @@ tr:hover .row-actions { opacity: 1; }
 
 .action-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
 .flag-btn.flagged { color: var(--terra); }
-.delete-btn:hover { color: #e74c3c; }
+.delete-btn:hover { color: var(--danger); }
 
 /* --- Delete confirm --- */
 .delete-confirm-row td {
-  background: rgba(231, 76, 60, 0.05);
+  background: var(--danger-bg-subtle);
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -183,17 +183,17 @@ tr:hover .row-actions { opacity: 1; }
 }
 
 .btn-sm { padding: 4px 12px; font-size: 12px; }
-.btn-danger { background: #e74c3c; color: white; }
-.btn-danger:hover { background: #c0392b; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { background: var(--danger-dark); }
 .btn-ghost { background: var(--surface); color: var(--text-primary); border: 1px solid var(--light-gray); }
 .btn-ghost:hover { background: var(--surface-hover); }
 
 .action-error {
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
+  background: var(--danger-bg);
+  color: var(--danger);
   padding: 8px 16px;
   font-size: 13px;
-  border-bottom: 1px solid rgba(231, 76, 60, 0.2);
+  border-bottom: 1px solid var(--danger-border);
 }
 
 /* --- Detail panel --- */
@@ -285,10 +285,10 @@ tr:hover .row-actions { opacity: 1; }
   font-family: 'Poppins', sans-serif;
 }
 
-.ingest-success { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
-.ingest-error { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
-.ingest-duplicate { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
-.ingest-warning { background: rgba(241, 196, 15, 0.1); color: #f1c40f; }
+.ingest-success { background: var(--success-bg); color: var(--success); }
+.ingest-error { background: var(--danger-bg); color: var(--danger); }
+.ingest-duplicate { background: var(--warning-bg); color: var(--warning); }
+.ingest-warning { background: var(--warning-bg); color: var(--warning); }
 
 /* --- Updated indicator --- */
 .updated-indicator {
