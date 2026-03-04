@@ -295,7 +295,7 @@ export const SECTOR_COLOURS = {
 
 `web/api/tests/` using Bun's built-in test runner. Run with `cd web/api && bun test`.
 
-Currently: 22 tests, 195 assertions covering articles, status, and draft endpoints.
+Currently: 48 tests, 246 assertions covering articles, status, draft, chat (threads, pins, usage), context assembly, and week calculation.
 
 ### Build verification
 

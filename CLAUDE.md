@@ -49,8 +49,8 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 
 - **Phase 1: Foundation** ✅ Complete (10 commits) — Dashboard, Articles, API server, design system
 - **Phase 2: Draft Editor** ✅ Complete — side-by-side editor, react-markdown preview, link badges, review highlights
-- **Phase 3: Co-pilot** 📐 Designed — design doc + 16-task plan in `docs/plans/`
-- **Phase 4: Polish** ⬜ Not started
+- **Phase 3: Co-pilot** ✅ Complete — streaming chat, thread/pin CRUD, article picker, model toggle, Draft panel
+- **Phase 4: Polish** 📐 Designed — design doc in `docs/plans/`, implementation plan pending
 
 ## When to read context files
 

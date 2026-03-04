@@ -114,11 +114,37 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 3: Co-pilot 📐 Designed, plan ready
+## Phase 3: Co-pilot ✅ Complete
 
 ### Design & Plan
 - Design doc: `docs/plans/2026-03-04-copilot-design.md` (12 sections, approved)
 - Implementation plan: `docs/plans/2026-03-04-copilot-plan.md` (16 tasks with exact code)
+- Execution method: executing-plans skill, batched with checkpoint reviews
+
+### What was built
+
+**API (`web/api/`):**
+- `lib/env.js` — `loadEnvKey()` copy (pipeline isolation)
+- `lib/week.js` — ISO 8601 week calculation (fixes naive `getWeekNumber` bug)
+- `lib/pricing.js` — MODEL_PRICING, estimateCost, formatCost, formatTokens
+- `lib/claude.js` — Anthropic SDK lazy singleton client
+- `lib/context.js` — tiered context assembly (articles + pins + history, two system prompts, 28k token budget)
+- `routes/chat.js` — SSE streaming, thread CRUD, pin CRUD, usage tracking
+- 9 route handlers wired into `server.js`
+- `week.test.js` — 8 tests, `context.test.js` — 7 tests, `chat.test.js` — 11 tests
+
+**React app (`web/app/src/`):**
+- `lib/api.js` — added `apiStream()` SSE helper
+- `hooks/useChat.js` — full chat hook (threads, SSE streaming, pins, usage, abort)
+- `hooks/useChatPanel.js` — ephemeral hook for draft panel (accepts `week` param)
+- `pages/Copilot.jsx` + `Copilot.css` — thread sidebar, message list, article picker, model toggle, usage display, week nav
+- `components/DraftChatPanel.jsx` + `DraftChatPanel.css` — slide-out panel for draft page
+- `pages/Draft.jsx` + `Draft.css` — chat panel toggle button + DraftChatPanel integration
+
+### Verified
+- 48/48 API tests pass (246 assertions across 6 test files)
+- Vite build succeeds (227 modules, 0 errors)
+- Pipeline isolation confirmed (no scripts/ or config/ files modified)
 
 ### Key decisions
 | Decision | Choice |
@@ -133,59 +159,87 @@ All 15 findings from final code review addressed:
 | Article injection | Explicit article picker in chat UI, not magic detection |
 | Thread naming | Auto-name from first message, renamable |
 | Pin format | Markdown + YAML frontmatter (pipeline-readable for future `draft.js` integration) |
-| Ad hoc materials | Deferred to Phase 4 — co-pilot + copy sufficient |
-
-### What to build (16 tasks)
-
-**API (`web/api/`):**
-- `lib/env.js` — `loadEnvKey()` copy (pipeline isolation)
-- `lib/week.js` — ISO 8601 week calc (replaces naive `getWeekNumber`)
-- `lib/pricing.js` — MODEL_PRICING, estimateCost, formatCost, formatTokens
-- `lib/claude.js` — Anthropic SDK lazy singleton client
-- `lib/context.js` — tiered context assembly (articles + pins + history, two system prompts)
-- `routes/chat.js` — all endpoints: streaming, threads CRUD, pins CRUD, usage
-- Wire 9 route handlers into `server.js`
-
-**React app (`web/app/src/`):**
-- `lib/api.js` — add `apiStream()` alongside existing `apiFetch`
-- `hooks/useChat.js` — full chat hook (threads, SSE, pins, usage, abort)
-- `hooks/useChatPanel.js` — lighter ephemeral hook for draft panel
-- Rewrite `pages/Copilot.jsx` + `Copilot.css` — thread sidebar + message list + input bar
-- `components/DraftChatPanel.jsx` + `DraftChatPanel.css` — slide-out panel
-- Integrate panel into `Draft.jsx` — toggle button + state
-
-**Modified files:**
-- `web/api/server.js` — import chat routes, add 9 route handlers
-- `web/app/src/pages/Draft.jsx` — panel toggle button + DraftChatPanel
-- `web/app/src/pages/Draft.css` — panel toggle styles
+| Cross-boundary fix | `useChatPanel` accepts `week` as param instead of importing API module |
 
 ### Key data directories
 - `data/copilot/chats/week-N/` — `threads.json` index + `thread-*.jsonl` messages
 - `data/copilot/pins/week-N/` — `pins.json` index + `pin-*.md` files
 
-### Dependencies
-- Anthropic SDK (`@anthropic-ai/sdk` ^0.78.0) — already in root `package.json`, Bun resolves it
-- `loadEnvKey()` — copied to `web/api/lib/env.js` (isolation, no cross-boundary imports)
-
-### Red team findings (all resolved in design)
-- Pipeline `draft.js` has no pin-reading code → defined pin format, deferred integration
-- `apiFetch()` can't handle SSE → add `apiStream()` helper
-- `getWeekNumber()` is buggy → new ISO 8601 impl in `web/api/lib/week.js`
-- Token/cost counting → full design with pricing lib + daily ceiling
-- Article injection → explicit picker, `articleRef` in request body
-- Stream cancellation → `AbortController` linked to request signal
-- Concurrent request protection → `sending` flag in hooks
-- Thread auto-naming → first 50 chars of first message
-- System prompts → two prompts defined (editorial analyst + draft assistant)
+### Deferred to Phase 4
+- Ad hoc materials upload
+- Pin integration into `draft.js` pipeline script
+- Thread deletion
 
 ---
 
-## Phase 4: Polish ⬜ Not started
+## Phase 4: Polish 📐 Designed, plan pending
+
+### Design & Plan
+- Design doc: `docs/plans/2026-03-04-phase4-polish-design.md` (9 sections, approved)
+- Implementation plan: pending (next step)
 
 ### What to build
-- PATCH/DELETE article endpoints + UI actions
-- Article detail expand panel
-- Manual ingest (POST /api/articles/ingest)
-- Config viewer (sectors, sources, off-limits)
-- Real-time updates (file watcher or polling for new articles)
-- UI refinements based on use
+
+**Inline article actions (PATCH/DELETE):**
+- Hover-reveal actions cell per row: sector dropdown, flag toggle, delete button
+- PATCH `/api/articles/:date/:sector/:slug` — sector move, flag/unflag
+- DELETE `/api/articles/:date/:sector/:slug` — soft delete to `data/deleted/`
+- Inline confirmation for delete, 409 on slug collision
+
+**Manual ingest:**
+- Inline form below Articles header (URL input, optional sector override)
+- POST `/api/articles/ingest` proxies to pipeline ingest server (port 3847)
+- 30s timeout, loading states ("Scraping..." → "Processing..."), colour-coded result banners
+- Ingest health check folded into existing `GET /api/status` response
+
+**Real-time updates:**
+- `GET /api/articles/last-updated` — stat all ~53 sector directories, return max mtime
+- Client polls every 15s, auto-reloads when timestamp is newer
+- "Updated just now" / "Updated 2m ago" indicator below filter bar
+
+**Article detail panel:**
+- Click row to expand inline detail below it (one expanded at a time)
+- Full text (scrollable, max-height 400px), metadata grid, keyword pills, actions
+
+**Config editor (`/config` route):**
+- Three tabs: Off-limits | Sources | Sectors
+- Structured forms (not YAML editor), add/remove per item
+- Write-validate-swap pattern: serialize → .tmp → parse back → validate → .bak → rename
+- Structural validation schemas per config file
+- Preview before save (added/removed/modified summary)
+- `js-yaml` dependency added to `web/api/package.json`
+
+**UI polish:**
+- Spacing/padding audit, hover states, keyboard nav, loading skeletons, responsive check
+
+### Key decisions
+| Decision | Choice |
+|----------|--------|
+| Ingest approach | HTTP proxy to existing ingest server on port 3847 (no code duplication) |
+| Real-time mechanism | Stat-based polling (no fs.watch, no websockets) |
+| Config editing UX | Structured forms per item type (not raw YAML) |
+| Config write safety | Write-validate-swap with .bak backup |
+| Soft delete | Move to `data/deleted/` with `deleted_at` timestamp, no recovery UI |
+| Ingested article scores | Show "manual" badge (no scoring pipeline runs) |
+| Build order | Single phase, features 1-3 parallelisable, then sequential 4-8, polish last |
+
+### Build order
+| # | Feature | Depends on |
+|---|---------|-----------|
+| 1 | Inline article actions | None |
+| 2 | Manual ingest | None |
+| 3 | Real-time updates | None |
+| 4 | Article detail panel | After 1 |
+| 5 | Config editor — off-limits tab + API + write-validate-swap | js-yaml |
+| 6 | Config editor — sources tab | After 5 |
+| 7 | Config editor — sectors tab | After 5 |
+| 8 | Config page routing + sidebar link | After 5-7 |
+| 9 | UI polish pass | After everything |
+
+### Deferred
+- No undo for delete (soft delete is the safety net)
+- No config version history (single .bak only)
+- No real-time updates for config changes
+- No scoring for manually ingested articles
+- No adding/removing sectors (only keyword/display_name editing)
+- No editing `url_date_patterns` or `paywall_domains` (read-only)
