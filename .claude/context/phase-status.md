@@ -70,7 +70,7 @@ All 15 findings from final code review addressed:
 
 ---
 
-## Phase 2: Draft Editor 🔧 In progress (Tasks 1–4 of 9 complete)
+## Phase 2: Draft Editor 🔧 In progress (Tasks 1–7 of 9 complete)
 
 ### Design & Plan
 - Design doc: `docs/plans/2026-03-03-draft-editor-design.md`
@@ -82,13 +82,13 @@ All 15 findings from final code review addressed:
 2. ✅ **getDraft route** — `web/api/routes/draft.js` + 8 tests
 3. ✅ **saveDraft route** — added to draft.js + 4 tests (12 total)
 4. ✅ **getDraftHistory route** — added to draft.js + 2 tests (14 total)
+5. ✅ **Routes wired into server.js** — import, 3 route handlers (GET/PUT draft, GET history), err.status passthrough in catch
+6. ✅ **useDraft hook** — `web/app/src/hooks/useDraft.js` — load/save/goToWeek/dirty tracking
+7. ✅ **Draft page rewrite** — `Draft.jsx` + `Draft.css` — side-by-side editor + react-markdown preview, link badges (✓/✗), review highlight overlays, week nav, save button, word count footer
 
 ### Remaining tasks
-5. ⬜ Wire draft routes into server.js (import + route handlers + err.status passthrough)
-6. ⬜ useDraft hook (`web/app/src/hooks/useDraft.js`)
-7. ⬜ Draft page rewrite (`Draft.jsx` + `Draft.css`) — side-by-side editor + preview with link badges, review highlights
 8. ⬜ Full test suite + build verification
-9. ⬜ Update context files
+9. ⬜ Update context files (this file — final status)
 
 ### Key decisions
 | Decision | Choice |
