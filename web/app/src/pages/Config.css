@@ -145,6 +145,15 @@
 .feed-name { color: var(--text-primary); font-weight: 500; }
 .feed-url { color: var(--cloudy); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
+.add-row-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.add-row-inline .config-input { flex: 1; }
+
 .config-readonly-block {
   font-family: 'Fira Code', monospace;
   font-size: 12px;
@@ -223,7 +232,7 @@
   font-family: 'Poppins', sans-serif;
   font-size: 11px;
   border: 1px dashed var(--light-gray);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 3px 10px;
   background: none;
   color: var(--text-primary);

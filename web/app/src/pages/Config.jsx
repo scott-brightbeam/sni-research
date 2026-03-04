@@ -69,8 +69,12 @@ function OffLimitsTab() {
 
   async function handleSave() {
     if (!draft) return
-    await save(draft)
-    setDraft(null)
+    try {
+      await save(draft)
+      setDraft(null)
+    } catch {
+      // error state is set by useConfig hook
+    }
   }
 
   return (
@@ -141,6 +145,8 @@ function ReadOnlyWeek({ week, entries }) {
 function SourcesTab() {
   const { data, loading, error, saving, save } = useConfig('sources')
   const [draft, setDraft] = useState(null)
+  const [newFeedInputs, setNewFeedInputs] = useState({})
+  const [newQuery, setNewQuery] = useState('')
 
   if (loading) return <div className="placeholder-text">Loading...</div>
   if (error) return <div className="placeholder-text">Failed to load: {error}</div>
@@ -148,12 +154,12 @@ function SourcesTab() {
   const working = draft || data
 
   function addFeed(category) {
-    const name = prompt('Feed name:')
-    const url = prompt('Feed URL:')
-    if (!name || !url) return
+    const inputs = newFeedInputs[category]
+    if (!inputs?.name?.trim() || !inputs?.url?.trim()) return
     const updated = { ...working, rss_feeds: { ...working.rss_feeds } }
-    updated.rss_feeds[category] = [...(updated.rss_feeds[category] || []), { name, url }]
+    updated.rss_feeds[category] = [...(updated.rss_feeds[category] || []), { name: inputs.name.trim(), url: inputs.url.trim() }]
     setDraft(updated)
+    setNewFeedInputs(prev => ({ ...prev, [category]: { name: '', url: '' } }))
   }
 
   function removeFeed(category, idx) {
@@ -163,11 +169,11 @@ function SourcesTab() {
   }
 
   function addQuery() {
-    const q = prompt('Search query:')
-    if (!q) return
+    if (!newQuery.trim()) return
     const updated = { ...working }
-    updated.general_search_queries = [...(updated.general_search_queries || []), q]
+    updated.general_search_queries = [...(updated.general_search_queries || []), newQuery.trim()]
     setDraft(updated)
+    setNewQuery('')
   }
 
   function removeQuery(idx) {
@@ -178,8 +184,19 @@ function SourcesTab() {
 
   async function handleSave() {
     if (!draft) return
-    await save(draft)
-    setDraft(null)
+    try {
+      await save(draft)
+      setDraft(null)
+    } catch {
+      // error state is set by useConfig hook
+    }
+  }
+
+  function updateFeedInput(category, field, value) {
+    setNewFeedInputs(prev => ({
+      ...prev,
+      [category]: { ...prev[category], [field]: value }
+    }))
   }
 
   return (
@@ -205,7 +222,21 @@ function SourcesTab() {
               </li>
             ))}
           </ul>
-          <button className="btn btn-ghost btn-sm" onClick={() => addFeed(cat)}>+ Add feed</button>
+          <div className="add-row-inline">
+            <input
+              className="config-input"
+              placeholder="Feed name"
+              value={newFeedInputs[cat]?.name || ''}
+              onChange={e => updateFeedInput(cat, 'name', e.target.value)}
+            />
+            <input
+              className="config-input"
+              placeholder="Feed URL"
+              value={newFeedInputs[cat]?.url || ''}
+              onChange={e => updateFeedInput(cat, 'url', e.target.value)}
+            />
+            <button className="btn btn-primary btn-sm" onClick={() => addFeed(cat)}>Add</button>
+          </div>
         </div>
       ))}
 
@@ -219,7 +250,16 @@ function SourcesTab() {
             </li>
           ))}
         </ul>
-        <button className="btn btn-ghost btn-sm" onClick={addQuery}>+ Add query</button>
+        <div className="add-row-inline">
+          <input
+            className="config-input"
+            placeholder="Search query"
+            value={newQuery}
+            onChange={e => setNewQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuery() } }}
+          />
+          <button className="btn btn-primary btn-sm" onClick={addQuery}>Add</button>
+        </div>
       </div>
 
       {working.url_date_patterns && (
@@ -273,8 +313,12 @@ function SectorsTab() {
 
   async function handleSave() {
     if (!draft) return
-    await save(draft)
-    setDraft(null)
+    try {
+      await save(draft)
+      setDraft(null)
+    } catch {
+      // error state is set by useConfig hook
+    }
   }
 
   return (
@@ -355,8 +399,10 @@ function KeywordGroup({ label, keywords, onAdd, onRemove }) {
 
 function getCurrentWeekNumber() {
   const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
+  const jan4 = new Date(now.getFullYear(), 0, 4)
+  const start = new Date(jan4)
+  start.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
   const diff = now - start
   const oneWeek = 604800000
-  return Math.ceil((diff / oneWeek) + start.getDay() / 7)
+  return Math.ceil(diff / oneWeek)
 }
