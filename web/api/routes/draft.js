@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '../../..')
@@ -55,4 +55,26 @@ export async function getDraft({ week } = {}) {
     evaluate,
     availableWeeks: available,
   }
+}
+
+export async function saveDraft({ week } = {}, body = {}) {
+  if (!week || !/^\d+$/.test(week)) throw Object.assign(new Error('Invalid week'), { status: 400 })
+
+  const weekNum = parseInt(week)
+  const draftPath = join(OUTPUT, `draft-week-${weekNum}.md`)
+  if (!existsSync(draftPath)) {
+    throw Object.assign(new Error(`Draft for week ${weekNum} not found`), { status: 404 })
+  }
+
+  if (body.draft === undefined || body.draft === null || typeof body.draft !== 'string') {
+    throw new Error('Missing or invalid draft content')
+  }
+  if (body.draft.trim().length === 0) {
+    throw new Error('Draft content cannot be empty')
+  }
+
+  writeFileSync(draftPath, body.draft, 'utf-8')
+
+  // Return the full bundle (re-read everything)
+  return getDraft({ week: String(weekNum) })
 }

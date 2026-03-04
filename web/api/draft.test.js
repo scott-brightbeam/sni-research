@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { getDraft } from './routes/draft.js'
+import { getDraft, saveDraft } from './routes/draft.js'
 
 describe('getDraft', () => {
   it('returns draft bundle for latest week when no week specified', async () => {
@@ -64,6 +64,51 @@ describe('getDraft', () => {
       throw new Error('Should have thrown')
     } catch (err) {
       expect(err.message).toContain('Invalid')
+    }
+  })
+})
+
+describe('saveDraft', () => {
+  it('saves draft and returns full bundle', async () => {
+    // Read original first so we can restore it
+    const original = await getDraft({ week: '9' })
+    const testContent = original.draft + '\n<!-- test edit -->'
+
+    const result = await saveDraft({ week: '9' }, { draft: testContent })
+    expect(result.week).toBe(9)
+    expect(result.draft).toContain('<!-- test edit -->')
+    expect(result).toHaveProperty('review')
+    expect(result).toHaveProperty('links')
+    expect(result).toHaveProperty('availableWeeks')
+
+    // Restore original
+    await saveDraft({ week: '9' }, { draft: original.draft })
+  })
+
+  it('rejects save to non-existent week', async () => {
+    try {
+      await saveDraft({ week: '999' }, { draft: 'test' })
+      throw new Error('Should have thrown')
+    } catch (err) {
+      expect(err.message).toContain('not found')
+    }
+  })
+
+  it('rejects empty draft content', async () => {
+    try {
+      await saveDraft({ week: '9' }, { draft: '' })
+      throw new Error('Should have thrown')
+    } catch (err) {
+      expect(err.message).toContain('empty')
+    }
+  })
+
+  it('rejects missing draft field', async () => {
+    try {
+      await saveDraft({ week: '9' }, {})
+      throw new Error('Should have thrown')
+    } catch (err) {
+      expect(err.message).toContain('draft')
     }
   })
 })
