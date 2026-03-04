@@ -1,0 +1,246 @@
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, appendFileSync } from 'fs'
+import { join, resolve } from 'path'
+import { getClient } from '../lib/claude.js'
+import { assembleContext, estimateTokens } from '../lib/context.js'
+import { estimateCost, formatCost, DEFAULT_MODEL, MODELS } from '../lib/pricing.js'
+import { getISOWeek } from '../lib/week.js'
+
+const ROOT = resolve(import.meta.dir, '../../..')
+const COPILOT_DIR = join(ROOT, 'data/copilot')
+const DAILY_TOKEN_CEILING = 500_000
+
+// In-memory daily usage counter (resets on server restart)
+let _dailyUsage = { date: '', inputTokens: 0, outputTokens: 0 }
+
+function today() { return new Date().toISOString().slice(0, 10) }
+
+function resetDailyIfNeeded() {
+  if (_dailyUsage.date !== today()) {
+    _dailyUsage = { date: today(), inputTokens: 0, outputTokens: 0 }
+  }
+}
+
+function ensureDir(dir) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+}
+
+function generateId() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
+}
+
+// ─── Thread CRUD ────────────────────────────────────────────────────────────
+
+function chatDir(week) { return join(COPILOT_DIR, `chats/week-${week}`) }
+function pinDir(week) { return join(COPILOT_DIR, `pins/week-${week}`) }
+
+function readThreadIndex(week) {
+  const file = join(chatDir(week), 'threads.json')
+  if (!existsSync(file)) return []
+  try { return JSON.parse(readFileSync(file, 'utf-8')) } catch { return [] }
+}
+
+function writeThreadIndex(week, threads) {
+  const dir = chatDir(week)
+  ensureDir(dir)
+  writeFileSync(join(dir, 'threads.json'), JSON.stringify(threads, null, 2))
+}
+
+export async function listThreads({ week }) {
+  if (!week) week = getISOWeek()
+  return readThreadIndex(week)
+}
+
+export async function createThread({ week, name }) {
+  if (!week) week = getISOWeek()
+  const id = generateId()
+  const now = new Date().toISOString()
+  const thread = {
+    id,
+    name: name || `New thread`,
+    created: now,
+    updated: now,
+    messageCount: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    estimatedCost: 0,
+  }
+
+  const threads = readThreadIndex(week)
+  threads.push(thread)
+  writeThreadIndex(week, threads)
+
+  return { id: thread.id, name: thread.name }
+}
+
+export async function renameThread({ id, name, week }) {
+  if (!week) {
+    // Find which week has this thread
+    const copilotChats = join(COPILOT_DIR, 'chats')
+    if (existsSync(copilotChats)) {
+      for (const dir of readdirSync(copilotChats)) {
+        const m = dir.match(/^week-(\d+)$/)
+        if (!m) continue
+        const threads = readThreadIndex(parseInt(m[1]))
+        if (threads.some(t => t.id === id)) { week = parseInt(m[1]); break }
+      }
+    }
+  }
+  if (!week) throw Object.assign(new Error('Thread not found'), { status: 404 })
+
+  const threads = readThreadIndex(week)
+  const thread = threads.find(t => t.id === id)
+  if (!thread) throw Object.assign(new Error('Thread not found'), { status: 404 })
+
+  thread.name = name
+  thread.updated = new Date().toISOString()
+  writeThreadIndex(week, threads)
+
+  return { id: thread.id, name: thread.name }
+}
+
+export async function getHistory({ week, thread }) {
+  if (!week || !thread) throw Object.assign(new Error('week and thread required'), { status: 400 })
+  const file = join(chatDir(week), `thread-${thread}.jsonl`)
+  if (!existsSync(file)) return []
+
+  return readFileSync(file, 'utf-8')
+    .split('\n')
+    .filter(line => line.trim())
+    .map(line => { try { return JSON.parse(line) } catch { return null } })
+    .filter(Boolean)
+}
+
+// ─── Pin CRUD ───────────────────────────────────────────────────────────────
+
+function readPinIndex(week) {
+  const file = join(pinDir(week), 'pins.json')
+  if (!existsSync(file)) return []
+  try { return JSON.parse(readFileSync(file, 'utf-8')) } catch { return [] }
+}
+
+function writePinIndex(week, pins) {
+  const dir = pinDir(week)
+  ensureDir(dir)
+  writeFileSync(join(dir, 'pins.json'), JSON.stringify(pins, null, 2))
+}
+
+export async function createPin({ week, threadId, messageId, text }) {
+  if (!week || !text) throw Object.assign(new Error('week and text required'), { status: 400 })
+
+  const id = `pin-${generateId()}`
+  const now = new Date().toISOString()
+  const preview = text.slice(0, 200)
+
+  // Write markdown file with YAML frontmatter (pipeline-readable)
+  const dir = pinDir(week)
+  ensureDir(dir)
+  const md = `---\nid: ${id}\nthreadId: ${threadId || 'ephemeral'}\nmessageId: ${messageId || 'unknown'}\nweek: ${week}\ncreated: ${now}\n---\n\n${text}\n`
+  writeFileSync(join(dir, `${id}.md`), md)
+
+  // Update index
+  const pins = readPinIndex(week)
+  pins.push({ id, threadId, messageId, week: parseInt(week), preview, created: now })
+  writePinIndex(week, pins)
+
+  return { id, preview }
+}
+
+export async function listPins({ week }) {
+  if (!week) week = getISOWeek()
+  return readPinIndex(week)
+}
+
+export async function deletePin({ id, week }) {
+  if (!id) throw Object.assign(new Error('id required'), { status: 400 })
+
+  if (!week) {
+    // Find which week has this pin
+    const pinsBase = join(COPILOT_DIR, 'pins')
+    if (existsSync(pinsBase)) {
+      for (const dir of readdirSync(pinsBase)) {
+        const m = dir.match(/^week-(\d+)$/)
+        if (!m) continue
+        const pins = readPinIndex(parseInt(m[1]))
+        if (pins.some(p => p.id === id)) { week = parseInt(m[1]); break }
+      }
+    }
+  }
+  if (!week) throw Object.assign(new Error('Pin not found'), { status: 404 })
+
+  // Remove markdown file
+  const mdFile = join(pinDir(week), `${id}.md`)
+  if (existsSync(mdFile)) rmSync(mdFile)
+
+  // Update index
+  const pins = readPinIndex(week).filter(p => p.id !== id)
+  writePinIndex(week, pins)
+
+  return { ok: true }
+}
+
+// ─── Usage ──────────────────────────────────────────────────────────────────
+
+export async function getUsage({ period }) {
+  resetDailyIfNeeded()
+  const cost = estimateCost(DEFAULT_MODEL, _dailyUsage.inputTokens, _dailyUsage.outputTokens)
+  return {
+    inputTokens: _dailyUsage.inputTokens,
+    outputTokens: _dailyUsage.outputTokens,
+    estimatedCost: cost,
+    ceiling: DAILY_TOKEN_CEILING,
+    remaining: Math.max(0, DAILY_TOKEN_CEILING - _dailyUsage.inputTokens - _dailyUsage.outputTokens),
+  }
+}
+
+// ─── Streaming Chat (Task 7) ────────────────────────────────────────────────
+
+// Placeholder — implemented in Task 7
+export async function handleChat(req) {
+  throw Object.assign(new Error('Not implemented yet'), { status: 501 })
+}
+
+// ─── Internal helpers (exported for Task 7) ─────────────────────────────────
+
+export function _appendMessage(week, threadId, message) {
+  const dir = chatDir(week)
+  ensureDir(dir)
+  const file = join(dir, `thread-${threadId}.jsonl`)
+  appendFileSync(file, JSON.stringify(message) + '\n')
+}
+
+export function _updateThreadStats(week, threadId, inputTokens, outputTokens, model) {
+  const threads = readThreadIndex(week)
+  const thread = threads.find(t => t.id === threadId)
+  if (!thread) return
+  thread.messageCount += 2 // user + assistant
+  thread.totalInputTokens += inputTokens
+  thread.totalOutputTokens += outputTokens
+  thread.estimatedCost = estimateCost(model, thread.totalInputTokens, thread.totalOutputTokens)
+  thread.updated = new Date().toISOString()
+  writeThreadIndex(week, threads)
+}
+
+export function _recordDailyUsage(inputTokens, outputTokens) {
+  resetDailyIfNeeded()
+  _dailyUsage.inputTokens += inputTokens
+  _dailyUsage.outputTokens += outputTokens
+}
+
+export function _checkDailyCeiling() {
+  resetDailyIfNeeded()
+  const total = _dailyUsage.inputTokens + _dailyUsage.outputTokens
+  if (total >= DAILY_TOKEN_CEILING) {
+    const err = new Error(`Daily token ceiling reached (${total}/${DAILY_TOKEN_CEILING}). Try again tomorrow or restart the server.`)
+    err.status = 429
+    throw err
+  }
+  return { total, ceiling: DAILY_TOKEN_CEILING, warningAt80: total >= DAILY_TOKEN_CEILING * 0.8 }
+}
+
+export function _autoNameThread(week, threadId, firstMessage) {
+  const threads = readThreadIndex(week)
+  const thread = threads.find(t => t.id === threadId)
+  if (!thread || thread.name !== 'New thread') return
+  thread.name = firstMessage.slice(0, 50).replace(/\n/g, ' ').trim() || 'New thread'
+  writeThreadIndex(week, threads)
+}
