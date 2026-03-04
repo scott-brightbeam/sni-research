@@ -9,6 +9,7 @@ export function useConfig(name) {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { walkArticleDir } from '../lib/walk.js'
+import { getISOWeek } from '../lib/week.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
@@ -8,6 +9,7 @@ export async function getStatus() {
   return {
     lastRun: getLastRun(),
     articles: getArticleCounts(),
+    availableWeeks: getAvailableWeeks(),
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
     ingestServer: await getIngestHealth(),
@@ -24,6 +26,25 @@ async function getIngestHealth() {
   } catch {
     return { online: false }
   }
+}
+
+function getAvailableWeeks() {
+  const verifiedDir = join(ROOT, 'data/verified')
+  if (!existsSync(verifiedDir)) return []
+
+  const weeks = new Set()
+  try {
+    for (const dateDir of readdirSync(verifiedDir)) {
+      // Date directories are YYYY-MM-DD
+      const match = dateDir.match(/^\d{4}-\d{2}-\d{2}$/)
+      if (!match) continue
+      const d = new Date(dateDir + 'T12:00:00Z') // noon UTC to avoid timezone edge cases
+      if (isNaN(d.getTime())) continue
+      weeks.add(getISOWeek(d))
+    }
+  } catch { /* ignore read errors */ }
+
+  return [...weeks].sort((a, b) => a - b)
 }
 
 function getLastRun() {
