@@ -1,0 +1,232 @@
+# SNI Research Tool - Search Query Configuration
+#
+# Template variables (resolved at runtime):
+#   {month} → current month name (e.g., "March")
+#   {year}  → current year (e.g., "2026")
+#   {date}  → human-readable date for last 3 days (e.g., "March 5 2026")
+#
+# Layers:
+#   L1 (sector sweeps) — broad sector coverage, past month
+#   L2 (source targeting) — site: queries for high-value publications, past week
+#   L3 (cross-sector themes) — trending topics across all sectors, past month
+#   L4 (daily experiment) — L1 queries with {date} instead of {month} {year}, past week
+
+search_queries:
+  freshness:
+    layer1: pm    # past month — broad sweeps benefit from wider window
+    layer2: pw    # past week — source-specific, want recency
+    layer3: pm    # past month — thematic queries benefit from wider window
+    layer4: pw    # past week — daily experiment needs recency
+
+  layer1_sector:
+    biopharma:
+      # Regulatory/technical (ChatGPT)
+      - "OpenFold3 AI structural biology consortium {month} {year}"
+      - "federated learning pharma data sharing {month} {year}"
+      - "FDA AI model credibility regulatory submissions {month} {year}"
+      - "AI toxicology NAMs in silico safety testing {month} {year}"
+      - "AI qualified tool drug development biomarker {month} {year}"
+      - "AI lab automation self driving lab drug discovery {month} {year}"
+      - "synthetic control arm trial emulation real world data AI {month} {year}"
+      - "AI CMC pharmaceutical manufacturing quality control {month} {year}"
+      # Operational/trend (Gemini)
+      - "agentic AI pharma deployment {month} {year}"
+      - "small language models biotech {month} {year}"
+      - "AI pharmaceutical supply chain logistics {month} {year}"
+      - "automated AI partnering system biotech {month} {year}"
+      - "AI preclinical candidate nomination {month} {year}"
+      - "artificial intelligence data governance FDA {month} {year}"
+
+    medtech:
+      # Regulatory/technical (ChatGPT)
+      - "predetermined change control plan PCCP AI device {month} {year}"
+      - "good machine learning practice GMLP medical device {month} {year}"
+      - "MDR IVDR AI Act medical device artificial intelligence {month} {year}"
+      - "AI ambient scribe clinical documentation {month} {year}"
+      - "autonomous AI radiology CE class IIB {month} {year}"
+      - "FDA wellness guidance wearables AI {month} {year}"
+      - "AI guided camera surgery {month} {year}"
+      - "FDA cleared robotic surgery system {month} {year}"
+      # Operational/trend (Gemini)
+      - "medtech AI acquisition premium {month} {year}"
+      - "ambulatory surgery center AI robotics {month} {year}"
+      - "capability driven procurement medtech {month} {year}"
+      - "connected care ecosystem acquisition {month} {year}"
+      - "telemedicine AI diagnostic tools clearance {month} {year}"
+      - "medtech digital transformation divestiture {month} {year}"
+
+    manufacturing:
+      # Regulatory/technical (ChatGPT)
+      - "industrial copilot generative AI PLC engineering {month} {year}"
+      - "digital twin AI factory operations {month} {year}"
+      - "OT cybersecurity industrial control systems AI {month} {year}"
+      - "computer vision quality inspection manufacturing AI {month} {year}"
+      - "humanoid robots factory pilot {month} {year}"
+      - "high bandwidth memory HBM shortage manufacturing {month} {year}"
+      - "advanced packaging chip stacking AI chips {month} {year}"
+      - "AI energy management factory optimisation {month} {year}"
+      # Operational/trend (Gemini)
+      - "agentic AI autonomous factory operations {month} {year}"
+      - "AI manufacturing knowledge transfer retirement {month} {year}"
+      - "human centric factory AI upskilling {month} {year}"
+      - "AI integration ERP MES WMS {month} {year}"
+      - "AI supply chain orchestration resilience {month} {year}"
+      - "enterprise reasoning platform manufacturing {month} {year}"
+
+    insurance:
+      # Regulatory/technical (ChatGPT)
+      - "EIOPA generative AI survey insurance governance {month} {year}"
+      - "FCA AI review insurance regulatory {month} {year}"
+      - "ChatGPT insurance quotes app distribution {month} {year}"
+      - "generative AI exclusions insurance policy wording {month} {year}"
+      - "AI liability insurance chatbot errors {month} {year}"
+      - "AI model risk management insurance underwriting {month} {year}"
+      - "AI prior authorisation denials health insurance {month} {year}"
+      # Operational/trend (Gemini)
+      - "real time AI insurance portfolio management {month} {year}"
+      - "AI underwriting workbench risk clustering {month} {year}"
+      - "evidence led underwriting AI mitigation {month} {year}"
+      - "AI water leak detection insurance {month} {year}"
+      - "NAIC AI systems evaluation tool {month} {year}"
+      - "agentic AI submission triage insurance {month} {year}"
+
+    general:
+      # Infrastructure/technical (ChatGPT)
+      - "HBM memory shortage DRAM pricing AI servers {month} {year}"
+      - "AI data centre electricity demand grid {month} {year}"
+      - "export controls AI chips Blackwell China {month} {year}"
+      - "AI standards ISO 42001 NIST evaluation {month} {year}"
+      - "AI content labelling watermarking provenance {month} {year}"
+      - "prompt injection agent data exfiltration {month} {year}"
+      - "AI chip custom silicon Broadcom XPU {month} {year}"
+      - "advanced packaging chip stacking AI hardware {month} {year}"
+      # Market/policy (Gemini)
+      - "AI scare trade SaaS disruption {month} {year}"
+      - "vibe coding enterprise software {month} {year}"
+      - "California SB 53 frontier AI compliance {month} {year}"
+      - "federal deregulation state AI law conflict {month} {year}"
+      - "sovereign AI national infrastructure {month} {year}"
+      - "AI military blacklist defense department {month} {year}"
+
+  layer2_sources:
+    # Existing sources (already in RSS or original plan)
+    - query: "site:reuters.com artificial intelligence"
+      name: Reuters
+    - query: "site:cnbc.com artificial intelligence"
+      name: CNBC
+    - query: "site:finance.yahoo.com artificial intelligence"
+      name: Yahoo Finance
+    - query: "site:wired.com artificial intelligence"
+      name: Wired
+    # Biopharma (ChatGPT + Gemini)
+    - query: "site:biospace.com artificial intelligence"
+      name: BioSpace
+    - query: "site:genengnews.com artificial intelligence"
+      name: GEN
+    - query: "site:labiotech.eu artificial intelligence"
+      name: Labiotech
+    - query: "site:bioworld.com artificial intelligence"
+      name: BioWorld
+    - query: "site:pharmaphorum.com artificial intelligence"
+      name: Pharmaphorum
+    # Medtech (ChatGPT + Gemini)
+    - query: "site:massdevice.com artificial intelligence"
+      name: MassDevice
+    - query: "site:radiologybusiness.com artificial intelligence"
+      name: Radiology Business
+    # Manufacturing (ChatGPT + Gemini)
+    - query: "site:industryweek.com artificial intelligence"
+      name: IndustryWeek
+    - query: "site:themanufacturer.com artificial intelligence"
+      name: The Manufacturer
+    - query: "site:manufacturingdive.com artificial intelligence"
+      name: Manufacturing Dive
+    - query: "site:automationworld.com artificial intelligence"
+      name: Automation World
+    - query: "site:industrytoday.com artificial intelligence"
+      name: Industry Today
+    # Insurance (ChatGPT + Gemini)
+    - query: "site:insuranceerm.com artificial intelligence"
+      name: InsuranceERM
+    - query: "site:reinsurancene.ws artificial intelligence"
+      name: Reinsurance News
+    - query: "site:instech.london artificial intelligence"
+      name: Instech
+    - query: "site:fintechglobal.com artificial intelligence insurance"
+      name: FinTech Global
+    - query: "site:carriermanagement.com artificial intelligence"
+      name: Carrier Management
+    # Regulatory primary sources (ChatGPT)
+    - query: "site:nist.gov artificial intelligence"
+      name: NIST
+    - query: "site:fdalawblog.net artificial intelligence"
+      name: FDA Law Blog
+    # Research (Gemini)
+    - query: "site:arxiv.org artificial intelligence"
+      name: arXiv
+
+  layer3_themes:
+    # Workforce & labour (ChatGPT + Gemini)
+    - "AI workforce displacement automation layoffs {month} {year}"
+    - "AI upskilling reskilling corporate training {month} {year}"
+    - "AI institutional knowledge capture retirement {month} {year}"
+    - "superagency employee AI empowerment {month} {year}"
+    # AI assurance & standards (ChatGPT)
+    - "AI audit assurance testing certification {month} {year}"
+    - "AI safety standards NIST ISO evaluation {month} {year}"
+    - "responsible AI governance framework corporate {month} {year}"
+    # Compute & infrastructure (ChatGPT + Gemini)
+    - "AI chip shortage GPU supply demand {month} {year}"
+    - "AI data centre energy consumption power grid {month} {year}"
+    - "AI data center liquid cooling infrastructure {month} {year}"
+    - "hybrid cloud compute edge AI latency {month} {year}"
+    - "edge AI on-device inference mobile deployment {month} {year}"
+    - "small language models edge deployment {month} {year}"
+    # Geopolitics & regulation (ChatGPT + Gemini)
+    - "AI export controls sanctions technology restrictions {month} {year}"
+    - "sovereign AI national data localization {month} {year}"
+    - "China AI competition technology rivalry {month} {year}"
+    - "state vs federal AI regulation conflict {month} {year}"
+    - "AI regulation EU AI Act implementation {month} {year}"
+    # Agent failure & security (ChatGPT)
+    - "AI agent failure hallucination reliability {month} {year}"
+    - "prompt injection AI security vulnerability {month} {year}"
+    - "AI model poisoning data integrity {month} {year}"
+    # Platform & distribution (ChatGPT + Gemini)
+    - "agentic AI autonomous workflow enterprise {month} {year}"
+    - "vibe coding internal software generation {month} {year}"
+    - "AI scare trade SaaS valuation {month} {year}"
+    - "AI copilot enterprise integration Microsoft Google {month} {year}"
+    - "open source vs proprietary AI model debate {month} {year}"
+    # Sector overlays (ChatGPT)
+    - "AI healthcare regulation medical device software {month} {year}"
+    - "AI insurance regulation solvency risk {month} {year}"
+    - "labour market AI policy universal basic income {month} {year}"
+
+  layer4_enabled: true  # Toggle for daily experiment
+  # Layer 4 uses same queries as layer1 but with {date} instead of {month} {year}
+
+headline_sources:
+  # SSR-viable targets only (confirmed by Gemini report)
+  # CSR-heavy targets excluded: Bloomberg, The Times UK, MIT Tech Review
+  - name: Financial Times AI
+    url: https://www.ft.com/artificial-intelligence
+    selector: ".o-teaser__heading"
+  - name: STAT News Health Tech
+    url: https://statnews.com/category/health-tech/
+    selector: ".article-item__title span"
+  - name: Insurance Journal AI
+    url: https://www.insurancejournal.com/ai/
+    selector: ".article-list h2, .article-list h3"
+  - name: Harvard Business Review AI
+    url: https://hbr.org/topic/artificial-intelligence
+    selector: "article h3 a, stream-item h3 a"
+  - name: The Economist Science & Tech
+    url: https://www.economist.com/science-and-technology
+    selector: "h3"  # Clean teaser architecture
+  - name: Wired Science
+    url: https://www.wired.com/category/science/
+    selector: ".summary-item__hed"
+  - name: Endpoints News
+    url: https://endpts.com
+    selector: "article h2 a, article h3 a"  # Needs robust HTTP headers

@@ -5,7 +5,7 @@
  * the manual ingest server can share the same code.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
@@ -117,13 +117,21 @@ export function saveArticle(article, sector, stats) {
   const slug = slugify(article.title);
   const filename = `${slug}`;
 
-  // Save metadata JSON — if this fails, skip MD and HTML for this article
+  // Save metadata JSON — merge found_by if file already exists
   const jsonPath = join(verifiedDir, `${filename}.json`);
   try {
+    if (existsSync(jsonPath)) {
+      const existing = JSON.parse(readFileSync(jsonPath, 'utf8'));
+      // Merge found_by arrays (union, deduped)
+      const existingFoundBy = existing.found_by || [];
+      const newFoundBy = article.found_by || [];
+      const merged = [...new Set([...existingFoundBy, ...newFoundBy])];
+      article = { ...existing, ...article, found_by: merged };
+    }
     writeFileSync(jsonPath, JSON.stringify(article, null, 2));
   } catch (err) {
     console.warn(`[${new Date().toISOString().slice(11, 19)}] ⚠  Failed to save JSON for "${article.title?.slice(0, 50)}": ${err.message}`);
-    return;
+    return null;
   }
 
   // Save readable MD — quote YAML frontmatter values to prevent injection
@@ -137,7 +145,7 @@ date_published: ${article.date_published}
 date_verified_method: ${article.date_verified_method}
 date_confidence: ${article.date_confidence}
 sector: ${sector}
-scraped_at: ${article.scraped_at}
+scraped_at: ${article.scraped_at}${article.found_by ? `\nfound_by: ${JSON.stringify(article.found_by)}` : ''}
 ---
 
 ${article.full_text || article.snippet || ''}
@@ -157,6 +165,7 @@ ${article.full_text || article.snippet || ''}
 
   stats.saved++;
   console.log(`[${new Date().toISOString().slice(11, 19)}] \u2713  Saved [${sector}] ${article.title.slice(0, 70)}`);
+  return jsonPath;
 }
 
 export function saveFlagged(article, reason, stats) {

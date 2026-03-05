@@ -16,6 +16,17 @@ The API server reads `data/`, `output/`, `config/`, `logs/`. It never imports pi
 
 For the Claude co-pilot: the API server holds the Anthropic SDK connection. Chat messages go to `/api/chat` which streams responses back via SSE.
 
+### Pipeline data changes (fetch enhancement)
+
+Article JSON files now include a `found_by` array tracking which queries/sources discovered the article:
+```json
+{ "found_by": ["RSS: BioPharma Dive", "L1: biopharma AI March 2026"] }
+```
+
+New config file `config/search-queries.yaml` contains all Brave Search queries (L1–L4), headline sources, and freshness settings. The web UI Config page could expose query productivity stats in a future phase.
+
+Source health tracking lives at `data/source-health.json` — per-source success/failure counters for headline scraping targets.
+
 ## 2. Pages & Features
 
 ### Dashboard (`/`)
@@ -102,7 +113,7 @@ Both share `POST /api/chat` with an `ephemeral` flag.
 - **Two system prompts:** editorial analyst (co-pilot page) and draft assistant (panel)
 
 ### Model selection
-- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-20250512`
+- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-6`
 - User principle: "Always use a toggle"
 
 ### Token & cost counting

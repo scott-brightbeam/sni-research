@@ -100,33 +100,6 @@ rss_feeds:
       name: GlobeNewswire AI
     # PR Newswire skipped: no server-side AI filtering available
 
-# Brave Search queries for the general AI feed
-# These are searched with freshness=pw (past week)
-general_search_queries:
-  - "OpenAI new model release 2026"
-  - "Anthropic Claude release announcement 2026"
-  - "Google DeepMind AI announcement 2026"
-  - "Meta AI model release 2026"
-  - "Mistral AI model release 2026"
-  - "xAI Grok release 2026"
-  - "Cohere AI release 2026"
-  - "AWS Bedrock new AI service 2026"
-  - "Azure OpenAI new feature 2026"
-  - "Google Cloud AI new service 2026"
-  - "SaaSpocalypse AI agents replacing SaaS"
-  - "agentic AI enterprise software 2026"
-  - "AI regulation EU UK February 2026"
-  - "open source AI model release February 2026"
-  - "AI startup funding round February 2026"
-  - "foundation model benchmark release 2026"
-  - "AI safety incident February 2026"
-  - "hyperscaler AI enterprise announcement 2026"
-  - "semiconductor AI manufacturing 2026"
-  - "industrial AI robotics manufacturing 2026"
-  - "AI drug discovery biopharma 2026"
-  - "AI medical device FDA clearance 2026"
-  - "insurtech AI underwriting 2026"
-
 # Known reliable URL date patterns (for verification)
 url_date_patterns:
   - publisher: BusinessWire
