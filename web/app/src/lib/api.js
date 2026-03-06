@@ -41,3 +41,10 @@ export async function apiPost(path, body) {
     body: JSON.stringify(body),
   })
 }
+
+export async function apiPut(path, body) {
+  return apiFetch(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
