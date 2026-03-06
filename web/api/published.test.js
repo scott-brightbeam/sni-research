@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'bun:test'
 import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 
-const ROOT = resolve(import.meta.dir, '..')
+const ROOT = resolve(import.meta.dir, '../..')
 const PUB_DIR = join(ROOT, 'output/published')
 
 // Ensure clean state
