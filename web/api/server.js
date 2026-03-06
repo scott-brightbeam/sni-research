@@ -3,6 +3,7 @@ import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticl
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getConfig, putConfig } from './routes/config.js'
+import { getOverview, getRunDetail } from './routes/sources.js'
 
 const PORT = 3900
 
@@ -154,6 +155,18 @@ const server = Bun.serve({
       if (configMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putConfig(configMatch[1], body))
+      }
+
+      // --- Sources ---
+      if (path === '/api/sources/overview' && req.method === 'GET') {
+        return json(await getOverview())
+      }
+
+      const sourceRunMatch = path.match(/^\/api\/sources\/runs\/(\d{4}-\d{2}-\d{2})$/)
+      if (sourceRunMatch && req.method === 'GET') {
+        const detail = await getRunDetail(sourceRunMatch[1])
+        if (!detail) return json({ error: 'Run not found' }, 404)
+        return json(detail)
       }
 
       // --- Health ---
