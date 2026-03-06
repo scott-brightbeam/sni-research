@@ -8,7 +8,7 @@ export function validateParam(value, name) {
   if (!SAFE_PARAM.test(value)) throw new Error(`Invalid ${name}: ${value}`)
 }
 
-export function walkArticleDir(baseDir, callback, { sector, date } = {}) {
+export function walkArticleDir(baseDir, callback, { sector, date, dateFrom, dateTo } = {}) {
   const dir = join(ROOT, `data/${baseDir}`)
   if (!existsSync(dir)) return
 
@@ -19,6 +19,8 @@ export function walkArticleDir(baseDir, callback, { sector, date } = {}) {
 
   for (const d of dates) {
     if (date && d !== date) continue
+    if (dateFrom && d < dateFrom) continue
+    if (dateTo && d > dateTo) continue
     const datePath = join(dir, d)
     if (!statSync(datePath).isDirectory()) continue
 
