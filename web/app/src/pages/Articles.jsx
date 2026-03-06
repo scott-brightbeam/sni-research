@@ -10,22 +10,69 @@ import './Articles.css'
 
 const SECTORS = ['', 'general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
 
+const DATE_PRESETS = [
+  { key: 'week', label: 'This week' },
+  { key: 'month', label: 'This month' },
+  { key: '30d', label: 'Last 30 days' },
+  { key: 'all', label: 'All time' },
+]
+
+function getPresetRange(key, lastFridayRunAt) {
+  const today = new Date().toISOString().split('T')[0]
+  if (key === 'week' && lastFridayRunAt) {
+    return { from: lastFridayRunAt.split('T')[0], to: today }
+  }
+  if (key === 'month') {
+    const d = new Date()
+    const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    return { from, to: today }
+  }
+  if (key === '30d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return { from: d.toISOString().split('T')[0], to: today }
+  }
+  return { from: '', to: '' }
+}
+
 export default function Articles() {
   const [sector, setSector] = useState('')
-  const [date, setDate] = useState('')
+  const [datePreset, setDatePreset] = useState('week')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
   const [showIngest, setShowIngest] = useState(false)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
-  const allResult = useArticles({ sector, date, search: debouncedSearch })
-  const flaggedResult = useFlaggedArticles()
   const { status } = useStatus()
-
+  const lastFridayRunAt = status?.lastFridayRunAt || null
   const ingestOnline = status?.ingestServer?.online ?? false
 
+  // Build date range from preset or custom
+  const dateRange = (() => {
+    if (datePreset === 'custom') return { from: customFrom, to: customTo }
+    return getPresetRange(datePreset, lastFridayRunAt)
+  })()
+
+  const allResult = useArticles({
+    sector,
+    from: dateRange.from,
+    to: dateRange.to,
+    search: debouncedSearch,
+  })
+  const flaggedResult = useFlaggedArticles()
+
   const { articles, total, loading, error, reload, lastUpdated } = tab === 'all' ? allResult : flaggedResult
+
+  function handlePresetChange(key) {
+    setDatePreset(key)
+    if (key !== 'custom') {
+      setCustomFrom('')
+      setCustomTo('')
+    }
+  }
 
   return (
     <div>
@@ -52,26 +99,64 @@ export default function Articles() {
       </div>
 
       {tab === 'all' && (
-        <div className="filter-bar">
-          <select value={sector} onChange={e => setSector(e.target.value)}>
-            <option value="">All sectors</option>
-            {SECTORS.filter(Boolean).map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Search articles..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="filter-search"
-          />
-          {lastUpdated && (
-            <span className="updated-indicator">
-              Updated {formatRelativeTime(new Date(lastUpdated).toISOString())}
-            </span>
-          )}
-        </div>
+        <>
+          <div className="date-bar">
+            <div className="date-presets">
+              {DATE_PRESETS.map(p => (
+                <button
+                  key={p.key}
+                  className={`date-preset ${datePreset === p.key ? 'active' : ''}`}
+                  onClick={() => handlePresetChange(p.key)}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <button
+                className={`date-preset ${datePreset === 'custom' ? 'active' : ''}`}
+                onClick={() => setDatePreset('custom')}
+              >
+                Custom
+              </button>
+            </div>
+            {datePreset === 'custom' && (
+              <div className="date-custom">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="date-input"
+                />
+                <span className="date-sep">to</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="date-input"
+                />
+              </div>
+            )}
+          </div>
+          <div className="filter-bar">
+            <select value={sector} onChange={e => setSector(e.target.value)}>
+              <option value="">All sectors</option>
+              {SECTORS.filter(Boolean).map(s => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Search articles..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="filter-search"
+            />
+            {lastUpdated && (
+              <span className="updated-indicator">
+                Updated {formatRelativeTime(new Date(lastUpdated).toISOString())}
+              </span>
+            )}
+          </div>
+        </>
       )}
 
       <div className="card card-flush">

@@ -154,7 +154,7 @@ All 15 findings from final code review addressed:
 | Threads | Multiple named per week (not one conversation per week) |
 | Draft panel | Ephemeral slide-out from Draft page, draft markdown as context |
 | Model toggle | Per-message everywhere — Sonnet (default) / Opus |
-| Models | `claude-sonnet-4-20250514`, `claude-opus-4-20250512` |
+| Models | `claude-sonnet-4-20250514`, `claude-opus-4-6` |
 | Token/cost counting | Per-message usage, per-thread totals, daily ceiling (500k), pricing lib |
 | Article injection | Explicit article picker in chat UI, not magic detection |
 | Thread naming | Auto-name from first message, renamable |

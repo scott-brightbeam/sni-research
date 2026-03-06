@@ -2,6 +2,7 @@ import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
+import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
 
 const PORT = 3900
@@ -143,6 +144,12 @@ const server = Bun.serve({
       if (path === '/api/chat/usage' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await getUsage(query))
+      }
+
+      // --- Usage (aggregated by period) ---
+      if (path === '/api/usage' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getUsageByPeriod(query))
       }
 
       // --- Config ---

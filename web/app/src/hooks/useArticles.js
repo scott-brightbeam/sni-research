@@ -15,6 +15,8 @@ export function useArticles(filters = {}) {
       const params = new URLSearchParams()
       if (filters.sector) params.set('sector', filters.sector)
       if (filters.date) params.set('date', filters.date)
+      if (filters.from) params.set('from', filters.from)
+      if (filters.to) params.set('to', filters.to)
       if (filters.search) params.set('search', filters.search)
 
       const qs = params.toString()
@@ -27,7 +29,7 @@ export function useArticles(filters = {}) {
       setError(err.message)
       setLoading(false)
     }
-  }, [filters.sector, filters.date, filters.search])
+  }, [filters.sector, filters.date, filters.from, filters.to, filters.search])
 
   useEffect(() => { load() }, [load])
 

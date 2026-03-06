@@ -192,7 +192,7 @@ export default function Copilot() {
                     >S</button>
                     <button
                       className={chat.model.includes('opus') ? 'active' : ''}
-                      onClick={() => chat.setModel('claude-opus-4-20250512')}
+                      onClick={() => chat.setModel('claude-opus-4-6')}
                     >O</button>
                   </div>
 

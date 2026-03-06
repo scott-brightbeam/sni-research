@@ -72,6 +72,55 @@
   margin-bottom: 16px;
 }
 
+/* ─── Article Chart ───────────────────────────────────────────────────────── */
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-title-row .card-title {
+  margin-bottom: 0;
+}
+
+.chart-range-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.chart-empty {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--cloudy);
+  padding: 24px 0;
+  text-align: center;
+}
+
+.aggregate-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 8px;
+}
+
+.aggregate-total {
+  font-family: 'Poppins', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.aggregate-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--cloudy);
+  margin-top: 4px;
+}
+
 .bar-chart {
   display: flex;
   align-items: flex-end;
@@ -108,13 +157,117 @@
   flex-wrap: wrap;
 }
 
-.sector-count {
+/* ─── Token Cost Card ──────────────────────────────────────────────────────── */
+
+.token-cost-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.cost-models {
+  display: flex;
+  gap: 12px;
+  margin-bottom: auto;
+}
+
+.cost-model-row {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+}
+
+.cost-toggles {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.cost-toggle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--light-gray);
+  background: transparent;
+  color: var(--cloudy);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cost-toggle:hover {
+  background: var(--hover-subtle);
+  color: var(--text-primary);
+}
+
+.cost-toggle.active {
+  background: var(--terra-bg);
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
+/* ─── Next Pipeline Card ──────────────────────────────────────────────────── */
+
+.next-pipeline-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pipeline-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--stage-bg);
+  border-radius: var(--radius);
+}
+
+.pipeline-type {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pipeline-time {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+}
+
+/* ─── Sector Filter Buttons ───────────────────────────────────────────────── */
+
+.sector-filter-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   color: var(--cloudy);
+  background: transparent;
+  border: 1px solid var(--light-gray);
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sector-filter-btn:hover {
+  background: var(--hover-subtle);
+  color: var(--text-primary);
+}
+
+.sector-filter-btn.active {
+  background: var(--terra-bg);
+  border-color: var(--terra);
+  color: var(--terra);
 }
 
 .stages {

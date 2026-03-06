@@ -102,7 +102,7 @@ Both share `POST /api/chat` with an `ephemeral` flag.
 - **Two system prompts:** editorial analyst (co-pilot page) and draft assistant (panel)
 
 ### Model selection
-- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-20250512`
+- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-6`
 - User principle: "Always use a toggle"
 
 ### Token & cost counting

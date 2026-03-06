@@ -84,9 +84,12 @@ function scoreSector(text, sectorDef) {
  */
 export function assignSector(title, text, sourceSector = null) {
   const sectors = loadSectors();
-  // Use title + first 800 chars only: AI keyword must appear prominently,
-  // not buried in boilerplate or unrelated paragraphs deep in the article.
-  const searchText = `${title} ${text}`.slice(0, 800);
+  const fullText = `${title} ${text}`;
+  // Default scan window: title + first 800 chars. AI keyword must appear
+  // prominently, not buried in boilerplate deep in the article.
+  // Sectors with scan_chars override get a wider window (e.g. biopharma,
+  // insurance — their trade press often buries the AI angle below the fold).
+  const DEFAULT_SCAN_CHARS = 800;
 
   // Sector priority order (general is last/fallback)
   const sectorOrder = ['biopharma', 'medtech', 'manufacturing', 'insurance'];
@@ -95,17 +98,25 @@ export function assignSector(title, text, sourceSector = null) {
   if (sourceSector && sourceSector !== 'general' && sourceSector !== 'cross_sector') {
     const sectorDef = sectors[sourceSector];
     if (sectorDef) {
-      const result = scoreSector(searchText, sectorDef);
+      const chars = sectorDef.scan_chars || DEFAULT_SCAN_CHARS;
+      const result = scoreSector(fullText.slice(0, chars), sectorDef);
       if (result.matches) return sourceSector;
     }
   }
 
-  // Score all sectors
+  // Score all sectors.
+  // scan_chars override only applies when the article came from that sector's
+  // own RSS feed (sourceSector hint). For cross-sector / Brave / no-hint articles,
+  // always use DEFAULT_SCAN_CHARS to prevent false positives from incidental
+  // sector mentions deep in general-interest articles.
   const scores = {};
   for (const sectorName of sectorOrder) {
     const sectorDef = sectors[sectorName];
     if (!sectorDef) continue;
-    scores[sectorName] = scoreSector(searchText, sectorDef);
+    const chars = (sourceSector === sectorName && sectorDef.scan_chars)
+      ? sectorDef.scan_chars
+      : DEFAULT_SCAN_CHARS;
+    scores[sectorName] = scoreSector(fullText.slice(0, chars), sectorDef);
   }
 
   // Find best matching sector (most boost score wins, then first in priority order)
@@ -124,7 +135,8 @@ export function assignSector(title, text, sourceSector = null) {
   // Check general AI keywords
   const generalDef = sectors['general'];
   if (generalDef) {
-    const result = scoreSector(searchText, generalDef);
+    const chars = generalDef.scan_chars || DEFAULT_SCAN_CHARS;
+    const result = scoreSector(fullText.slice(0, chars), generalDef);
     if (result.matches) return 'general';
   }
 

@@ -6,9 +6,11 @@ import { getISOWeek } from '../lib/week.js'
 const ROOT = resolve(import.meta.dir, '../../..')
 
 export async function getStatus() {
+  const lastFridayRunAt = getLastFridayRunAt()
   return {
     lastRun: getLastRun(),
-    articles: getArticleCounts(),
+    lastFridayRunAt,
+    articles: getArticleCounts(lastFridayRunAt),
     availableWeeks: getAvailableWeeks(),
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
@@ -82,19 +84,71 @@ function getLastRun() {
   }
 }
 
-function getArticleCounts() {
+function getArticleCounts(fridayCutoff) {
   const byDate = {}
   const bySector = {}
+  const byDateBySector = {}
   let total = 0
 
-  walkArticleDir('verified', (_raw, { date, sector }) => {
+  // Week-filtered counts (articles scraped after last friday pipeline)
+  const weekByDate = {}
+  const weekBySector = {}
+  const weekByDateBySector = {}
+  let weekTotal = 0
+
+  walkArticleDir('verified', (raw, { date, sector }) => {
+    // All-time counts
     byDate[date] = (byDate[date] || 0) + 1
     bySector[sector] = (bySector[sector] || 0) + 1
+    if (!byDateBySector[date]) byDateBySector[date] = {}
+    byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
     total++
+
+    // Week counts: only articles scraped after last friday run
+    if (fridayCutoff && raw.scraped_at && raw.scraped_at > fridayCutoff) {
+      weekByDate[date] = (weekByDate[date] || 0) + 1
+      weekBySector[sector] = (weekBySector[sector] || 0) + 1
+      if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
+      weekByDateBySector[date][sector] = (weekByDateBySector[date][sector] || 0) + 1
+      weekTotal++
+    }
   })
 
   const today = new Date().toISOString().split('T')[0]
-  return { today: byDate[today] || 0, total, byDate, bySector }
+  return {
+    today: byDate[today] || 0,
+    total,
+    byDate,
+    bySector,
+    byDateBySector,
+    weekArticles: {
+      total: weekTotal,
+      byDate: weekByDate,
+      bySector: weekBySector,
+      byDateBySector: weekByDateBySector,
+    },
+  }
+}
+
+function getLastFridayRunAt() {
+  const runsDir = join(ROOT, 'output/runs')
+  if (!existsSync(runsDir)) return null
+
+  const files = readdirSync(runsDir)
+    .filter(f => f.startsWith('pipeline-') && f.endsWith('.json'))
+    .sort()
+    .reverse()
+
+  for (const file of files) {
+    try {
+      const data = JSON.parse(readFileSync(join(runsDir, file), 'utf-8'))
+      if (data.mode === 'friday' && data.completedAt) {
+        return data.completedAt
+      }
+    } catch { /* skip */ }
+  }
+
+  return null
 }
 
 function getNextPipeline() {

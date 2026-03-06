@@ -10,6 +10,7 @@
 sectors:
   biopharma:
     display_name: "Pharma & Biopharma"
+    scan_chars: 1500  # Wider than default 800 — pharma trade press buries AI angle below the fold
     required_any_group_1:
       - "AI"
       - "artificial intelligence"
@@ -158,6 +159,7 @@ sectors:
 
   insurance:
     display_name: "Insurance"
+    scan_chars: 1500  # Wider than default 800 — insurance trade press rarely leads with AI angle
     required_any_group_1:
       # Stricter AI signals - must be explicitly AI/ML, not just automation
       - "AI"
