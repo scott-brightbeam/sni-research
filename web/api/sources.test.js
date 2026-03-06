@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { getOverview } from './routes/sources.js'
+import { getOverview, getRunDetail } from './routes/sources.js'
 
 describe('getOverview', () => {
   it('returns runs array and health object', async () => {
@@ -62,5 +62,41 @@ describe('getOverview', () => {
       expect(source).toHaveProperty('consecutiveFailures')
       expect(source).toHaveProperty('lastError')
     }
+  })
+})
+
+describe('getRunDetail', () => {
+  it('returns date, saved, queryStats, headlineStats for a valid date', async () => {
+    const result = await getRunDetail('2026-03-05')
+    if (result) {
+      expect(result).toHaveProperty('date')
+      expect(result).toHaveProperty('saved')
+    }
+  })
+
+  it('returns queryStats as object for new-format run', async () => {
+    const result = await getRunDetail('2026-03-05')
+    if (result && result.queryStats) {
+      expect(typeof result.queryStats).toBe('object')
+      const firstKey = Object.keys(result.queryStats)[0]
+      if (firstKey) {
+        const val = result.queryStats[firstKey]
+        expect(val).toHaveProperty('results')
+        expect(val).toHaveProperty('saved')
+      }
+    }
+  })
+
+  it('returns null queryStats for old-format run', async () => {
+    const result = await getRunDetail('2026-03-02')
+    if (result) {
+      expect(result.queryStats).toBe(null)
+      expect(result.headlineStats).toBe(null)
+    }
+  })
+
+  it('returns null for non-existent date', async () => {
+    const result = await getRunDetail('1999-01-01')
+    expect(result).toBe(null)
   })
 })

@@ -71,6 +71,22 @@ function aggregateLayers(raw) {
   return layers
 }
 
+export async function getRunDetail(date) {
+  const filePath = join(DATA_DIR, `last-run-${date}.json`)
+  try {
+    const raw = JSON.parse(readFileSync(filePath, 'utf8'))
+    return {
+      date,
+      saved: raw.saved ?? 0,
+      window: raw.window ?? null,
+      queryStats: raw.queryStats ?? null,
+      headlineStats: raw.headlineStats ?? null,
+    }
+  } catch {
+    return null
+  }
+}
+
 function loadHealth() {
   try {
     return JSON.parse(readFileSync(join(DATA_DIR, 'source-health.json'), 'utf8'))
