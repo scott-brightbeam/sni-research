@@ -8,6 +8,12 @@ export function useArticles(filters = {}) {
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   const lastFetchTs = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -21,11 +27,13 @@ export function useArticles(filters = {}) {
 
       const qs = params.toString()
       const data = await apiFetch(`/api/articles${qs ? '?' + qs : ''}`)
+      if (!mountedRef.current) return
       setArticles(data.articles)
       setTotal(data.total)
       setLoading(false)
       lastFetchTs.current = Date.now()
     } catch (err) {
+      if (!mountedRef.current) return
       setError(err.message)
       setLoading(false)
     }
@@ -38,6 +46,7 @@ export function useArticles(filters = {}) {
     const interval = setInterval(async () => {
       try {
         const { timestamp } = await apiFetch('/api/articles/last-updated')
+        if (!mountedRef.current) return
         setLastUpdated(timestamp)
         if (timestamp > lastFetchTs.current) {
           load()

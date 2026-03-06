@@ -190,9 +190,11 @@ function PublishedPanel({ week, pub }) {
   async function handleSave() {
     if (!content.trim()) return
     setSaveMsg(null)
-    await pub.save(content, { linkedinUrl })
-    setSaveMsg('Saved')
-    setTimeout(() => setSaveMsg(null), 3000)
+    const ok = await pub.save(content, { linkedinUrl })
+    if (ok) {
+      setSaveMsg('Saved')
+      setTimeout(() => setSaveMsg(null), 3000)
+    }
   }
 
   if (pub.loading) return <div className="published-panel"><div className="placeholder-text">Loading...</div></div>
@@ -272,11 +274,13 @@ function highlightTerms(children, terms) {
 function highlightString(text, terms) {
   if (!terms.length) return text
   const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const pattern = new RegExp(`(${escaped.join('|')})`, 'gi')
-  const parts = text.split(pattern)
+  const splitter = new RegExp(`(${escaped.join('|')})`, 'gi')
+  const parts = text.split(splitter)
   if (parts.length === 1) return text
+  // Use a fresh non-global regex for testing each part (avoids lastIndex bug)
+  const tester = new RegExp(`^(?:${escaped.join('|')})$`, 'i')
   return parts.map((part, i) =>
-    pattern.test(part)
+    tester.test(part)
       ? <mark key={i} className="review-mark" title={`Prohibited: "${part}"`}>{part}</mark>
       : part
   )

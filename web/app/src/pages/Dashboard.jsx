@@ -135,8 +135,8 @@ function BarChart({ byDate, range }) {
             <div
               className="bar"
               style={{
-                height: `${(count / max) * 70}px`,
-                background: count > 0 ? 'var(--terra)' : 'var(--light-gray)',
+                '--bar-h': `${(count / max) * 70}px`,
+                '--bar-bg': count > 0 ? 'var(--terra)' : 'var(--light-gray)',
               }}
               title={`${key}: ${count} articles`}
             />

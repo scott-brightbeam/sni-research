@@ -64,6 +64,7 @@ export function useSources() {
       } catch (err) {
         if (!mountedRef.current) return
         setDetail(null)
+        setError(err.message)
       }
       if (mountedRef.current) setDetailLoading(false)
     }

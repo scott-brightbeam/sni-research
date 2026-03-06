@@ -50,6 +50,12 @@
   color: var(--cloudy);
 }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-dot[data-layer="L1"] { background: var(--layer-l1); }
+.legend-dot[data-layer="L2"] { background: var(--layer-l2); }
+.legend-dot[data-layer="L3"] { background: var(--layer-l3); }
+.legend-dot[data-layer="L4"] { background: var(--layer-l4); }
+.legend-dot[data-layer="headlines"] { background: var(--layer-hl); }
+.legend-dot[data-layer="rss"] { background: var(--layer-rss); }
 
 /* --- Layer cards --- */
 .layer-cards {
@@ -201,6 +207,8 @@
 
 .sortable { cursor: pointer; user-select: none; }
 .sortable:hover { color: var(--text-primary); }
+
+.card-flush-title { padding: 16px; }
 
 /* --- Health table --- */
 .health-dot {

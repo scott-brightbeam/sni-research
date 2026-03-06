@@ -217,7 +217,7 @@ function ArticlesChart({ runs }) {
       <div className="chart-legend">
         {LAYER_KEYS.map(k => (
           <span key={k} className="legend-item">
-            <span className="legend-dot" style={{ background: LAYER_COLOURS[k] }} />
+            <span className="legend-dot" data-layer={k === 'headlines' ? 'headlines' : k} />
             {LAYER_LABELS[k]}
           </span>
         ))}
@@ -418,7 +418,7 @@ function HealthTable({ health }) {
 
   return (
     <div className="card card-flush">
-      <div className="card-title" style={{ padding: '16px' }}>Source health</div>
+      <div className="card-title card-flush-title">Source health</div>
       <div className="table-wrapper">
         <table>
           <thead>

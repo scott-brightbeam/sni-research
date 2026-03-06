@@ -112,6 +112,8 @@
   border-radius: 4px 4px 0 0;
   transition: height 0.3s;
   min-height: 2px;
+  height: var(--bar-h, 2px);
+  background: var(--bar-bg, var(--light-gray));
 }
 
 .bar-label {

@@ -16,7 +16,10 @@ function loadAllRuns() {
       const m = f.match(/^last-run-(\d{4}-\d{2}-\d{2})\.json$/)
       if (m) files.push({ date: m[1], path: join(DATA_DIR, f) })
     }
-  } catch { return [] }
+  } catch (err) {
+    console.warn('sources: could not read data dir:', err.message)
+    return []
+  }
 
   files.sort((a, b) => b.date.localeCompare(a.date))
 
@@ -32,7 +35,8 @@ function loadAllRuns() {
         elapsed: raw.elapsed ?? null,
         layerTotals: aggregateLayers(raw),
       }
-    } catch {
+    } catch (err) {
+      console.warn(`sources: could not parse run ${date}:`, err.message)
       return { date, saved: 0, flagged: 0, fetchErrors: 0, paywalled: 0, elapsed: null, layerTotals: null }
     }
   })
@@ -82,7 +86,8 @@ export async function getRunDetail(date) {
       queryStats: raw.queryStats ?? null,
       headlineStats: raw.headlineStats ?? null,
     }
-  } catch {
+  } catch (err) {
+    console.warn(`sources: could not load run detail ${date}:`, err.message)
     return null
   }
 }
@@ -90,7 +95,8 @@ export async function getRunDetail(date) {
 function loadHealth() {
   try {
     return JSON.parse(readFileSync(join(DATA_DIR, 'source-health.json'), 'utf8'))
-  } catch {
+  } catch (err) {
+    console.warn('sources: could not load health file:', err.message)
     return {}
   }
 }

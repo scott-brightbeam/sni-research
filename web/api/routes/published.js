@@ -35,7 +35,9 @@ export function listPublished() {
     const metaPath = join(PUB_DIR, `${week}-meta.json`)
     let meta = {}
     if (existsSync(metaPath)) {
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf-8')) } catch { /* skip */ }
+      try { meta = JSON.parse(readFileSync(metaPath, 'utf-8')) } catch (err) {
+        console.warn(`published: could not parse meta for ${week}:`, err.message)
+      }
     }
     results.push({ week, ...meta })
   }
@@ -59,13 +61,17 @@ export function getPublished(week) {
   let meta = {}
   const metaPath = join(PUB_DIR, `${week}-meta.json`)
   if (existsSync(metaPath)) {
-    try { meta = JSON.parse(readFileSync(metaPath, 'utf-8')) } catch { /* skip */ }
+    try { meta = JSON.parse(readFileSync(metaPath, 'utf-8')) } catch (err) {
+      console.warn(`published: could not parse meta for ${week}:`, err.message)
+    }
   }
 
   let analysis = null
   const analysisPath = join(PUB_DIR, `${week}-analysis.json`)
   if (existsSync(analysisPath)) {
-    try { analysis = JSON.parse(readFileSync(analysisPath, 'utf-8')) } catch { /* skip */ }
+    try { analysis = JSON.parse(readFileSync(analysisPath, 'utf-8')) } catch (err) {
+      console.warn(`published: could not parse analysis for ${week}:`, err.message)
+    }
   }
 
   return { content, meta, analysis }
@@ -92,10 +98,4 @@ export function savePublished(week, content, meta = {}) {
   writeFileSync(join(PUB_DIR, `${week}-meta.json`), JSON.stringify(fullMeta, null, 2))
 
   return fullMeta
-}
-
-export function saveAnalysis(week, analysis) {
-  if (!WEEK_RE.test(week)) throw new Error(`Invalid week format: ${week}`)
-  ensureDir()
-  writeFileSync(join(PUB_DIR, `${week}-analysis.json`), JSON.stringify(analysis, null, 2))
 }
