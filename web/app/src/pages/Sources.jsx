@@ -29,6 +29,7 @@ export default function Sources() {
         detail={detail}
         loading={detailLoading}
         isLegacy={selectedRun?.layerTotals === null}
+        health={overview?.health ?? {}}
       />
 
       <HealthTable health={overview?.health ?? {}} />
@@ -250,7 +251,7 @@ function LayerCards({ layerTotals }) {
   return <div className="layer-cards">{cards}</div>
 }
 
-function QueryTable({ detail, loading, isLegacy }) {
+function QueryTable({ detail, loading, isLegacy, health }) {
   const [search, setSearch] = useState('')
   const [layerFilter, setLayerFilter] = useState(new Set())
   const [sortKey, setSortKey] = useState('saved')
@@ -276,11 +277,38 @@ function QueryTable({ detail, loading, isLegacy }) {
 
   if (!detail?.queryStats) return null
 
-  // Parse rows
+  // Parse query rows from queryStats
   let rows = Object.entries(detail.queryStats).map(([label, stats]) => {
     const layer = label.match(/^(L[1-4]):/)?.[1] || 'HL'
     return { label, layer, ...stats }
   })
+
+  // Add headline rows from headlineStats (aggregate) + per-source health
+  if (detail?.headlineStats) {
+    const hl = detail.headlineStats
+    rows.push({
+      label: `HL: All headlines \u2014 ${hl.sources ?? 0} sources, ${hl.headlines ?? 0} scraped`,
+      layer: 'HL',
+      results: hl.found ?? 0,
+      new: hl.searched ?? 0,
+      saved: 0,
+      paywalled: 0,
+      errors: hl.errors ?? 0,
+    })
+  }
+  if (health) {
+    for (const [name, s] of Object.entries(health)) {
+      rows.push({
+        label: `HL: ${name}`,
+        layer: 'HL',
+        results: 0,
+        new: 0,
+        saved: 0,
+        paywalled: 0,
+        errors: s.consecutiveFailures ?? 0,
+      })
+    }
+  }
 
   // Filter
   if (search) {
