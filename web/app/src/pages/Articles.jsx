@@ -6,20 +6,23 @@ import { useStatus } from '../hooks/useStatus'
 import SectorBadge from '../components/shared/SectorBadge'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
+import TimeRangeSelector from '../components/shared/TimeRangeSelector'
+import { getDateRange } from '../lib/dateRange'
 import './Articles.css'
 
 const SECTORS = ['', 'general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
 
 export default function Articles() {
   const [sector, setSector] = useState('')
-  const [date, setDate] = useState('')
+  const [range, setRange] = useState('7d')
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
   const [showIngest, setShowIngest] = useState(false)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
-  const allResult = useArticles({ sector, date, search: debouncedSearch })
+  const { startDate: dateFrom, endDate: dateTo } = getDateRange(range)
+  const allResult = useArticles({ sector, dateFrom, dateTo, search: debouncedSearch })
   const flaggedResult = useFlaggedArticles()
   const { status } = useStatus()
 
@@ -59,6 +62,7 @@ export default function Articles() {
               <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
             ))}
           </select>
+          <TimeRangeSelector value={range} onChange={setRange} />
           <input
             type="text"
             placeholder="Search articles..."
