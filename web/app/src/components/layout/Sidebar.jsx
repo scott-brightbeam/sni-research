@@ -6,8 +6,8 @@ const NAV_ITEMS = [
   { to: '/articles', label: 'Articles', icon: 'list' },
   { to: '/draft', label: 'Draft', icon: 'edit' },
   { to: '/copilot', label: 'Co-pilot', icon: 'chat' },
-  { to: '/config', label: 'Config', icon: 'settings' },
   { to: '/sources', label: 'Sources', icon: 'layers' },
+  { to: '/config', label: 'Config', icon: 'settings' },
 ]
 
 const ICONS = {
