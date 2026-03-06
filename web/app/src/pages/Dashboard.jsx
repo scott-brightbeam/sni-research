@@ -1,10 +1,14 @@
 import { useStatus } from '../hooks/useStatus'
+import { useState } from 'react'
+import TimeRangeSelector from '../components/shared/TimeRangeSelector'
+import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
 import { formatDuration, formatRelativeTime } from '../lib/format'
 import './Dashboard.css'
 
 export default function Dashboard() {
   const { status, loading, error } = useStatus()
+  const [chartRange, setChartRange] = useState('7d')
 
   if (loading) return <div className="loading">Loading...</div>
   if (error) return <div className="empty">Failed to load: {error}</div>
@@ -45,8 +49,11 @@ export default function Dashboard() {
 
       <div className="dashboard-panels">
         <div className="card">
-          <div className="card-title">Articles by date</div>
-          <BarChart byDate={articles.byDate || {}} />
+          <div className="card-header">
+            <div className="card-title">Articles by date</div>
+            <TimeRangeSelector value={chartRange} onChange={setChartRange} />
+          </div>
+          <BarChart byDate={articles.byDate || {}} range={chartRange} />
           <div className="sector-badges">
             {Object.entries(articles.bySector || {}).map(([sector, count]) => (
               <span key={sector} className="sector-count">
@@ -97,21 +104,41 @@ function StatCard({ label, value, detail, smallValue }) {
   )
 }
 
-function BarChart({ byDate }) {
-  const entries = Object.entries(byDate).sort().slice(-7)
+function BarChart({ byDate, range }) {
+  const { startDate, endDate } = getDateRange(range)
+  const filtered = filterByDateEntries(byDate, startDate, endDate)
+  const filled = fillCalendarGaps(filtered)
+
+  if (filled.length === 0) {
+    return <div className="bar-chart-empty">No articles in this period</div>
+  }
+
+  // Aggregate to weeks if >14 data points
+  const entries = filled.length > 14 ? aggregateToWeeks(filled) : filled
+  const isWeekly = filled.length > 14
   const max = Math.max(...entries.map(([, n]) => n), 1)
 
   return (
     <div className="bar-chart">
-      {entries.map(([date, count]) => {
-        const d = new Date(date + 'T00:00:00')
-        const label = d.toLocaleDateString('en-GB', { weekday: 'short' })
+      {entries.map(([key, count]) => {
+        let label
+        if (isWeekly) {
+          label = key // "W10"
+        } else {
+          const d = new Date(key + 'T00:00:00')
+          const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' })
+          const day = String(d.getDate()).padStart(2, '0')
+          label = `${weekday} ${day}`
+        }
         return (
-          <div key={date} className="bar-group">
+          <div key={key} className="bar-group">
             <div
               className="bar"
-              style={{ height: `${(count / max) * 70}px`, background: 'var(--terra)' }}
-              title={`${date}: ${count} articles`}
+              style={{
+                height: `${(count / max) * 70}px`,
+                background: count > 0 ? 'var(--terra)' : 'var(--light-gray)',
+              }}
+              title={`${key}: ${count} articles`}
             />
             <div className="bar-label">{label}</div>
           </div>

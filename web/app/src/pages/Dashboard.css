@@ -72,6 +72,25 @@
   margin-bottom: 16px;
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-header .card-title {
+  margin-bottom: 0;
+}
+
+.bar-chart-empty {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--cloudy);
+  text-align: center;
+  padding: 24px 0;
+}
+
 .bar-chart {
   display: flex;
   align-items: flex-end;
