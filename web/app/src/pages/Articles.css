@@ -315,3 +315,21 @@ tr:hover .row-actions { opacity: 1; }
   color: var(--cloudy);
   border: 1px solid var(--light-gray);
 }
+
+/* --- Found-by badges --- */
+.found-by-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.found-by-badge {
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-lg);
+  cursor: default;
+}
+.found-by-badge[data-layer="L1"] { background: var(--layer-l1-15); color: var(--layer-l1); }
+.found-by-badge[data-layer="L2"] { background: var(--layer-l2-15); color: var(--layer-l2); }
+.found-by-badge[data-layer="L3"] { background: var(--layer-l3-15); color: var(--layer-l3); }
+.found-by-badge[data-layer="L4"] { background: var(--layer-l4-15); color: var(--layer-l4); }
+.found-by-badge[data-layer="rss"] { background: var(--layer-rss-15); color: var(--layer-rss); }
+.found-by-badge[data-layer="headlines"] { background: var(--layer-hl-15); color: var(--layer-hl); }
+.found-by-badge[data-layer="unknown"] { background: var(--light-gray); color: var(--cloudy); }

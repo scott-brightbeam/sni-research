@@ -295,6 +295,30 @@ function ArticleDetail({ article, detail, loading, error }) {
             <dt>Scraped</dt><dd>{d.scraped_at ? formatDate(d.scraped_at) : '\u2014'}</dd>
             <dt>Type</dt><dd>{d.source_type || 'automated'}</dd>
             {d.score != null && <><dt>Score reason</dt><dd>{d.score_reason || '\u2014'}</dd></>}
+            {d.found_by?.length > 0 && (
+              <>
+                <dt>Discovered by</dt>
+                <dd>
+                  <div className="found-by-badges">
+                    {d.found_by.map((fb, i) => {
+                      const layer = fb.match(/^(L[1-4]|RSS|HL):/)?.[1] || 'unknown'
+                      const layerKey = layer === 'HL' ? 'headlines' : layer === 'RSS' ? 'rss' : layer
+                      return (
+                        <span key={i} className="found-by-badge" data-layer={layerKey} title={fb}>
+                          {layer}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </dd>
+              </>
+            )}
+            {(!d.found_by || d.found_by.length === 0) && d.source_type !== 'manual' && (
+              <>
+                <dt>Discovered by</dt>
+                <dd className="cell-meta">Unknown</dd>
+              </>
+            )}
           </dl>
           {d.keywords_matched?.length > 0 && (
             <div className="detail-keywords">
