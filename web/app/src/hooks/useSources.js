@@ -23,9 +23,10 @@ export function useSources() {
         const data = await apiFetch('/api/sources/overview')
         if (!mountedRef.current) return
         setOverview(data)
-        // Auto-select newest run
+        // Auto-select newest run with layer data, or fall back to newest overall
         if (data.runs.length > 0) {
-          setSelectedDate(data.runs[0].date)
+          const withLayers = data.runs.find(r => r.layerTotals !== null)
+          setSelectedDate((withLayers || data.runs[0]).date)
         }
         setLoading(false)
       } catch (err) {
