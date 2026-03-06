@@ -219,11 +219,10 @@ headline_sources:
     url: https://www.insurancejournal.com/ai/
     selector: ".article-list h2, .article-list h3"
   - name: Harvard Business Review AI
-    url: https://hbr.org/topic/artificial-intelligence
-    selector: "article h3 a, stream-item h3 a"
-  - name: The Economist Science & Tech
-    url: https://www.economist.com/science-and-technology
-    selector: "h3"  # Clean teaser architecture
+    url: https://hbr.org/topic/subject/ai-and-machine-learning
+    selector: "article h3 a, .stream-item h3 a"
+  # The Economist — removed: returns HTTP 403 for all server-side requests (anti-bot protection).
+  # Would need headless browser; not compatible with our fetchPage() approach.
   - name: Wired Science
     url: https://www.wired.com/category/science/
     selector: ".summary-item__hed"

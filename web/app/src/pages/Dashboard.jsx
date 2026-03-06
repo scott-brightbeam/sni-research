@@ -30,9 +30,15 @@ export default function Dashboard() {
           detail={Object.entries(articles.bySector || {}).map(([s, n]) => `${s}: ${n}`).join(' · ')}
         />
         <StatCard
-          label="Next pipeline"
-          value={nextPipeline ? formatNextRun(nextPipeline.nextFriday) : '—'}
-          detail="Full friday run"
+          label="Next full run"
+          value={nextPipeline ? formatNextRunDate(nextPipeline.nextFriday) : '—'}
+          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextFriday)}` : ''}
+          smallValue
+        />
+        <StatCard
+          label="Next retrieval"
+          value={nextPipeline ? formatNextRunDate(nextPipeline.nextDaily) : '—'}
+          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextDaily)}` : ''}
           smallValue
         />
       </div>
@@ -115,11 +121,16 @@ function BarChart({ byDate }) {
   )
 }
 
-function formatNextRun(iso) {
+function formatNextRunDate(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' +
-    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + d.getDate()
+}
+
+function formatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 function summariseStageStats(stage) {
