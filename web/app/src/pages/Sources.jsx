@@ -29,7 +29,6 @@ export default function Sources() {
         detail={detail}
         loading={detailLoading}
         isLegacy={selectedRun?.layerTotals === null}
-        health={overview?.health ?? {}}
       />
 
       <HealthTable health={overview?.health ?? {}} />
@@ -251,7 +250,7 @@ function LayerCards({ layerTotals }) {
   return <div className="layer-cards">{cards}</div>
 }
 
-function QueryTable({ detail, loading, isLegacy, health }) {
+function QueryTable({ detail, loading, isLegacy }) {
   const [search, setSearch] = useState('')
   const [layerFilter, setLayerFilter] = useState(new Set())
   const [sortKey, setSortKey] = useState('saved')
@@ -283,30 +282,31 @@ function QueryTable({ detail, loading, isLegacy, health }) {
     return { label, layer, ...stats }
   })
 
-  // Add headline rows from headlineStats (aggregate) + per-source health
+  // Add aggregate headline row from headlineStats
   if (detail?.headlineStats) {
     const hl = detail.headlineStats
     rows.push({
-      label: `HL: All headlines \u2014 ${hl.sources ?? 0} sources, ${hl.headlines ?? 0} scraped`,
+      label: `HL: ${hl.sources ?? 0} sources \u2014 ${hl.headlines ?? 0} headlines scraped, ${hl.searched ?? 0} searched`,
       layer: 'HL',
       results: hl.found ?? 0,
-      new: hl.searched ?? 0,
-      saved: 0,
+      new: hl.headlines ?? 0,
+      saved: hl.searched ?? 0,
       paywalled: 0,
       errors: hl.errors ?? 0,
     })
-  }
-  if (health) {
-    for (const [name, s] of Object.entries(health)) {
-      rows.push({
-        label: `HL: ${name}`,
-        layer: 'HL',
-        results: 0,
-        new: 0,
-        saved: 0,
-        paywalled: 0,
-        errors: s.consecutiveFailures ?? 0,
-      })
+    // Per-source headline rows (populated from pipeline perSource tracking)
+    if (hl.perSource) {
+      for (const [name, s] of Object.entries(hl.perSource)) {
+        rows.push({
+          label: `HL: ${name}`,
+          layer: 'HL',
+          results: s.found ?? 0,
+          new: s.headlines ?? 0,
+          saved: s.searched ?? 0,
+          paywalled: 0,
+          errors: s.errors ?? 0,
+        })
+      }
     }
   }
 

@@ -417,6 +417,7 @@ async function processHeadlines(window, stats, seen, args) {
       warn(`  Failed: ${source.name} — ${error}`);
       recordFailure(healthMap, source.name, error);
       stats.headlineStats.errors++;
+      stats.headlineStats.perSource[source.name] = { headlines: 0, searched: 0, found: 0, errors: 1 };
       continue;
     }
 
@@ -425,8 +426,12 @@ async function processHeadlines(window, stats, seen, args) {
     stats.headlineStats.sources++;
     stats.headlineStats.headlines += headlines.length;
 
+    const srcStats = { headlines: headlines.length, searched: 0, found: 0, errors: 0 };
+    stats.headlineStats.perSource[source.name] = srcStats;
+
     for (const hl of headlines) {
       stats.headlineStats.searched++;
+      srcStats.searched++;
       const braveResults = await searchHeadlineOnBrave(hl.headline, BRAVE_API_KEY);
 
       for (const result of braveResults) {
@@ -450,6 +455,7 @@ async function processHeadlines(window, stats, seen, args) {
 
         seen.set(url, { path: null, foundBy: [hlLabel] });
         stats.headlineStats.found++;
+        srcStats.found++;
 
         await sleep(RATE_LIMIT_MS);
         const { html, headers, error: fetchError } = await fetchPage(url);
@@ -603,7 +609,7 @@ export async function runFetch(args = {}) {
     paywalled: 0,
     offLimits: 0,
     queryStats: {},
-    headlineStats: { sources: 0, headlines: 0, searched: 0, found: 0, errors: 0 },
+    headlineStats: { sources: 0, headlines: 0, searched: 0, found: 0, errors: 0, perSource: {} },
     startTime: Date.now(),
   };
 
