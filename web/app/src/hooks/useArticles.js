@@ -8,6 +8,12 @@ export function useArticles(filters = {}) {
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   const lastFetchTs = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -15,21 +21,23 @@ export function useArticles(filters = {}) {
       const params = new URLSearchParams()
       if (filters.sector) params.set('sector', filters.sector)
       if (filters.date) params.set('date', filters.date)
-      if (filters.from) params.set('from', filters.from)
-      if (filters.to) params.set('to', filters.to)
+      if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+      if (filters.dateTo) params.set('dateTo', filters.dateTo)
       if (filters.search) params.set('search', filters.search)
 
       const qs = params.toString()
       const data = await apiFetch(`/api/articles${qs ? '?' + qs : ''}`)
+      if (!mountedRef.current) return
       setArticles(data.articles)
       setTotal(data.total)
       setLoading(false)
       lastFetchTs.current = Date.now()
     } catch (err) {
+      if (!mountedRef.current) return
       setError(err.message)
       setLoading(false)
     }
-  }, [filters.sector, filters.date, filters.from, filters.to, filters.search])
+  }, [filters.sector, filters.date, filters.dateFrom, filters.dateTo, filters.search])
 
   useEffect(() => { load() }, [load])
 
@@ -38,6 +46,7 @@ export function useArticles(filters = {}) {
     const interval = setInterval(async () => {
       try {
         const { timestamp } = await apiFetch('/api/articles/last-updated')
+        if (!mountedRef.current) return
         setLastUpdated(timestamp)
         if (timestamp > lastFetchTs.current) {
           load()

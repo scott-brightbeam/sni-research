@@ -40,6 +40,18 @@
   --surface: #2c2a27;
   --surface-hover: #353330;
   --sidebar-bg: #1e1c1a;
+  --layer-l1: #7CADD6;
+  --layer-l2: #5BA4A4;
+  --layer-l3: #ADA0D0;
+  --layer-l4: #D4914E;
+  --layer-hl: #D47BA0;
+  --layer-rss: #6FA584;
+  --layer-l1-15: rgba(124, 173, 214, 0.15);
+  --layer-l2-15: rgba(91, 164, 164, 0.15);
+  --layer-l3-15: rgba(173, 160, 208, 0.15);
+  --layer-l4-15: rgba(212, 145, 78, 0.15);
+  --layer-hl-15: rgba(212, 123, 160, 0.15);
+  --layer-rss-15: rgba(111, 165, 132, 0.15);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

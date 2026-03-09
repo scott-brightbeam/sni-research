@@ -5,6 +5,7 @@ import Articles from './pages/Articles'
 import Draft from './pages/Draft'
 import Copilot from './pages/Copilot'
 import Config from './pages/Config'
+import Sources from './pages/Sources'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/draft" element={<Draft />} />
           <Route path="/copilot" element={<Copilot />} />
           <Route path="/config" element={<Config />} />
+          <Route path="/sources" element={<Sources />} />
         </Route>
       </Routes>
     </BrowserRouter>

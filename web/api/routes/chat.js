@@ -4,6 +4,7 @@ import { getClient } from '../lib/claude.js'
 import { assembleContext, estimateTokens } from '../lib/context.js'
 import { estimateCost, formatCost, DEFAULT_MODEL, MODELS } from '../lib/pricing.js'
 import { getISOWeek } from '../lib/week.js'
+import { listPublished, getPublished } from './published.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 const COPILOT_DIR = join(ROOT, 'data/copilot')
@@ -214,6 +215,28 @@ export async function handleChat(req) {
     threadHistory = await getHistory({ week, thread: threadId })
   }
 
+  // /compare-draft command: load published exemplar
+  let publishedExemplar = null
+  let userMessage = message
+  if (message.startsWith('/compare-draft')) {
+    userMessage = message.replace(/^\/compare-draft\s*/, '').trim()
+    if (!userMessage) {
+      userMessage = 'Compare this draft against the published exemplar. Analyse structure, tone, section balance and coverage gaps.'
+    }
+    // Load most recent published newsletter
+    const published = listPublished()
+    if (published.length > 0) {
+      const latest = getPublished(published[0].week)
+      if (latest?.content) {
+        publishedExemplar = latest.content
+      }
+    }
+    if (!publishedExemplar) {
+      // No published newsletters — AI will be told there's nothing to compare against
+      userMessage = 'The user asked to compare this draft against a published exemplar, but no published newsletters have been saved yet. Let them know they need to save a published newsletter first using the Published panel in the Draft page.'
+    }
+  }
+
   // Assemble context
   const { systemPrompt, preamble, trimmedHistory } = assembleContext({
     week,
@@ -221,6 +244,7 @@ export async function handleChat(req) {
     articleRef,
     ephemeral: !!ephemeral,
     draftContext,
+    publishedExemplar,
   })
 
   // Build SDK messages array
@@ -228,19 +252,19 @@ export async function handleChat(req) {
 
   // First message includes the preamble as a user message
   if (preamble && trimmedHistory.length === 0) {
-    sdkMessages.push({ role: 'user', content: `${preamble}\n\n---\n\n${message}` })
+    sdkMessages.push({ role: 'user', content: `${preamble}\n\n---\n\n${userMessage}` })
   } else if (preamble) {
     sdkMessages.push({ role: 'user', content: preamble })
     sdkMessages.push({ role: 'assistant', content: 'I\'ve reviewed the context. What would you like to discuss?' })
     for (const msg of trimmedHistory) {
       sdkMessages.push({ role: msg.role, content: msg.content })
     }
-    sdkMessages.push({ role: 'user', content: message })
+    sdkMessages.push({ role: 'user', content: userMessage })
   } else {
     for (const msg of trimmedHistory) {
       sdkMessages.push({ role: msg.role, content: msg.content })
     }
-    sdkMessages.push({ role: 'user', content: message })
+    sdkMessages.push({ role: 'user', content: userMessage })
   }
 
   // Create abort controller linked to request signal

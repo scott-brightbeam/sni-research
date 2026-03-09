@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import DraftChatPanel from '../components/DraftChatPanel'
+import { usePublished } from '../hooks/usePublished'
 import './Draft.css'
 
 export default function Draft() {
@@ -16,6 +17,8 @@ export default function Draft() {
   const [showFlags, setShowFlags] = useState(true)
   const [panelOpen, setPanelOpen] = useState(false)
   const debouncedDraft = useDebouncedValue(draft, 300)
+  const [showPublished, setShowPublished] = useState(false)
+  const pub = usePublished(week)
 
   const wordCount = useMemo(() => {
     if (!draft) return 0
@@ -111,6 +114,12 @@ export default function Draft() {
           </button>
         )}
         <button
+          className={`draft-published-toggle ${showPublished ? 'active' : ''}`}
+          onClick={() => setShowPublished(!showPublished)}
+        >
+          Published
+        </button>
+        <button
           className={`draft-chat-toggle${panelOpen ? ' active' : ''}`}
           disabled={!hasDraft}
           onClick={() => setPanelOpen(p => !p)}
@@ -151,12 +160,95 @@ export default function Draft() {
         </div>
       )}
 
+      {showPublished && (
+        <PublishedPanel week={week} pub={pub} />
+      )}
+
       <DraftChatPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         draftContent={draft}
         week={week}
       />
+    </div>
+  )
+}
+
+function PublishedPanel({ week, pub }) {
+  const [content, setContent] = useState('')
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+  const [saveMsg, setSaveMsg] = useState(null)
+
+  // Sync from loaded published data
+  useEffect(() => {
+    if (pub.published) {
+      setContent(pub.published.content || '')
+      setLinkedinUrl(pub.published.meta?.linkedinUrl || '')
+    }
+  }, [pub.published])
+
+  async function handleSave() {
+    if (!content.trim()) return
+    setSaveMsg(null)
+    const ok = await pub.save(content, { linkedinUrl })
+    if (ok) {
+      setSaveMsg('Saved')
+      setTimeout(() => setSaveMsg(null), 3000)
+    }
+  }
+
+  if (pub.loading) return <div className="published-panel"><div className="placeholder-text">Loading...</div></div>
+
+  return (
+    <div className="published-panel">
+      <div className="published-header">
+        <h3>Published — Week {week}</h3>
+        {pub.published?.meta?.wordCount && (
+          <span className="published-meta">
+            {pub.published.meta.wordCount} words · {pub.published.meta.sectionCount} sections
+          </span>
+        )}
+      </div>
+
+      <label className="published-label">LinkedIn URL</label>
+      <input
+        type="url"
+        className="published-url"
+        placeholder="https://linkedin.com/posts/..."
+        value={linkedinUrl}
+        onChange={e => setLinkedinUrl(e.target.value)}
+      />
+
+      <label className="published-label">Newsletter content</label>
+      <textarea
+        className="published-content"
+        placeholder="Paste your published newsletter markdown here..."
+        value={content}
+        onChange={e => setContent(e.target.value)}
+        rows={12}
+      />
+
+      {pub.published?.meta?.sections?.length > 0 && (
+        <div className="published-sections">
+          {pub.published.meta.sections.map((s, i) => (
+            <span key={i} className="published-section-badge">
+              {s.heading} <small>({s.wordCount}w)</small>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="published-actions">
+        <button
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={pub.saving || !content.trim()}
+        >
+          {pub.saving ? 'Saving...' : 'Save published'}
+        </button>
+        {saveMsg && <span className="published-save-msg">{saveMsg}</span>}
+        {pub.error && <span className="published-error">{pub.error}</span>}
+      </div>
     </div>
   )
 }
@@ -182,11 +274,13 @@ function highlightTerms(children, terms) {
 function highlightString(text, terms) {
   if (!terms.length) return text
   const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const pattern = new RegExp(`(${escaped.join('|')})`, 'gi')
-  const parts = text.split(pattern)
+  const splitter = new RegExp(`(${escaped.join('|')})`, 'gi')
+  const parts = text.split(splitter)
   if (parts.length === 1) return text
+  // Use a fresh non-global regex for testing each part (avoids lastIndex bug)
+  const tester = new RegExp(`^(?:${escaped.join('|')})$`, 'i')
   return parts.map((part, i) =>
-    pattern.test(part)
+    tester.test(part)
       ? <mark key={i} className="review-mark" title={`Prohibited: "${part}"`}>{part}</mark>
       : part
   )

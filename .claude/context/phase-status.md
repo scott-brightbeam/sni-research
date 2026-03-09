@@ -231,3 +231,58 @@ All 15 findings from final code review addressed:
 - No scoring for manually ingested articles
 - No adding/removing sectors (only keyword/display_name editing)
 - No editing `url_date_patterns` or `paywall_domains` (read-only)
+
+---
+
+## Fetch Pipeline Enhancement: Multi-Layer Sourcing + Attribution ✅ Complete
+
+**Branch:** `claude/lucid-sinoussi` (worktree)
+**Design plan:** `/Users/scott/.claude/plans/vivid-greeting-hare.md`
+
+### What was built
+
+**New config (`config/search-queries.yaml`):**
+- Layer 1: 69 sector sweep queries across 5 sectors (biopharma, medtech, manufacturing, insurance, general) with `{month} {year}` templates
+- Layer 2: 24 `site:` queries targeting high-value publications (Reuters, CNBC, BioSpace, IndustryWeek, InsuranceERM, etc.)
+- Layer 3: 29 cross-sector theme queries (workforce, compute, geopolitics, agent security, platform disruption)
+- Layer 4: Daily experiment — L1 queries with `{date}` template for last 3 days (207 queries)
+- 7 headline sources with CSS selectors (FT, STAT News, Insurance Journal, HBR, Economist, Wired, Endpoints News)
+- Per-layer freshness settings (`pm`/`pw`)
+
+**New modules:**
+- `scripts/lib/queries.js` (279 lines) — `loadQueries()`, `resolveTemplates()`, template variables (`{month}`, `{year}`, `{date}`), month-boundary duplication, Layer 4 generation, sector filtering
+- `scripts/lib/headlines.js` (260 lines) — `scrapeHeadlines()`, `searchHeadlineOnBrave()`, `extractHeadlinesFromHtml()`, fallback selector cascade, source health tracking (`data/source-health.json`)
+
+**Modified modules:**
+- `scripts/lib/extract.js` — `saveArticle()` returns `jsonPath`, merge-on-save (reads existing JSON, merges `found_by` arrays), `found_by` in MD frontmatter
+- `scripts/fetch.js` (466 → 702 lines) — `seen` Map replacing Set, `processSearchQueries()` replaces `processGeneralFeed()`, `processHeadlines()`, `reconcileFoundBy()`, per-query stats, `--layer` CLI flag, dry-run per-layer counts
+- `config/sources.yaml` — removed `general_search_queries` section (moved to search-queries.yaml)
+
+**New tests:**
+- `scripts/tests/queries.test.js` — 15 tests, 46 assertions
+- `scripts/tests/headlines.test.js` — 23 tests, 42 assertions
+
+### Verified
+- 38/38 unit tests pass (88 assertions across 2 test files)
+- `--dry-run` shows correct per-layer counts: L1=69, L2=24, L3=29, L4=207, Headlines=7, RSS=29
+- `--sector biopharma` correctly filters L1 to 14 queries, L4 to 42, RSS to 21 feeds
+- `--layer L1` suppresses L2/L3/L4, shows only L1 queries
+- `--layer headlines` shows 7 sources, 0 Brave queries
+- Combined `--sector insurance --layer L1` shows 13 queries
+
+### Key decisions
+| Decision | Choice |
+|----------|--------|
+| Query storage | Separate `config/search-queries.yaml` (not in sources.yaml) |
+| Template variables | `{month}`, `{year}`, `{date}` resolved at runtime |
+| Attribution | `found_by` array on every article JSON, reconciled at end of run |
+| URL dedup | `seen` Map<url, {path, foundBy[]}> replacing Set |
+| Headline strategy | Scrape SSR-rendered index pages, search Brave for open copies |
+| Source health | Auto-skip after 3 consecutive failures, reset on success |
+| Layer 4 | Same as L1 but with `{date}` for last 3 days — experimental |
+| CLI flags | `--layer L1\|L2\|L3\|L4\|headlines\|rss` for debugging |
+
+### Deferred (Phase 2 — Web UI)
+- Attribution UI: `found_by` display in article detail panel
+- Config tab: query productivity dashboard (per-query hit rates from stats)
+- Source health viewer in Config page

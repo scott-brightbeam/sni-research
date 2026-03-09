@@ -107,6 +107,13 @@ Analyse the current situation and invoke relevant skills:
 - **Week N:** Pipeline runs weekly; data directories named by week number (e.g., `data/verified/week-9/`)
 - **Co-pilot:** AI chat assistant for editorial writing (Phase 3)
 
+## Sector keyword config rules — non-negotiable
+
+- **Canonical AI terms:** `required_any_group_1` in `config/sectors.yaml` MUST be identical across all five sectors. One list, copied exactly. Never add sector-specific terms to group 1.
+- **Sector-specific AI phrasings** (e.g. "computational drug design", "digital twin", "computer-aided detection") belong in that sector's `required_any_group_2`, not group 1.
+- **Company names** never go in group 1. They belong in `required_any_group_2` or `boost` for the relevant sector.
+- **When updating AI terms**, update all five sectors simultaneously to maintain parity.
+
 ## Scott's preferences
 
 - Detailed specs with exact code patterns, not prose descriptions

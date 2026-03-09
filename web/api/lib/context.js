@@ -148,7 +148,7 @@ export function buildPinContext(pins) {
   return lines.join('\n')
 }
 
-export function assembleContext({ week, year, threadHistory, articleRef, ephemeral, draftContext }) {
+export function assembleContext({ week, year, threadHistory, articleRef, ephemeral, draftContext, publishedExemplar }) {
   const TOKEN_BUDGET = 28000  // leave 2k for response
   let used = 0
 
@@ -178,11 +178,17 @@ export function assembleContext({ week, year, threadHistory, articleRef, ephemer
   const pins = loadPins(week)
   const pinBlock = buildPinContext(pins)
 
-  // 5. Assemble the user-context preamble
-  const preamble = [contextBlock, injectedArticle, pinBlock].filter(Boolean).join('\n')
+  // 5. Published exemplar (for /compare-draft command)
+  let exemplarBlock = ''
+  if (publishedExemplar) {
+    exemplarBlock = `\n## Published Exemplar\n\n<published_exemplar>\n${publishedExemplar}\n</published_exemplar>\n\nCompare the current draft against this published exemplar. Analyse structure, tone, section balance and coverage gaps.\n`
+  }
+
+  // 6. Assemble the user-context preamble
+  const preamble = [contextBlock, injectedArticle, pinBlock, exemplarBlock].filter(Boolean).join('\n')
   used += estimateTokens(preamble)
 
-  // 6. Trim thread history to fit remaining budget
+  // 7. Trim thread history to fit remaining budget
   const historyBudget = TOKEN_BUDGET - used
   const trimmedHistory = trimHistory(threadHistory || [], Math.max(historyBudget, 2000))
 

@@ -4,6 +4,8 @@ import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
+import { getOverview, getRunDetail } from './routes/sources.js'
+import { listPublished, getPublished, savePublished } from './routes/published.js'
 
 const PORT = 3900
 
@@ -161,6 +163,38 @@ const server = Bun.serve({
       if (configMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putConfig(configMatch[1], body))
+      }
+
+      // --- Sources ---
+      if (path === '/api/sources/overview' && req.method === 'GET') {
+        return json(await getOverview())
+      }
+
+      const sourceRunMatch = path.match(/^\/api\/sources\/runs\/(\d{4}-\d{2}-\d{2})$/)
+      if (sourceRunMatch && req.method === 'GET') {
+        const detail = await getRunDetail(sourceRunMatch[1])
+        if (!detail) return json({ error: 'Run not found' }, 404)
+        return json(detail)
+      }
+
+      // --- Published ---
+      if (path === '/api/published' && req.method === 'GET') {
+        return json(listPublished())
+      }
+
+      const pubMatch = path.match(/^\/api\/published\/(week-\d+)$/)
+      if (pubMatch) {
+        const week = pubMatch[1]
+        if (req.method === 'GET') {
+          const result = getPublished(week)
+          if (!result) return json({ error: 'Not found' }, 404)
+          return json(result)
+        }
+        if (req.method === 'PUT') {
+          const body = await req.json()
+          const meta = savePublished(week, body.content, body.meta || {})
+          return json({ ok: true, meta })
+        }
       }
 
       // --- Health ---
