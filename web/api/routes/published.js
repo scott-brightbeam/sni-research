@@ -1,5 +1,7 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join, resolve } from 'path'
+import { getClient } from '../lib/claude.js'
+import { DEFAULT_MODEL } from '../lib/pricing.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 const PUB_DIR = join(ROOT, 'output/published')
@@ -98,4 +100,79 @@ export function savePublished(week, content, meta = {}) {
   writeFileSync(join(PUB_DIR, `${week}-meta.json`), JSON.stringify(fullMeta, null, 2))
 
   return fullMeta
+}
+
+const EXTRACTION_PROMPT = `Extract company/topic pairs from this newsletter for an off-limits exclusion list.
+The off-limits list prevents the pipeline from re-covering the same company+topic in future weeks.
+
+Rules:
+- Include every named company or organisation that is the SUBJECT of a story
+- Topic: 3–8 word noun phrase describing the specific development covered (e.g. "record Q1 revenue custom silicon", "on-premises AI research platform")
+- If one story covers multiple companies separately, create one entry per company
+- Exclude publications, analysts, regulators and advisory firms used only as sources (e.g. HSBC, Deloitte, PYMNTS, FDA, Citrini Research, Deutsche Bank)
+- Exclude generic terms that aren't specific companies (e.g. "AI chip startups", "hyperscalers")
+- One entry per unique company+topic combination — no duplicates
+
+Respond with ONLY a JSON array, no markdown fencing, no explanation:
+[{"company":"ExactCompanyName","topic":"short noun phrase describing development"},...]`
+
+export async function extractExclusions({ week }) {
+  if (!WEEK_RE.test(week)) {
+    const err = new Error(`Invalid week format: ${week}`)
+    err.status = 400
+    throw err
+  }
+
+  const mdPath = join(PUB_DIR, `${week}.md`)
+  if (!existsSync(mdPath)) {
+    const err = new Error(`No published newsletter for ${week}`)
+    err.status = 404
+    throw err
+  }
+
+  const content = readFileSync(mdPath, 'utf-8')
+
+  const client = getClient()
+
+  const response = await client.messages.create({
+    model: DEFAULT_MODEL,
+    max_tokens: 4096,
+    messages: [
+      { role: 'user', content: `${EXTRACTION_PROMPT}\n\n---\n\n${content}` }
+    ],
+  })
+
+  const text = response.content[0]?.text?.trim()
+  if (!text) {
+    const err = new Error('Claude returned empty response')
+    err.status = 502
+    throw err
+  }
+
+  let entries
+  try {
+    entries = JSON.parse(text)
+  } catch (parseErr) {
+    const err = new Error(`Claude returned invalid JSON: ${text.slice(0, 200)}`)
+    err.status = 502
+    throw err
+  }
+
+  if (!Array.isArray(entries)) {
+    const err = new Error('Claude response is not an array')
+    err.status = 502
+    throw err
+  }
+
+  const cleaned = entries
+    .filter(e => e && typeof e.company === 'string' && typeof e.topic === 'string')
+    .map(e => ({ company: e.company.trim(), topic: e.topic.trim() }))
+    .filter(e => e.company && e.topic)
+
+  return {
+    entries: cleaned,
+    model: DEFAULT_MODEL,
+    week,
+    usage: response.usage,
+  }
 }

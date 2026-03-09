@@ -83,3 +83,32 @@ week_9:
     topic: filed AI patents
   - company: Clear Group CEO Mike Edgeley
     topic: argued
+week_10:
+  - company: OpenAI
+    topic: GPT-5.4 model release variants
+  - company: Anthropic
+    topic: Pentagon defense contract negotiations
+  - company: Broadcom
+    topic: record Q1 revenue custom silicon
+  - company: KALA BIO
+    topic: on-premises AI research platform
+  - company: Insilico Medicine
+    topic: drug discovery model partnership
+  - company: Liquid AI
+    topic: drug discovery model partnership
+  - company: Tempus
+    topic: Merck precision medicine collaboration expansion
+  - company: Sectra
+    topic: Oxipit autonomous radiology AI acquisition
+  - company: Oxipit
+    topic: CE Class IIB autonomous AI certification
+  - company: RadNet
+    topic: Gleamer radiology AI acquisition
+  - company: Gleamer
+    topic: CE-marked FDA-cleared radiology devices
+  - company: Perimeter Medical Imaging
+    topic: Claire FDA-approved intraoperative imaging
+  - company: Bob McGrew startup
+    topic: manufacturing-focused AI funding
+  - company: Cisco
+    topic: industrial AI cybersecurity barriers report

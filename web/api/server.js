@@ -5,7 +5,7 @@ import { handleChat, listThreads, createThread, renameThread, getHistory, create
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
-import { listPublished, getPublished, savePublished } from './routes/published.js'
+import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 
 const PORT = 3900
 
@@ -195,6 +195,13 @@ const server = Bun.serve({
           const meta = savePublished(week, body.content, body.meta || {})
           return json({ ok: true, meta })
         }
+      }
+
+      // --- Published: extract exclusions ---
+      const exclMatch = path.match(/^\/api\/published\/(week-\d+)\/exclusions$/)
+      if (exclMatch && req.method === 'POST') {
+        const result = await extractExclusions({ week: exclMatch[1] })
+        return json(result)
       }
 
       // --- Health ---
