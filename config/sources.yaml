@@ -12,9 +12,15 @@ rss_feeds:
       name: Clinical Trials Arena
     - url: https://www.pharmaceutical-technology.com/feed/
       name: Pharmaceutical Technology
-    # Removed (dead Feb 2026): medcitynews.com/feed (403), statnews.com/feed (paywalled),
-    #   endpts.com/feed (paywalled), pharmatimes.com/rss (paywalled),
-    #   biospace.com/rss/ (404), fiercebiotech.com (403)
+    - url: https://www.statnews.com/feed/
+      name: STAT News                       # Re-added Mar 2026 — mostly STAT+ (paywalled), free articles pass through
+    - url: https://endpts.com/feed/
+      name: Endpoints News                  # Re-added Mar 2026 — feed serving despite partial paywall
+    - url: https://www.nature.com/nbt.rss
+      name: Nature Biotechnology            # Added Mar 2026 — high-quality, "Agentic AI in biomedical research" etc.
+    # Removed (dead/blocked): medcitynews.com/feed (403), pharmatimes.com/rss (paywalled),
+    #   biospace.com/rss/ (404), drugdiscoveryonline.com/feed (404),
+    #   fiercebiotech.com/rss/xml (RSS 403 to bots), fiercepharma.com/rss/xml (articles 403)
 
   medtech:
     - url: https://www.medtechdive.com/feeds/news/
@@ -41,11 +47,12 @@ rss_feeds:
   insurance:
     - url: https://insurancethoughtleadership.com/feed/
       name: Insurance Thought Leadership
-    # Removed (dead Feb 2026): insurancejournal.com/rss/news (paywalled),
+    # Removed (dead/blocked): insurancejournal.com/rss/news (paywalled),
     #   eu-startups.com/feed (paywalled), intelligentinsurer.com/rss (404),
     #   insnerds.com/feed (404), insuranceciooutlook.com/rss_feed (malformed XML),
-    #   reinsurancene.ws/feed (timeouts), dig-in.com/feed (returns HTML not RSS)
-    # Note: insurance RSS landscape is very thin - Brave Search supplements this sector
+    #   reinsurancene.ws/feed (timeouts), dig-in.com/feed (returns HTML not RSS),
+    #   insurtechdigital.com/rss (404 as of Mar 2026),
+    #   coverager.com/feed (articles 403 to bots), carriermanagement.com/feed (paywalled)
 
   cross_sector:
     - url: https://www.pymnts.com/feed/
@@ -99,6 +106,43 @@ rss_feeds:
     - url: https://rss.globenewswire.com/RssFeed/Language/EN/Search/Artificial%20Intelligence/Max/100
       name: GlobeNewswire AI
     # PR Newswire skipped: no server-side AI filtering available
+
+# Brave Search queries for the general AI feed
+# These are searched with freshness=pw (past week)
+general_search_queries:
+  - "OpenAI new model release 2026"
+  - "Anthropic Claude release announcement 2026"
+  - "Google DeepMind AI announcement 2026"
+  - "Meta AI model release 2026"
+  - "Mistral AI model release 2026"
+  - "xAI Grok release 2026"
+  - "Cohere AI release 2026"
+  - "AWS Bedrock new AI service 2026"
+  - "Azure OpenAI new feature 2026"
+  - "Google Cloud AI new service 2026"
+  - "SaaSpocalypse AI agents replacing SaaS"
+  - "agentic AI enterprise software 2026"
+  - "AI regulation EU UK February 2026"
+  - "open source AI model release February 2026"
+  - "AI startup funding round February 2026"
+  - "foundation model benchmark release 2026"
+  - "AI safety incident February 2026"
+  - "hyperscaler AI enterprise announcement 2026"
+  - "semiconductor AI manufacturing 2026"
+  - "industrial AI robotics manufacturing 2026"
+  - "AI drug discovery biopharma 2026"
+  - "AI medical device FDA clearance 2026"
+  - "insurtech AI underwriting 2026"
+  # Dedicated biopharma queries (added Mar 2026 to counter thin RSS coverage)
+  - "AI clinical trial drug development 2026"
+  - "machine learning pharmaceutical research 2026"
+  - "generative AI biotech startup 2026"
+  - "AI-powered drug discovery partnership 2026"
+  # Dedicated insurance queries (added Mar 2026 — only 1 working RSS feed)
+  - "AI insurance claims automation 2026"
+  - "generative AI underwriting insurance 2026"
+  - "insurtech AI funding startup 2026"
+  - "AI reinsurance catastrophe modelling 2026"
 
 # Known reliable URL date patterns (for verification)
 url_date_patterns:

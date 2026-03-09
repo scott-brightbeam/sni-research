@@ -27,7 +27,7 @@ Both share the same streaming infrastructure and model toggle.
 | Threads | Multiple named per week | Editorial flexibility — separate threads for separate angles |
 | Draft panel | Ephemeral, draft markdown as context | Keeps Draft page focused; `/copilot` for deep conversations |
 | Model toggle | Per-message, everywhere | User preference — always offer the choice |
-| Models | `claude-sonnet-4-20250514` (default), `claude-opus-4-20250512` | Sonnet for speed, Opus for depth |
+| Models | `claude-sonnet-4-20250514` (default), `claude-opus-4-6` | Sonnet for speed, Opus for depth |
 | Token/cost counting | Per-message usage tracking, daily ceiling | Budget visibility and guardrails |
 | Article injection | Article picker in chat UI | Explicit, user-controlled, no magic detection |
 | Thread naming | Auto-name from first message, renamable | Low friction thread creation |
@@ -323,7 +323,7 @@ The SDK `finalMessage` event includes `usage: {input_tokens, output_tokens}`. Th
 ```js
 export const MODEL_PRICING = {
   'claude-sonnet-4-20250514': { inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-opus-4-20250512':   { inputPerMTok: 15, outputPerMTok: 75 },
+  'claude-opus-4-6':           { inputPerMTok: 5, outputPerMTok: 25 },
 }
 
 export function estimateCost(model, inputTokens, outputTokens) {

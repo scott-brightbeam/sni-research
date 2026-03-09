@@ -19,8 +19,8 @@ export function walkArticleDir(baseDir, callback, { sector, date, dateFrom, date
 
   for (const d of dates) {
     if (date && d !== date) continue
-    if (dateFrom && d < dateFrom) continue
     if (dateTo && d > dateTo) continue
+    if (dateFrom && d < dateFrom) break // sorted reverse — all remaining are older
     const datePath = join(dir, d)
     if (!statSync(datePath).isDirectory()) continue
 

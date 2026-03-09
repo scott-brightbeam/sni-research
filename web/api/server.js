@@ -2,9 +2,10 @@ import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
+import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
-import { listPublished, getPublished, savePublished } from './routes/published.js'
+import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 
 const PORT = 3900
 
@@ -147,6 +148,12 @@ const server = Bun.serve({
         return json(await getUsage(query))
       }
 
+      // --- Usage (aggregated by period) ---
+      if (path === '/api/usage' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getUsageByPeriod(query))
+      }
+
       // --- Config ---
       const configMatch = path.match(/^\/api\/config\/([\w-]+)$/)
       if (configMatch && req.method === 'GET') {
@@ -188,6 +195,13 @@ const server = Bun.serve({
           const meta = savePublished(week, body.content, body.meta || {})
           return json({ ok: true, meta })
         }
+      }
+
+      // --- Published: extract exclusions ---
+      const exclMatch = path.match(/^\/api\/published\/(week-\d+)\/exclusions$/)
+      if (exclMatch && req.method === 'POST') {
+        const result = await extractExclusions({ week: exclMatch[1] })
+        return json(result)
       }
 
       // --- Health ---

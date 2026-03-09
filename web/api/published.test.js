@@ -15,7 +15,7 @@ afterAll(() => {
   if (existsSync(PUB_DIR)) rmSync(PUB_DIR, { recursive: true, force: true })
 })
 
-const { listPublished, getPublished, savePublished } = await import('./routes/published.js')
+const { listPublished, getPublished, savePublished, extractExclusions } = await import('./routes/published.js')
 
 describe('listPublished', () => {
   it('returns empty array for empty directory', () => {
@@ -116,4 +116,29 @@ describe('savePublished', () => {
     expect(meta.sections[1].heading).toBe('Second')
     expect(meta.sections[1].wordCount).toBe(5)
   })
+})
+
+describe('extractExclusions', () => {
+  it('returns 400 for invalid week format', async () => {
+    try {
+      await extractExclusions({ week: 'invalid' })
+      expect(true).toBe(false) // should not reach
+    } catch (err) {
+      expect(err.status).toBe(400)
+      expect(err.message).toContain('Invalid week format')
+    }
+  })
+
+  it('returns 404 when week not published', async () => {
+    try {
+      await extractExclusions({ week: 'week-99' })
+      expect(true).toBe(false)
+    } catch (err) {
+      expect(err.status).toBe(404)
+      expect(err.message).toContain('No published newsletter')
+    }
+  })
+
+  // Note: Live Claude API extraction is not unit-tested —
+  // it requires ANTHROPIC_API_KEY and costs real tokens.
 })

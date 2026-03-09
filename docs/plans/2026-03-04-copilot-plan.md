@@ -212,7 +212,7 @@ git commit -m "feat(api): add ISO 8601 week calculation"
 ```js
 export const MODEL_PRICING = {
   'claude-sonnet-4-20250514': { inputPerMTok: 3, outputPerMTok: 15 },
-  'claude-opus-4-20250512':   { inputPerMTok: 15, outputPerMTok: 75 },
+  'claude-opus-4-6':           { inputPerMTok: 5, outputPerMTok: 25 },
 }
 
 export const MODELS = Object.keys(MODEL_PRICING)

@@ -4,6 +4,7 @@ import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import DraftChatPanel from '../components/DraftChatPanel'
 import { usePublished } from '../hooks/usePublished'
+import { useExclusions } from '../hooks/useExclusions'
 import './Draft.css'
 
 export default function Draft() {
@@ -19,6 +20,7 @@ export default function Draft() {
   const debouncedDraft = useDebouncedValue(draft, 300)
   const [showPublished, setShowPublished] = useState(false)
   const pub = usePublished(week)
+  const excl = useExclusions(week)
 
   const wordCount = useMemo(() => {
     if (!draft) return 0
@@ -117,7 +119,7 @@ export default function Draft() {
           className={`draft-published-toggle ${showPublished ? 'active' : ''}`}
           onClick={() => setShowPublished(!showPublished)}
         >
-          Published
+          {pub.published ? 'Published ✓' : 'Published'}
         </button>
         <button
           className={`draft-chat-toggle${panelOpen ? ' active' : ''}`}
@@ -161,7 +163,7 @@ export default function Draft() {
       )}
 
       {showPublished && (
-        <PublishedPanel week={week} pub={pub} />
+        <PublishedPanel week={week} pub={pub} draft={draft} excl={excl} />
       )}
 
       <DraftChatPanel
@@ -174,26 +176,22 @@ export default function Draft() {
   )
 }
 
-function PublishedPanel({ week, pub }) {
-  const [content, setContent] = useState('')
-  const [linkedinUrl, setLinkedinUrl] = useState('')
-  const [saveMsg, setSaveMsg] = useState(null)
+function PublishedPanel({ week, pub, draft, excl }) {
+  const [publishError, setPublishError] = useState(null)
+  const [justPublished, setJustPublished] = useState(false)
 
-  // Sync from loaded published data
-  useEffect(() => {
-    if (pub.published) {
-      setContent(pub.published.content || '')
-      setLinkedinUrl(pub.published.meta?.linkedinUrl || '')
-    }
-  }, [pub.published])
+  const isPublished = !!pub.published
 
-  async function handleSave() {
-    if (!content.trim()) return
-    setSaveMsg(null)
-    const ok = await pub.save(content, { linkedinUrl })
+  async function handlePublish() {
+    if (!draft?.trim()) return
+    setPublishError(null)
+    setJustPublished(false)
+    const ok = await pub.save(draft)
     if (ok) {
-      setSaveMsg('Saved')
-      setTimeout(() => setSaveMsg(null), 3000)
+      setJustPublished(true)
+      setTimeout(() => setJustPublished(null), 3000)
+    } else {
+      setPublishError(pub.error || 'Failed to publish')
     }
   }
 
@@ -201,54 +199,120 @@ function PublishedPanel({ week, pub }) {
 
   return (
     <div className="published-panel">
-      <div className="published-header">
-        <h3>Published — Week {week}</h3>
-        {pub.published?.meta?.wordCount && (
-          <span className="published-meta">
-            {pub.published.meta.wordCount} words · {pub.published.meta.sectionCount} sections
-          </span>
+      {/* Step 1: Publish */}
+      <div className="publish-step">
+        <div className="publish-step-header">
+          <h3>Step 1: Publish draft</h3>
+          {isPublished && (
+            <span className="publish-status">
+              Published {pub.published.meta?.wordCount && `· ${pub.published.meta.wordCount} words`}
+              {pub.published.meta?.sectionCount && ` · ${pub.published.meta.sectionCount} sections`}
+            </span>
+          )}
+        </div>
+
+        {!draft?.trim() && (
+          <p className="publish-hint">No draft content to publish for week {week}.</p>
+        )}
+
+        {draft?.trim() && (
+          <div className="publish-actions">
+            <button
+              className="btn btn-primary"
+              onClick={handlePublish}
+              disabled={pub.saving}
+            >
+              {pub.saving ? 'Publishing...' : isPublished ? 'Re-publish draft' : 'Publish draft'}
+            </button>
+            {justPublished && <span className="publish-saved">Published ✓</span>}
+            {publishError && <span className="publish-error">{publishError}</span>}
+          </div>
         )}
       </div>
 
-      <label className="published-label">LinkedIn URL</label>
-      <input
-        type="url"
-        className="published-url"
-        placeholder="https://linkedin.com/posts/..."
-        value={linkedinUrl}
-        onChange={e => setLinkedinUrl(e.target.value)}
-      />
+      {/* Step 2: Extract exclusions — only shown after publishing */}
+      {isPublished && (
+        <div className="exclusions-step">
+          <div className="exclusions-step-header">
+            <h3>Step 2: Extract off-limits entries</h3>
+            {excl.entries && <span className="exclusions-count">{excl.entries.length} entries</span>}
+          </div>
 
-      <label className="published-label">Newsletter content</label>
-      <textarea
-        className="published-content"
-        placeholder="Paste your published newsletter markdown here..."
-        value={content}
-        onChange={e => setContent(e.target.value)}
-        rows={12}
-      />
+          <div className="exclusions-actions">
+            <button
+              className="btn-secondary"
+              onClick={excl.extract}
+              disabled={excl.extracting}
+            >
+              {excl.extracting ? 'Extracting...' : excl.entries ? 'Re-extract' : 'Extract from published'}
+            </button>
+            {excl.extractError && <span className="exclusions-error">{excl.extractError}</span>}
+          </div>
 
-      {pub.published?.meta?.sections?.length > 0 && (
-        <div className="published-sections">
-          {pub.published.meta.sections.map((s, i) => (
-            <span key={i} className="published-section-badge">
-              {s.heading} <small>({s.wordCount}w)</small>
-            </span>
-          ))}
+          {excl.entries && excl.entries.length > 0 && (
+            <>
+              <table className="exclusions-table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Topic</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {excl.entries.map((entry, i) => (
+                    <tr key={i}>
+                      <td>
+                        <input
+                          className="exclusion-input"
+                          value={entry.company}
+                          onChange={e => excl.updateEntry(i, 'company', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="exclusion-input"
+                          value={entry.topic}
+                          onChange={e => excl.updateEntry(i, 'topic', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <button
+                          className="btn-icon btn-remove"
+                          onClick={() => excl.removeEntry(i)}
+                          title="Remove entry"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="exclusions-table-actions">
+                <button className="btn-sm btn-ghost" onClick={excl.addEntry}>+ Add entry</button>
+              </div>
+
+              <div className="exclusions-save-row">
+                <button
+                  className="btn btn-primary"
+                  onClick={excl.saveToOffLimits}
+                  disabled={excl.saving || excl.entries.length === 0}
+                >
+                  {excl.saving ? 'Saving...' : `Save ${excl.entries.length} entries to off-limits`}
+                </button>
+                {excl.savedAt && <span className="exclusions-saved">Saved to off-limits ✓</span>}
+                {excl.saveError && <span className="exclusions-error">{excl.saveError}</span>}
+              </div>
+            </>
+          )}
+
+          {excl.entries && excl.entries.length === 0 && (
+            <p className="publish-hint">No entries extracted. Try re-extracting or add entries manually.</p>
+          )}
         </div>
       )}
-
-      <div className="published-actions">
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={pub.saving || !content.trim()}
-        >
-          {pub.saving ? 'Saving...' : 'Save published'}
-        </button>
-        {saveMsg && <span className="published-save-msg">{saveMsg}</span>}
-        {pub.error && <span className="published-error">{pub.error}</span>}
-      </div>
     </div>
   )
 }

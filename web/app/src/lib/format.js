@@ -40,3 +40,23 @@ export function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
+
+/** "Fri 7", "Sat 1" — short day label for dashboard bars */
+export function formatDayLabel(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.toLocaleDateString('en-GB', { weekday: 'short' })
+  return `${day} ${d.getDate()}`
+}
+
+/** Generate YYYY-MM-DD dates from start to end (inclusive) */
+export function getDateRange(startStr, endStr) {
+  const dates = []
+  const d = new Date(startStr + 'T00:00:00')
+  const end = new Date(endStr + 'T00:00:00')
+  while (d <= end) {
+    dates.push(d.toISOString().slice(0, 10))
+    d.setDate(d.getDate() + 1)
+  }
+  return dates
+}
