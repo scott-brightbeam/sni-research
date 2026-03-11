@@ -35,8 +35,8 @@ export default function Dashboard() {
         />
         <StatCard
           label="Next full run"
-          value={nextPipeline ? formatNextRunDate(nextPipeline.nextFriday) : '—'}
-          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextFriday)}` : ''}
+          value={nextPipeline ? formatNextRunDate(nextPipeline.nextFull) : '—'}
+          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextFull)}` : ''}
           smallValue
         />
         <StatCard
@@ -163,7 +163,7 @@ function formatTime(iso) {
 function summariseStageStats(stage) {
   const s = stage.stats
   if (!s || Object.keys(s).length === 0) {
-    return stage.status === 'success' ? 'done' : 'friday only'
+    return stage.status === 'success' ? 'done' : 'full run only'
   }
   if (s.saved !== undefined) return `${s.saved} saved`
   if (s.kept !== undefined) return `${s.kept} kept, ${s.moved || 0} flagged`

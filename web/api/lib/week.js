@@ -17,20 +17,24 @@ export function getISOWeek(date = new Date()) {
 }
 
 export function getWeekDateRange(week, year = new Date().getFullYear()) {
-  // Find Jan 4 (always in week 1) then work backwards to Monday of week 1
+  // Editorial week: Friday (Mon-3) through Thursday (Mon+3)
   const jan4 = new Date(Date.UTC(year, 0, 4))
   const dayOfWeek = jan4.getUTCDay() || 7
   const mondayWeek1 = new Date(jan4)
   mondayWeek1.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1)
 
-  // Monday of target week
+  // Monday of target ISO week
   const monday = new Date(mondayWeek1)
   monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7)
 
-  // Sunday of target week
-  const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
+  // Friday of previous week = Monday - 3
+  const friday = new Date(monday)
+  friday.setUTCDate(monday.getUTCDate() - 3)
+
+  // Thursday = Monday + 3
+  const thursday = new Date(monday)
+  thursday.setUTCDate(monday.getUTCDate() + 3)
 
   const fmt = d => d.toISOString().slice(0, 10)
-  return { start: fmt(monday), end: fmt(sunday) }
+  return { start: fmt(friday), end: fmt(thursday) }
 }

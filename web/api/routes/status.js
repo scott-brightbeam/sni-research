@@ -6,11 +6,11 @@ import { getISOWeek } from '../lib/week.js'
 const ROOT = resolve(import.meta.dir, '../../..')
 
 export async function getStatus() {
-  const lastFridayRunAt = getLastFridayRunAt()
+  const lastFullRunAt = getLastFullRunAt()
   return {
     lastRun: getLastRun(),
-    lastFridayRunAt,
-    articles: getArticleCounts(lastFridayRunAt),
+    lastFullRunAt,
+    articles: getArticleCounts(lastFullRunAt),
     availableWeeks: getAvailableWeeks(),
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
@@ -84,13 +84,13 @@ function getLastRun() {
   }
 }
 
-function getArticleCounts(fridayCutoff) {
+function getArticleCounts(fullRunCutoff) {
   const byDate = {}
   const bySector = {}
   const byDateBySector = {}
   let total = 0
 
-  // Week-filtered counts (articles scraped after last friday pipeline)
+  // Week-filtered counts (articles scraped after last full pipeline run)
   const weekByDate = {}
   const weekBySector = {}
   const weekByDateBySector = {}
@@ -104,8 +104,8 @@ function getArticleCounts(fridayCutoff) {
     byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
     total++
 
-    // Week counts: only articles scraped after last friday run
-    if (fridayCutoff && raw.scraped_at && raw.scraped_at > fridayCutoff) {
+    // Week counts: only articles scraped after last full pipeline run
+    if (fullRunCutoff && raw.scraped_at && raw.scraped_at > fullRunCutoff) {
       weekByDate[date] = (weekByDate[date] || 0) + 1
       weekBySector[sector] = (weekBySector[sector] || 0) + 1
       if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
@@ -130,7 +130,7 @@ function getArticleCounts(fridayCutoff) {
   }
 }
 
-function getLastFridayRunAt() {
+function getLastFullRunAt() {
   const runsDir = join(ROOT, 'output/runs')
   if (!existsSync(runsDir)) return null
 
@@ -142,7 +142,7 @@ function getLastFridayRunAt() {
   for (const file of files) {
     try {
       const data = JSON.parse(readFileSync(join(runsDir, file), 'utf-8'))
-      if (data.mode === 'friday' && data.completedAt) {
+      if ((data.mode === 'full' || data.mode === 'friday') && data.completedAt) {
         return data.completedAt
       }
     } catch { /* skip */ }
@@ -152,31 +152,31 @@ function getLastFridayRunAt() {
 }
 
 function getNextPipeline() {
-  // Friday at 05:30 is the full pipeline run
+  // Thursday at 13:00 is the full pipeline run
   const now = new Date()
-  const day = now.getDay() // 0=Sun, 5=Fri
-  let daysUntilFriday = (5 - day + 7) % 7
-  if (daysUntilFriday === 0) {
-    // It's Friday — check if pipeline already ran today
+  const day = now.getDay() // 0=Sun, 4=Thu
+  let daysUntilThursday = (4 - day + 7) % 7
+  if (daysUntilThursday === 0) {
+    // It's Thursday — check if pipeline already ran or will run today
     const hour = now.getHours()
-    if (hour >= 6) daysUntilFriday = 7 // Already ran, next Friday
+    if (hour >= 14) daysUntilThursday = 7 // Past 2pm, assume it ran; next Thursday
   }
 
-  const nextFriday = new Date(now)
-  nextFriday.setDate(now.getDate() + daysUntilFriday)
-  nextFriday.setHours(5, 30, 0, 0)
+  const nextFull = new Date(now)
+  nextFull.setDate(now.getDate() + daysUntilThursday)
+  nextFull.setHours(13, 0, 0, 0)
 
   // Next daily fetch at 04:00
   const nextDaily = new Date(now)
   if (now.getHours() < 4) {
-    nextDaily.setHours(4, 0, 0, 0)       // today at 4am
+    nextDaily.setHours(4, 0, 0, 0)
   } else {
     nextDaily.setDate(now.getDate() + 1)
-    nextDaily.setHours(4, 0, 0, 0)       // tomorrow at 4am
+    nextDaily.setHours(4, 0, 0, 0)
   }
 
   return {
-    nextFriday: nextFriday.toISOString(),
+    nextFull: nextFull.toISOString(),
     nextDaily: nextDaily.toISOString()
   }
 }

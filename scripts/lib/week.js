@@ -35,10 +35,10 @@ export function getISOYearForWeek(dateStr) {
 }
 
 /**
- * Get the Monday–Friday window for a given ISO week and year.
+ * Get the Friday–Thursday editorial window for a given ISO week and year.
  * @param {number} weekNum — ISO week number
  * @param {number} year — ISO year
- * @returns {{ start: string, end: string }} — 'YYYY-MM-DD' for Monday and Friday
+ * @returns {{ start: string, end: string }} — 'YYYY-MM-DD' for Friday and Thursday
  */
 export function getWeekWindow(weekNum, year) {
   // Start from Jan 4 of the given year (always in ISO week 1)
@@ -46,13 +46,16 @@ export function getWeekWindow(weekNum, year) {
   const week1Start = startOfISOWeek(jan4);
   // Add (weekNum - 1) weeks to get to the target week's Monday
   const targetMonday = addWeeks(week1Start, weekNum - 1);
-  // Friday = Monday + 4 days
-  const targetFriday = new Date(targetMonday);
-  targetFriday.setDate(targetMonday.getDate() + 4);
+  // Friday = Monday - 3 days (previous week's Friday)
+  const friday = new Date(targetMonday);
+  friday.setDate(targetMonday.getDate() - 3);
+  // Thursday = Monday + 3 days
+  const thursday = new Date(targetMonday);
+  thursday.setDate(targetMonday.getDate() + 3);
 
   return {
-    start: fmt(targetMonday),
-    end: fmt(targetFriday),
+    start: fmt(friday),
+    end: fmt(thursday),
   };
 }
 

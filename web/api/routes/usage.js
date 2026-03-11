@@ -70,10 +70,10 @@ function getCutoff(period) {
       return start.getTime()
     }
     case 'week': {
-      // Start of current ISO week (Monday)
+      // Start of current editorial week (Friday)
       const start = new Date(now)
       const day = start.getDay()
-      const diff = day === 0 ? 6 : day - 1 // days since Monday
+      const diff = (day + 2) % 7 // days since Friday
       start.setDate(start.getDate() - diff)
       start.setHours(0, 0, 0, 0)
       return start.getTime()

@@ -16,7 +16,7 @@
  *
  * Usage:
  *   bun scripts/pipeline.js --week 9
- *   bun scripts/pipeline.js --week 9 --mode friday
+ *   bun scripts/pipeline.js --week 9 --mode full
  *   bun scripts/pipeline.js --week 9 --mode daily
  *   bun scripts/pipeline.js --week 9 --dry-run
  */
@@ -231,14 +231,14 @@ async function runDailyPipeline(ctx) {
 }
 
 /**
- * Friday pipeline:
+ * Full pipeline (Thursday):
  *   fetch → score → discover → score (new) → report → draft (Opus 4.6)
  *   → review → evaluate → verify-links → notify
  */
-async function runFridayPipeline(ctx) {
-  log('Mode: FRIDAY (full pipeline)');
+async function runFullPipeline(ctx) {
+  log('Mode: FULL (full pipeline)');
   console.log('');
-  sendAlert('SNI Pipeline', `Starting friday pipeline — week ${ctx.weekNumber}`);
+  sendAlert('SNI Pipeline', `Starting full pipeline — week ${ctx.weekNumber}`);
 
   // Fetch
   await runStage('fetch', () => runFetch({
@@ -383,7 +383,7 @@ function printDryRun(ctx) {
  * @param {object} args
  * @param {number} [args.week] — ISO week number (defaults to current)
  * @param {number} [args.year] — year (defaults to current)
- * @param {string} [args.mode] — 'daily' | 'friday' (defaults to day-based detection)
+ * @param {string} [args.mode] — 'daily' | 'full' (defaults to day-based detection)
  * @param {boolean} [args.dryRun]
  */
 export async function runPipeline(args = {}) {
@@ -399,10 +399,10 @@ export async function runPipeline(args = {}) {
   const year = args.year || new Date().getFullYear();
 
   // Determine mode
-  const dayOfWeek = new Date().getDay(); // 0=Sun, 5=Fri
-  const mode = args.mode || (dayOfWeek === 5 ? 'friday' : 'daily');
+  const dayOfWeek = new Date().getDay(); // 0=Sun, 4=Thu
+  const mode = args.mode || (dayOfWeek === 4 ? 'full' : 'daily');
 
-  // Date window: daily uses yesterday (runs at 04:00), friday uses full week
+  // Date window: daily uses yesterday (runs at 04:00), full uses editorial week
   let dateWindow;
   if (mode === 'daily') {
     const yesterday = new Date();
@@ -468,7 +468,7 @@ export async function runPipeline(args = {}) {
     if (mode === 'daily') {
       await runDailyPipeline(ctx);
     } else {
-      await runFridayPipeline(ctx);
+      await runFullPipeline(ctx);
     }
   } finally {
     // Always release lock

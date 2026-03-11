@@ -21,10 +21,10 @@ export function getDateRange(preset) {
   switch (preset) {
     case 'week': {
       const day = today.getDay()
-      // getDay: 0=Sun, 1=Mon. ISO week starts Monday.
-      const diff = day === 0 ? 6 : day - 1
-      const monday = addDays(today, -diff)
-      return { startDate: fmt(monday), endDate }
+      // Editorial week starts Friday: Fri=0 back, Sat=1 back, ..., Thu=6 back
+      const diff = (day + 2) % 7
+      const friday = addDays(today, -diff)
+      return { startDate: fmt(friday), endDate }
     }
     case '7d':
       return { startDate: fmt(addDays(today, -6)), endDate }
@@ -63,9 +63,16 @@ export function fillCalendarGaps(byDate) {
   return result
 }
 
-function isoWeek(dateStr) {
+function editorialWeek(dateStr) {
+  // Map Fri-Thu dates to the same week: advance to Thursday, then get ISO week
   const date = new Date(dateStr + 'T00:00:00')
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = date.getDay() // 0=Sun
+  // Days until next Thursday (or 0 if already Thursday)
+  const daysToThu = (4 - day + 7) % 7
+  const thu = new Date(date)
+  thu.setDate(date.getDate() + daysToThu)
+  // Now get ISO week of that Thursday
+  const d = new Date(Date.UTC(thu.getFullYear(), thu.getMonth(), thu.getDate()))
   const dayNum = d.getUTCDay() || 7
   d.setUTCDate(d.getUTCDate() + 4 - dayNum)
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
@@ -74,10 +81,9 @@ function isoWeek(dateStr) {
 
 export function aggregateToWeeks(entries) {
   if (entries.length === 0) return []
-
   const weeks = new Map()
   for (const [date, count] of entries) {
-    const w = `W${isoWeek(date)}`
+    const w = `W${editorialWeek(date)}`
     weeks.set(w, (weeks.get(w) || 0) + count)
   }
   return [...weeks.entries()]

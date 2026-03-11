@@ -31,15 +31,21 @@ describe('getISOWeek', () => {
 })
 
 describe('getWeekDateRange', () => {
-  it('returns Monday-Sunday for week 9 2026', () => {
+  it('returns Friday-Thursday for week 9 2026', () => {
     const { start, end } = getWeekDateRange(9, 2026)
-    expect(start).toBe('2026-02-23')
-    expect(end).toBe('2026-03-01')
+    expect(start).toBe('2026-02-20')  // Friday
+    expect(end).toBe('2026-02-26')    // Thursday
   })
 
-  it('returns Monday-Sunday for week 10 2026', () => {
+  it('returns Friday-Thursday for week 10 2026', () => {
     const { start, end } = getWeekDateRange(10, 2026)
-    expect(start).toBe('2026-03-02')
-    expect(end).toBe('2026-03-08')
+    expect(start).toBe('2026-02-27')  // Friday
+    expect(end).toBe('2026-03-05')    // Thursday
+  })
+
+  it('handles year boundary — week 1 of 2026', () => {
+    const { start, end } = getWeekDateRange(1, 2026)
+    expect(start).toBe('2025-12-26')  // Friday
+    expect(end).toBe('2026-01-01')    // Thursday
   })
 })
