@@ -1,0 +1,10 @@
+model: claude-sonnet-4-20250514
+transcript_source: ~/Desktop/Podcast Transcripts
+overlap_lookback_weeks: 8
+trust_sources:
+  - name: AI Daily Brief
+    slug: ai-daily-brief
+    extract_stories: true
+  - name: Moonshots
+    slug: moonshots
+    extract_stories: true
