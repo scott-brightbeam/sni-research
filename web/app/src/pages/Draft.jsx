@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useOverlapCheck } from '../hooks/useOverlapCheck'
 import DraftChatPanel from '../components/DraftChatPanel'
 import { usePublished } from '../hooks/usePublished'
 import { useExclusions } from '../hooks/useExclusions'
@@ -19,8 +20,10 @@ export default function Draft() {
   const [panelOpen, setPanelOpen] = useState(false)
   const debouncedDraft = useDebouncedValue(draft, 300)
   const [showPublished, setShowPublished] = useState(false)
+  const [showOverlap, setShowOverlap] = useState(false)
   const pub = usePublished(week)
   const excl = useExclusions(week)
+  const overlap = useOverlapCheck(week)
 
   const wordCount = useMemo(() => {
     if (!draft) return 0
@@ -116,6 +119,20 @@ export default function Draft() {
           </button>
         )}
         <button
+          className={`btn-overlap${overlap.results ? ' has-results' : ''}`}
+          disabled={!hasDraft || overlap.loading}
+          onClick={() => {
+            if (overlap.results) {
+              setShowOverlap(o => !o)
+            } else {
+              overlap.check().then(() => setShowOverlap(true))
+            }
+          }}
+          title="Check for content overlap with previous weeks"
+        >
+          {overlap.loading ? 'Checking...' : overlap.results ? `Overlap (${overlap.results.length})` : 'Check Overlap'}
+        </button>
+        <button
           className={`draft-published-toggle ${showPublished ? 'active' : ''}`}
           onClick={() => setShowPublished(!showPublished)}
         >
@@ -164,6 +181,14 @@ export default function Draft() {
 
       {showPublished && (
         <PublishedPanel week={week} pub={pub} draft={draft} excl={excl} />
+      )}
+
+      {showOverlap && overlap.results && (
+        <OverlapPanel
+          results={overlap.results}
+          error={overlap.error}
+          onDismiss={() => setShowOverlap(false)}
+        />
       )}
 
       <DraftChatPanel
@@ -315,6 +340,68 @@ function PublishedPanel({ week, pub, draft, excl }) {
       )}
     </div>
   )
+}
+
+function OverlapPanel({ results, error, onDismiss }) {
+  if (error) {
+    return (
+      <div className="overlap-panel">
+        <div className="overlap-panel-header">
+          <h3>Overlap check</h3>
+          <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
+        </div>
+        <div className="overlap-error">{error}</div>
+      </div>
+    )
+  }
+
+  if (!results || results.length === 0) {
+    return (
+      <div className="overlap-panel">
+        <div className="overlap-panel-header">
+          <h3>Overlap check</h3>
+          <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
+        </div>
+        <div className="overlap-empty">No overlapping content detected.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overlap-panel">
+      <div className="overlap-panel-header">
+        <h3>Overlap check</h3>
+        <span className="overlap-count">{results.length} match{results.length !== 1 ? 'es' : ''}</span>
+        <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
+      </div>
+      <div className="overlap-results">
+        {results.map((r, i) => (
+          <div key={i} className="overlap-result">
+            <div className="overlap-result-header">
+              <span className="overlap-current-heading">{r.currentHeading}</span>
+              <span className={`overlap-confidence ${confidenceClass(r.confidence)}`}>
+                {r.confidence}
+              </span>
+            </div>
+            <div className="overlap-matched">
+              Matches: <strong>{r.matchedHeading}</strong> (week {r.matchedWeek})
+            </div>
+            {r.explanation && (
+              <div className="overlap-explanation">{r.explanation}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function confidenceClass(confidence) {
+  if (!confidence) return ''
+  const c = confidence.toLowerCase()
+  if (c === 'high') return 'high'
+  if (c === 'medium') return 'medium'
+  return 'low'
 }
 
 /**
