@@ -9,6 +9,7 @@ export function useChat(week) {
   const [error, setError] = useState(null)
   const [model, setModel] = useState('claude-sonnet-4-20250514')
   const [articleRef, setArticleRef] = useState(null)
+  const [podcastRef, setPodcastRef] = useState(null)
   const [dailyUsage, setDailyUsage] = useState(null)
   const abortRef = useRef(null)
 
@@ -99,6 +100,7 @@ export function useChat(week) {
         ephemeral: false,
         week,
         articleRef,
+        podcastRef,
       }, controller.signal)
 
       const reader = res.body.getReader()
@@ -132,8 +134,9 @@ export function useChat(week) {
         }
       }
 
-      // Clear article ref after sending
+      // Clear refs after sending
       setArticleRef(null)
+      setPodcastRef(null)
       // Reload threads (to get updated stats) and usage
       await loadThreads()
       await loadUsage()
@@ -145,7 +148,7 @@ export function useChat(week) {
       setSending(false)
       abortRef.current = null
     }
-  }, [sending, model, activeThread, week, articleRef, loadThreads, loadUsage])
+  }, [sending, model, activeThread, week, articleRef, podcastRef, loadThreads, loadUsage])
 
   // Cancel streaming
   const cancelStream = useCallback(() => {
@@ -175,8 +178,8 @@ export function useChat(week) {
   }, [messages, week, activeThread])
 
   return {
-    threads, activeThread, messages, sending, error, model, articleRef, dailyUsage,
-    setModel, setArticleRef, sendMessage, cancelStream, createThread, selectThread,
+    threads, activeThread, messages, sending, error, model, articleRef, podcastRef, dailyUsage,
+    setModel, setArticleRef, setPodcastRef, sendMessage, cancelStream, createThread, selectThread,
     renameThread, pinMessage, loadUsage,
   }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useChat } from '../hooks/useChat'
+import { usePodcasts } from '../hooks/usePodcasts'
 import { apiFetch } from '../lib/api'
 import './Copilot.css'
 
@@ -10,6 +11,7 @@ export default function Copilot() {
   const [input, setInput] = useState('')
   const [showArticlePicker, setShowArticlePicker] = useState(false)
   const [articles, setArticles] = useState([])
+  const [podcastRef, setPodcastRef] = useState(null)
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
 
@@ -23,6 +25,7 @@ export default function Copilot() {
   }, [])
 
   const chat = useChat(week)
+  const podcasts = usePodcasts(week)
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -58,6 +61,14 @@ export default function Copilot() {
     chat.setArticleRef({ date: article.date, sector: article.sector, slug: article.slug })
     setShowArticlePicker(false)
   }
+
+  const handlePodcastSelect = (podcast) => {
+    chat.setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
+    setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
+    setShowArticlePicker(false)
+  }
+
+  const podcastList = podcasts.data || []
 
   // Usage percentage
   const usagePct = chat.dailyUsage
@@ -158,11 +169,11 @@ export default function Copilot() {
                 <div className="chat-input-controls">
                   <div className="article-picker">
                     <button
-                      className={`btn-article-ref${chat.articleRef ? ' active' : ''}`}
+                      className={`btn-article-ref${chat.articleRef || chat.podcastRef ? ' active' : ''}`}
                       onClick={() => setShowArticlePicker(p => !p)}
-                      title={chat.articleRef ? `Attached: ${chat.articleRef.slug}` : 'Attach article'}
+                      title={chat.podcastRef ? `Attached podcast: ${chat.podcastRef.title}` : chat.articleRef ? `Attached: ${chat.articleRef.slug}` : 'Attach article or podcast'}
                     >
-                      {chat.articleRef ? chat.articleRef.slug.slice(0, 12) : '@'}
+                      {chat.podcastRef ? chat.podcastRef.title.slice(0, 12) : chat.articleRef ? chat.articleRef.slug.slice(0, 12) : '@'}
                     </button>
                     {showArticlePicker && (
                       <div className="article-picker-dropdown">
@@ -179,6 +190,22 @@ export default function Copilot() {
                         {articles.length === 0 && (
                           <div className="picker-empty">
                             No articles this week
+                          </div>
+                        )}
+                        <div className="picker-divider">Podcasts</div>
+                        {podcastList.map(p => (
+                          <button
+                            key={`${p.date}-${p.source}-${p.title}`}
+                            className="article-picker-item podcast-picker-item"
+                            onClick={() => handlePodcastSelect(p)}
+                          >
+                            {p.title}
+                            <span className="article-picker-item-sector"> {p.source}</span>
+                          </button>
+                        ))}
+                        {podcastList.length === 0 && (
+                          <div className="picker-empty">
+                            No podcasts this week
                           </div>
                         )}
                       </div>
