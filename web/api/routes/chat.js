@@ -197,7 +197,7 @@ export async function getUsage({ period }) {
 
 export async function handleChat(req) {
   const body = await req.json()
-  const { message, model, threadId, ephemeral, draftContext, articleRef } = body
+  const { message, model, threadId, ephemeral, draftContext, articleRef, podcastRef } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
@@ -242,6 +242,7 @@ export async function handleChat(req) {
     week,
     threadHistory,
     articleRef,
+    podcastRef,
     ephemeral: !!ephemeral,
     draftContext,
     publishedExemplar,
@@ -330,7 +331,7 @@ export async function handleChat(req) {
 
         // Persist if not ephemeral
         if (!ephemeral && threadId) {
-          const userMsg = { id: userMsgId, role: 'user', content: message, model: selectedModel, timestamp: now, usage: null, articleRef: articleRef || null }
+          const userMsg = { id: userMsgId, role: 'user', content: message, model: selectedModel, timestamp: now, usage: null, articleRef: articleRef || null, podcastRef: podcastRef || null }
           const assistantMsg = { id: msgId, role: 'assistant', content: fullText, model: selectedModel, timestamp: new Date().toISOString(), usage, articleRef: null }
 
           _appendMessage(week, threadId, userMsg)
