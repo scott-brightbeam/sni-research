@@ -15,6 +15,7 @@ export async function getStatus() {
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
     ingestServer: await getIngestHealth(),
+    podcastImport: getPodcastImport(),
   }
 }
 
@@ -197,4 +198,51 @@ function getRecentErrors() {
     } catch { /* ignore */ }
   }
   return errors.slice(-20)
+}
+
+function getPodcastImport() {
+  const runsDir = join(ROOT, 'output/runs')
+  if (!existsSync(runsDir)) return null
+
+  const files = readdirSync(runsDir)
+    .filter(f => f.startsWith('podcast-import-') && f.endsWith('.json'))
+    .sort()
+
+  if (files.length === 0) return null
+
+  const lastFile = files[files.length - 1]
+
+  try {
+    const data = JSON.parse(readFileSync(join(runsDir, lastFile), 'utf-8'))
+
+    // Count episodes for current week from manifest
+    let episodesThisWeek = 0
+    const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
+    if (existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+        const now = new Date()
+        const currentWeek = getISOWeek(now)
+        const currentYear = now.getFullYear()
+
+        const episodes = manifest.episodes || manifest || []
+        if (Array.isArray(episodes)) {
+          episodesThisWeek = episodes.filter(ep => {
+            if (!ep.date_published) return false
+            const d = new Date(ep.date_published + 'T12:00:00Z')
+            return getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
+          }).length
+        }
+      } catch { /* ignore manifest parse errors */ }
+    }
+
+    return {
+      lastRun: data.completedAt || data.startedAt || null,
+      episodesThisWeek,
+      storiesGapFilled: data.storiesGapFilled ?? data.stories_gap_filled ?? 0,
+      warnings: data.warnings || [],
+    }
+  } catch {
+    return null
+  }
 }
