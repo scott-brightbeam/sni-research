@@ -1,6 +1,6 @@
 import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
-import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
+import { getDraft, saveDraft, getDraftHistory, handleCheckOverlap } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
@@ -101,6 +101,11 @@ const server = Bun.serve({
       if (path === '/api/draft/history' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await getDraftHistory(query))
+      }
+
+      if (path === '/api/draft/check-overlap' && req.method === 'POST') {
+        const query = parseQuery(req.url)
+        return json(await handleCheckOverlap(query))
       }
 
       // --- Chat ---
