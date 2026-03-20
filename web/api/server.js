@@ -6,6 +6,7 @@ import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
+import { handleGetPodcasts, handleGetTranscript } from './routes/podcasts.js'
 
 const PORT = 3900
 
@@ -202,6 +203,16 @@ const server = Bun.serve({
       if (exclMatch && req.method === 'POST') {
         const result = await extractExclusions({ week: exclMatch[1] })
         return json(result)
+      }
+
+      // --- Podcasts ---
+      if (path === '/api/podcasts' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetPodcasts(query))
+      }
+      if (path === '/api/podcasts/transcript' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetTranscript(query))
       }
 
       // --- Health ---
