@@ -1,0 +1,11 @@
+tier1_similarity: 0.12
+tier2_confidence: 0.65
+calibrated_at: 2026-03-20
+dataset_version: "v1"
+test_results:
+  tier1:
+    recall: 1.0
+    tier2_load: 0
+  tier2:
+    false_positive_rate: 0.0
+    false_negative_rate: 0.0
