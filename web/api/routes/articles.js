@@ -8,7 +8,7 @@ const INGEST_URL = 'http://127.0.0.1:3847'
 export async function getArticles({ sector, date, dateFrom, dateTo, search, limit, offset } = {}) {
   const allMatched = []
 
-  walkArticleDir('verified', (raw, { date: d, sector: s, slug }) => {
+  function collectArticle(raw, { date: d, sector: s, slug }, sourceType) {
     const article = {
       slug,
       title: raw.title,
@@ -22,7 +22,7 @@ export async function getArticles({ sector, date, dateFrom, dateTo, search, limi
       score: raw.score ?? null,
       keywords_matched: raw.keywords_matched || [],
       scraped_at: raw.scraped_at,
-      source_type: raw.source_type,
+      source_type: sourceType || raw.source_type,
     }
 
     if (search) {
@@ -31,6 +31,14 @@ export async function getArticles({ sector, date, dateFrom, dateTo, search, limi
     }
 
     allMatched.push(article)
+  }
+
+  walkArticleDir('verified', (raw, meta) => {
+    collectArticle(raw, meta, raw.source_type)
+  }, { sector, date, dateFrom, dateTo })
+
+  walkArticleDir('podcast-articles', (raw, meta) => {
+    collectArticle(raw, meta, 'podcast-extract')
   }, { sector, date, dateFrom, dateTo })
 
   const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
