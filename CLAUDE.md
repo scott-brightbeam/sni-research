@@ -15,7 +15,7 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 
 ## Architecture constraints — non-negotiable
 
-- All new code goes in `web/`. Pipeline scripts are **never** modified.
+- All new web UI code goes in `web/`. New pipeline scripts may be added to `scripts/`. New config files may be added to `config/`. Existing files in `scripts/` and `config/` are **never** modified.
 - Two servers: pipeline ingest (port 3847, unchanged), UI API (port 3900, new)
 - API server reads `data/`, `output/`, `config/`, `logs/` — never imports pipeline modules
 - Branch: `feature/web-ui` — pipeline runs from `master` via launchd
