@@ -6,6 +6,13 @@ import SectorBadge from '../components/shared/SectorBadge'
 import { formatDuration, formatRelativeTime } from '../lib/format'
 import './Dashboard.css'
 
+function formatTimestamp(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
 export default function Dashboard() {
   const { status, loading, error } = useStatus()
   const [chartRange, setChartRange] = useState('7d')
@@ -14,7 +21,7 @@ export default function Dashboard() {
   if (error) return <div className="empty">Failed to load: {error}</div>
   if (!status) return <div className="empty">No data available</div>
 
-  const { lastRun, articles, nextPipeline } = status
+  const { lastRun, articles, nextPipeline, podcastImport } = status
 
   return (
     <div>
@@ -90,6 +97,60 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      <PodcastStatusCard podcastImport={podcastImport} />
+    </div>
+  )
+}
+
+function PodcastStatusCard({ podcastImport }) {
+  const [warningsOpen, setWarningsOpen] = useState(false)
+
+  if (!podcastImport) {
+    return (
+      <div className="card podcast-status-card">
+        <div className="card-title">Podcast import</div>
+        <div className="empty">No podcast imports yet</div>
+      </div>
+    )
+  }
+
+  const { lastRun, episodesThisWeek, storiesGapFilled, warnings } = podcastImport
+  const hasWarnings = warnings && warnings.length > 0
+
+  return (
+    <div className="card podcast-status-card">
+      <div className="card-title">Podcast import</div>
+      <div className="podcast-stats">
+        <div className="podcast-stat">
+          <div className="podcast-stat-value">{episodesThisWeek}</div>
+          <div className="podcast-stat-label">Episodes this week</div>
+        </div>
+        <div className="podcast-stat">
+          <div className="podcast-stat-value">{storiesGapFilled}</div>
+          <div className="podcast-stat-label">Stories gap-filled</div>
+        </div>
+      </div>
+      <div className="podcast-meta">
+        Last import: {formatTimestamp(lastRun)}
+      </div>
+      {hasWarnings && (
+        <div className="podcast-warnings">
+          <button
+            className="podcast-warnings-toggle"
+            onClick={() => setWarningsOpen(w => !w)}
+          >
+            {warningsOpen ? '▾' : '▸'} {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
+          </button>
+          {warningsOpen && (
+            <ul className="podcast-warnings-list">
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
