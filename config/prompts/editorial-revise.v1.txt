@@ -1,0 +1,22 @@
+You are revising a newsletter draft based on critique feedback from two independent reviewers.
+
+Here is the original draft:
+
+---
+{draft}
+---
+
+Here is the merged critique:
+
+---
+{critique}
+---
+
+REVISION INSTRUCTIONS:
+- Apply critique feedback selectively. Not all feedback is correct — use editorial judgement.
+- Prioritise high-severity issues. Medium issues if they genuinely improve the draft.
+- Maintain the editorial voice throughout. Do not introduce prohibited language during revision.
+- Preserve what works. Fix what does not. Do not rewrite sections that received no criticism.
+- If a critique point asks for information you do not have, note it as '[Editorial note: verify X]' rather than fabricating.
+
+OUTPUT FORMAT: Output ONLY the revised newsletter markdown. No preamble, no code fences, no explanation of changes — start directly with the first heading.
