@@ -13,6 +13,8 @@ The DRAFT pipeline is the third stage of the editorial intelligence system (ANAL
 3. **Opus 4.6** revises based on merged critique feedback
 4. Artifacts saved: draft versions, critique JSON, metrics
 
+Both critique models receive the identical prompt and system message via `callCritiqueModels()`.
+
 ### Why fixed two-pass (not adaptive loop)
 
 - Single critique round catches the highest-impact issues
@@ -29,11 +31,11 @@ config/prompts/
   editorial-revise.v1.txt       # Revision instructions for Opus
 
 scripts/lib/
-  editorial-draft-lib.js        # Pure business logic (testable)
+  editorial-draft-lib.js        # Pure business logic (testable, no I/O)
   editorial-draft-lib.test.js   # Tests
 
 scripts/
-  editorial-draft.js            # Orchestrator (CLI, I/O, LLM calls)
+  editorial-draft.js            # Orchestrator (CLI, I/O, LLM calls, prompt loading)
 
 data/editorial/drafts/          # Output directory
   draft-session-{N}-v1.md       # Initial Opus draft
@@ -43,6 +45,8 @@ data/editorial/drafts/          # Output directory
 ```
 
 ## Pure business logic (editorial-draft-lib.js)
+
+All functions are pure (no file I/O, no side effects). Prompt loading lives in the orchestrator; template rendering lives here.
 
 ### Newsletter section constants
 
@@ -58,6 +62,17 @@ const NEWSLETTER_SECTIONS = [
 ]
 ```
 
+### Section heading aliases
+
+Map alternative headings to canonical section names:
+- `introduction`: 'tl;dr', 'introduction', 'summary', 'this week'
+- `general-ai`: 'ai & technology', 'ai and technology', 'general ai', 'ai & tech'
+- `biopharma`: 'biopharma', 'bio pharma', 'pharma'
+- `medtech`: 'medtech', 'med tech', 'medical technology'
+- `manufacturing`: 'manufacturing'
+- `insurance`: 'insurance'
+- `podcast-analysis`: 'podcast analysis', 'podcast', 'podcasts', 'podcast insights'
+
 ### Exported functions
 
 #### `extractDraftMarkdown(rawResponse)`
@@ -66,15 +81,16 @@ Extract clean markdown from Opus response text. Opus may wrap the draft in pream
 
 - Input: `string` (raw Opus response)
 - Output: `string` (clean markdown)
-- Edge cases: empty response, no markdown found, response is already clean markdown
+- Edge cases: empty response returns empty string, no markdown found returns the raw response trimmed, response already clean markdown passes through unchanged
+- If extraction yields empty string, caller should abort with error
 
 #### `parseDraftSections(markdown)`
 
-Parse newsletter markdown into labelled sections by splitting on `##` headings and matching to `NEWSLETTER_SECTIONS`.
+Parse newsletter markdown into labelled sections by splitting on `##` headings and matching against section heading aliases.
 
 - Input: `string` (markdown)
 - Output: `{ sections: Array<{ name: string, heading: string, content: string, wordCount: number }>, unmatched: string[] }`
-- Matching: case-insensitive, flexible (e.g. 'AI & Technology' matches 'general-ai', 'tl;dr' matches 'introduction')
+- Matching: case-insensitive against heading aliases above
 
 #### `validateDraftStructure(parsedSections)`
 
@@ -82,6 +98,7 @@ Validate that a draft has the required structure.
 
 - Input: parsed sections from `parseDraftSections`
 - Output: `{ valid: boolean, missing: string[], warnings: string[] }`
+- `valid: false` if any required section is missing
 - Warnings for: sections under 50 words, total word count under 800 or over 3000
 
 #### `calculateDraftMetrics(markdown)`
@@ -96,48 +113,75 @@ Calculate quality metrics for a draft.
 
 Merge critique responses from two models into unified feedback.
 
-- Input: `Array<{ provider: string, raw: string|null, error: string|null }>`
+- Input: `{ gemini: { provider, raw, error }, openai: { provider, raw, error } }` (matches `callCritiqueModels()` return shape directly)
 - Output: `{ merged: string, sources: Array<{ provider: string, available: boolean }>, hasCritique: boolean }`
-- If one model fails, use the other's critique alone
+- If one model fails, use the other's critique alone with a note about single-source limitation
 - If both fail, `hasCritique: false` and the revision step is skipped
+- Merged format: `## Gemini critique\n\n{text}\n\n## GPT critique\n\n{text}`
 
-#### `buildCritiquePrompt(draft, opts)`
+#### `renderCritiquePrompt(template, draft, opts)`
 
-Build the critique prompt by rendering the template with the draft embedded.
+Render a pre-loaded critique prompt template with draft content embedded.
 
-- Input: `string` (draft markdown), `{ themes?: string[], week?: number, sectionNames?: string[] }`
+- Input: `string` (template text loaded by orchestrator), `string` (draft markdown), `{ themes?: string[], week?: number, sectionNames?: string[] }`
 - Output: `string` (complete prompt for critique models)
-- Loads `config/prompts/editorial-critique.v1.txt` via prompt-loader
+- Template uses `{draft}`, `{themes}`, `{week}`, `{sections}` placeholders
 
-#### `buildRevisionPrompt(draft, mergedCritique, opts)`
+#### `renderRevisionPrompt(template, draft, mergedCritique, opts)`
 
-Build the revision prompt with draft + critique feedback.
+Render a pre-loaded revision prompt template with draft and critique feedback.
 
-- Input: `string` (draft), `string` (merged critique), `{ week?: number }`
+- Input: `string` (template), `string` (draft), `string` (merged critique), `{ week?: number }`
 - Output: `string` (complete prompt for Opus revision)
-- Loads `config/prompts/editorial-revise.v1.txt` via prompt-loader
+- Template uses `{draft}`, `{critique}`, `{week}` placeholders
 
 #### `buildDraftArtifact(data)`
 
 Assemble the complete output artifact JSON.
 
 - Input: `{ initialDraft: string, finalDraft: string, critiques: object, metrics: object, session: number, timestamp: string, costs: object }`
-- Output: `object` (JSON-serialisable artifact)
+- Output:
+
+```javascript
+{
+  version: 1,
+  session: number,
+  timestamp: string,
+  initialDraft: string,        // v1 markdown
+  finalDraft: string,          // post-revision markdown (same as initialDraft if --skip-critique)
+  critiques: {
+    gemini: { raw, error },    // raw critique text or error
+    openai: { raw, error },
+    merged: string,            // combined critique text
+  },
+  metrics: {
+    initial: { wordCount, sectionCount, readingTimeMinutes, sectionWordCounts, averageSectionWords },
+    final: { wordCount, sectionCount, readingTimeMinutes, sectionWordCounts, averageSectionWords },
+  },
+  costs: {
+    opus: { calls, cost },
+    gemini: { calls, cost },
+    openai: { calls, cost },
+    total: number,
+  },
+}
+```
 
 ## Prompt templates
 
 ### editorial-draft.v1.txt
 
-Instructions for Opus to generate the newsletter. Key elements:
+Instructions for Opus to generate the newsletter. Appended to the user message after the DRAFT context from `buildDraftContext()`. Key elements:
 - Newsletter structure (tl;dr -> sectors -> podcast analysis)
 - Cross-section synthesis in the introduction
 - Analytical perspective (not summarisation)
+- Podcast section: identify podcast-sourced entries in the analysis index and synthesise cross-episode themes (not episode recaps)
 - Style rules reference (editorial-context.v1.txt covers these via system prompt)
-- Explicit instruction to output only the newsletter markdown (no preamble)
+- Explicit instruction to output only the newsletter markdown (no preamble, no code fences)
 
 ### editorial-critique.v1.txt
 
-Instructions for critique models. Structured evaluation:
+Instructions for critique models. Template placeholders: `{draft}`, `{themes}`, `{week}`, `{sections}`. Structured evaluation:
 1. **Structure** - Are all sections present? Is the flow logical?
 2. **Voice** - Does it match Scott's editorial voice? Any prohibited language?
 3. **Analysis quality** - Evidence before labels? Specific not generic?
@@ -150,57 +194,103 @@ Output format: numbered critique points, each with section reference and suggest
 
 ### editorial-revise.v1.txt
 
-Instructions for Opus revision pass:
+Instructions for Opus revision pass. Template placeholders: `{draft}`, `{critique}`, `{week}`:
 - Apply critique feedback selectively (not all feedback is correct)
 - Maintain editorial voice during revision
 - Preserve what works; fix what does not
-- Output only the revised newsletter markdown
+- Output only the revised newsletter markdown (no preamble, no code fences)
 
 ## Orchestrator (editorial-draft.js)
 
 ### CLI interface
 
 ```
-bun scripts/editorial-draft.js                    # Generate draft for latest session
-bun scripts/editorial-draft.js --session N        # Generate for specific session
+bun scripts/editorial-draft.js                    # Generate draft for current week
+bun scripts/editorial-draft.js --week N           # Generate for specific week
+bun scripts/editorial-draft.js --session N        # Use specific ANALYSE session number for output naming
 bun scripts/editorial-draft.js --dry-run          # Show context stats, no LLM calls
 bun scripts/editorial-draft.js --skip-critique    # Generate only, skip critique/revise
 bun scripts/editorial-draft.js --force            # Overwrite existing draft
 ```
 
+### Week and session resolution
+
+The orchestrator determines the week number and session:
+- `--week N`: use directly
+- No `--week`: derive from current date using ISO 8601 week number
+- `--session N`: use directly for output file naming (`draft-session-{N}`)
+- No `--session`: use `state.counters.nextSession - 1` (most recent ANALYSE session)
+- DRAFT does NOT call `beginSession()` — it reuses the ANALYSE session number. Sessions are incremented only by ANALYSE.
+
+### Path resolution
+
+- **Previous newsletter:** scan `data/editorial/drafts/` for `draft-session-*-final.md`, pick the most recent
+- **Sector articles directory:** `data/verified/` (passed to `buildDraftContext`)
+- **Draft context assembly:** `buildDraftContext(week, { sectorArticlesDir, previousNewsletterPath })`
+
+### Podcast data in draft context
+
+Podcast-sourced entries exist in `state.analysisIndex` with `source` matching podcast names from `editorial-sources.yaml`. The draft prompt template (editorial-draft.v1.txt) instructs Opus to identify these entries and synthesise them into the podcast-analysis section. No separate podcast context section is needed in `buildDraftContext()` — the analysis index already contains all the analytical summaries.
+
 ### Flow
 
-1. Parse CLI args
+1. Parse CLI args (`--week`, `--session`, `--dry-run`, `--skip-critique`, `--force`)
 2. Validate providers (Anthropic required; OpenAI or Gemini required unless --skip-critique)
-3. Load state, determine session number
-4. Check if draft already exists (exit unless --force)
-5. Acquire lock (.draft.lock)
-6. Build DRAFT context via `buildDraftContext()` from editorial-context.js
-7. Call Opus for initial draft (rawText mode, ~16k max tokens, temperature 0.5)
-8. Extract and validate draft structure
-9. Save v1 draft
-10. Unless --skip-critique:
-    a. Build critique prompt
-    b. Call Gemini + GPT in parallel via `callCritiqueModels()`
-    c. Merge critiques
-    d. If critique available, build revision prompt
-    e. Call Opus for revision (rawText mode)
-    f. Save final draft
-11. Calculate and save metrics
-12. Save critique artifact
-13. Release lock
-14. Log costs, log activity
+3. Load state, resolve week number and session number
+4. Check if draft already exists for this session (exit unless --force)
+5. Acquire lock (`.draft.lock`) — same pattern as DISCOVER
+6. Build DRAFT context via `buildDraftContext(week, opts)` from editorial-context.js
+7. Load prompt template (`editorial-draft.v1.txt`) and append to user message
+8. Call Opus for initial draft (`rawText: true`, ~16k max tokens, temperature 0.5)
+9. Extract markdown via `extractDraftMarkdown()` — if empty, abort with error
+10. Validate draft structure via `parseDraftSections()` + `validateDraftStructure()`
+11. Save v1 draft to `data/editorial/drafts/draft-session-{N}-v1.md`
+12. Unless `--skip-critique`:
+    a. Load critique template (`editorial-critique.v1.txt`)
+    b. Render critique prompt via `renderCritiquePrompt(template, draft, opts)`
+    c. Call Gemini + GPT in parallel via `callCritiqueModels(prompt, { system })`
+    d. Merge critiques via `mergeCritiques(result)` (pass result object directly)
+    e. If `hasCritique`:
+       - Load revision template (`editorial-revise.v1.txt`)
+       - Render revision prompt via `renderRevisionPrompt(template, draft, merged, opts)`
+       - Call Opus for revision (`rawText: true`)
+       - Extract and validate revised draft
+    f. Save final draft to `data/editorial/drafts/draft-session-{N}-final.md`
+13. Calculate metrics for initial and final drafts
+14. Save critique artifact to `data/editorial/drafts/critique-session-{N}.json`
+15. Save metrics to `data/editorial/drafts/metrics-session-{N}.json`
+16. Release lock
+17. Log costs to `data/editorial/cost-log.json` (under `draft` breakdown key)
+18. Log activity
+
+### Error handling
+
+- Empty Opus response: abort, log error, release lock
+- Empty extracted markdown: abort, log error, release lock
+- Both critique models fail: skip revision, save v1 as final draft, log warning
+- Revision Opus call fails: save v1 as final draft, log warning
+- Any I/O error during save: log error but continue to save remaining artifacts
 
 ### Lock file
 
-Same pattern as ANALYSE and DISCOVER:
+Same pattern as DISCOVER (not ANALYSE, which has no lock):
 - `.draft.lock` with `{ pid, timestamp, session, stage }`
 - 30-minute stale detection
-- Web API reads lock for status display
+- Web API reads lock for status display via existing `getEditorialStatus()`
 
 ### Cost logging
 
 Appends to `data/editorial/cost-log.json` under the `draft` breakdown key, same pattern as ANALYSE.
+
+### Token budget reconciliation
+
+- `BUDGETS.draft.total` in `editorial-context.js` = 60k tokens for the initial draft context
+- Initial Opus call: ~60k context input + ~8k output = ~$1.50
+- Critique calls: ~10k input each (draft only, no full context) = ~$0.10 each
+- Revision Opus call: ~60k original context + ~2k draft + ~2k critique + ~8k output = ~$1.60
+- **Total: ~$3.30 per draft**
+
+The revision call reuses the original system prompt (from `buildSystemPrompt('draft')`) and appends the revision prompt with draft + critique, staying within Opus's 200k window.
 
 ## Web API additions
 
@@ -208,8 +298,9 @@ Appends to `data/editorial/cost-log.json` under the `draft` breakdown key, same 
 
 ```javascript
 export async function getEditorialDraft({ session } = {}) {
-  // Find latest draft session if not specified
-  // Return { session, draft: string|null, critique: object|null, metrics: object|null }
+  // Find latest draft session by scanning data/editorial/drafts/ for draft-session-*-final.md
+  // Uses numeric sort (same pattern as getDiscoverProgress)
+  // Returns { session, draft: string|null, critique: object|null, metrics: object|null }
 }
 ```
 
@@ -221,32 +312,22 @@ All existing, no new packages:
 - `editorial-context.js` -> `buildDraftContext()`, `buildSystemPrompt('draft')`
 - `editorial-multi-model.js` -> `callOpus()`, `callCritiqueModels()`, `getSessionCosts()`, `resetSessionCosts()`, `validateProviders()`
 - `editorial-state.js` -> `loadState()`, `logActivity()`, `addNotification()`
-- `prompt-loader.js` -> `loadAndRenderPrompt()`
+- `prompt-loader.js` -> `loadAndRenderPrompt()` (used by orchestrator only, not lib)
+
+## Known pre-existing issues
+
+- `editorial-context.js` line 288: dead expression `userMessage + '...'` whose result is not assigned. Line 293 performs the correct concatenation. Not caused by this spec; avoid propagating.
 
 ## Testing strategy
 
 ### editorial-draft-lib.test.js
 
 Pure function tests (no mocks, no I/O):
-- `extractDraftMarkdown`: clean markdown, code-fenced, with preamble, empty
-- `parseDraftSections`: all sections, missing sections, extra sections, empty
-- `validateDraftStructure`: valid, missing sections, short sections
-- `calculateDraftMetrics`: normal draft, empty, single section
+- `extractDraftMarkdown`: clean markdown, code-fenced, with preamble, empty, already clean
+- `parseDraftSections`: all sections present, missing sections, extra/unrecognised sections, empty, alternative headings
+- `validateDraftStructure`: valid, missing sections, short sections, over-long draft
+- `calculateDraftMetrics`: normal draft, empty, single section, no sections
 - `mergeCritiques`: both available, one fails, both fail, empty responses
-- `buildCritiquePrompt`: includes draft text, handles missing opts
-- `buildRevisionPrompt`: includes draft + critique, handles edge cases
-- `buildDraftArtifact`: complete data, minimal data
-
-### Integration (via orchestrator dry-run)
-
-`bun scripts/editorial-draft.js --dry-run` confirms context assembly without LLM calls.
-
-## Cost estimate
-
-Per draft generation:
-- Initial Opus call: ~80k input + ~8k output = ~$1.80
-- Two critique calls: ~$0.10 each = ~$0.20
-- Revision Opus call: ~90k input + ~8k output = ~$1.95
-- **Total: ~$3.95 per draft**
-
-Weekly budget impact: one draft per week = ~$4 out of $50 budget (8%).
+- `renderCritiquePrompt`: includes draft text, replaces all placeholders, handles missing opts
+- `renderRevisionPrompt`: includes draft + critique, replaces placeholders, handles missing critique
+- `buildDraftArtifact`: complete data, minimal data, output schema validation
