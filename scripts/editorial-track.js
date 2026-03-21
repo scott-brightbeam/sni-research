@@ -11,11 +11,14 @@
  *   bun scripts/editorial-track.js --linkedin --post 43 --title "Multi-agent dysfunction"
  *   bun scripts/editorial-track.js --mark-published --post 43
  *   bun scripts/editorial-track.js --list
+ *   bun scripts/editorial-track.js --help
  *
  * Reads:  data/editorial/published.json, data/editorial/state.json
  * Writes: data/editorial/published.json, data/editorial/state.json,
  *         data/editorial/activity.json
  */
+
+import { resolve } from 'path'
 
 import {
   loadState,
@@ -27,6 +30,8 @@ import {
   recomputeCorpusStats,
   logActivity,
 } from './lib/editorial-state.js'
+
+const ROOT = resolve(import.meta.dir, '..')
 
 // ── Logging ──────────────────────────────────────────────
 
@@ -52,6 +57,15 @@ function parseArgs() {
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
+      case '--help':
+      case '-h':
+        console.log(`Usage:
+  bun scripts/editorial-track.js --newsletter --week N [--url URL]
+  bun scripts/editorial-track.js --linkedin --post N [--title TITLE] [--url URL]
+  bun scripts/editorial-track.js --mark-published --post N
+  bun scripts/editorial-track.js --list
+  bun scripts/editorial-track.js --help`)
+        process.exit(0)
       case '--newsletter':
         opts.newsletter = true
         break
@@ -89,7 +103,8 @@ function parseArgs() {
         break
       }
       default:
-        warn(`Unknown argument: ${args[i]}`)
+        err(`Unknown argument: ${args[i]}`)
+        process.exit(1)
     }
   }
 
@@ -151,7 +166,8 @@ function handleList() {
 }
 
 function handleNewsletter(opts) {
-  if (isAlreadyPublished('newsletter', opts.week)) {
+  const published = loadPublished()
+  if (published.newsletters.some(n => n.week === opts.week)) {
     warn(`Newsletter for week ${opts.week} is already tracked. Skipping.`)
     return
   }
@@ -175,23 +191,32 @@ function handleLinkedIn(opts) {
     return
   }
 
-  const item = { postId: opts.post, title }
-  if (opts.url) item.url = opts.url
+  if (!post) {
+    warn(`Post #${opts.post} not found in state.json backlog — recording in published.json only`)
+  }
 
-  trackPublished('linkedin', item)
-  log(`Tracked LinkedIn publication: #${opts.post} — ${title}`)
-
-  // Also update post status in state if it exists and is not already published
+  // Update state first (more fragile operation with validation)
+  // so that published.json is only written if state succeeds or is skipped
+  let stateUpdated = false
   if (state && post && post.status !== 'published') {
     try {
       updatePostStatus(state, opts.post, 'published')
       recomputeCorpusStats(state)
       saveState(state)
+      stateUpdated = true
       log(`  Updated post #${opts.post} status to 'published' in state.json`)
     } catch (e) {
-      warn(`  Could not update post status: ${e.message}`)
+      warn(`  Could not update post status in state.json: ${e.message}`)
+      logActivity('error', `Failed to sync post #${opts.post} status to state.json`, e.message)
     }
   }
+
+  // Record in published.json (simpler write, less likely to fail)
+  const item = { postId: opts.post, title }
+  if (opts.url) item.url = opts.url
+
+  trackPublished('linkedin', item)
+  log(`Tracked LinkedIn publication: #${opts.post} — ${title}`)
 }
 
 function handleMarkPublished(opts) {
@@ -212,22 +237,29 @@ function handleMarkPublished(opts) {
     return
   }
 
+  // Update state.json (critical operation)
   try {
     updatePostStatus(state, opts.post, 'published')
     recomputeCorpusStats(state)
     saveState(state)
-    logActivity('track', `Marked post #${opts.post} as published`, post.title)
-    log(`Marked post #${opts.post} as published: ${post.title}`)
   } catch (e) {
     err(`Failed to update post status: ${e.message}`)
     process.exit(1)
   }
-}
 
-/** Check if a newsletter week is already tracked. */
-function isAlreadyPublished(type, week) {
-  const published = loadPublished()
-  return published.newsletters.some(n => n.week === week)
+  // Also record in published.json so isPublished() returns true
+  if (!isPublished(opts.post)) {
+    trackPublished('linkedin', { postId: opts.post, title: post.title })
+  }
+
+  // Activity log is non-critical — don't let it mask state success
+  try {
+    logActivity('track', `Marked post #${opts.post} as published`, post.title)
+  } catch (e) {
+    warn(`  Failed to log activity: ${e.message}`)
+  }
+
+  log(`Marked post #${opts.post} as published: ${post.title}`)
 }
 
 // ── Main ────────────────────────────────────────────────
@@ -235,6 +267,10 @@ function isAlreadyPublished(type, week) {
 function main() {
   const opts = parseArgs()
   validateArgs(opts)
+
+  log('═══════════════════════════════════════════════')
+  log('  EDITORIAL TRACK')
+  log('═══════════════════════════════════════════════')
 
   if (opts.list) {
     handleList()
@@ -257,4 +293,10 @@ function main() {
   }
 }
 
-main()
+try {
+  main()
+} catch (error) {
+  err(`Fatal error: ${error.message}`)
+  console.error(error.stack)
+  process.exit(1)
+}
