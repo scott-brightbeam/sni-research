@@ -145,10 +145,26 @@ describe('parseDraftSections', () => {
     expect(result.sections[1].name).toBe('general-ai')
   })
 
+  test('matches tl;dr with theme suffix (e.g. "tl;dr: Consolidation accelerates")', () => {
+    const draft = '## tl;dr: Consolidation accelerates\n\nIntro with theme.\n\n## Insurance\n\nClaims AI.'
+    const result = parseDraftSections(draft)
+    expect(result.sections[0].name).toBe('introduction')
+    expect(result.sections[0].heading).toBe('tl;dr: Consolidation accelerates')
+  })
+
   test('calculates word count per section', () => {
     const draft = '## tl;dr\n\nOne two three four five'
     const result = parseDraftSections(draft)
     expect(result.sections[0].wordCount).toBe(5)
+  })
+
+  test('captures heading-only section with zero word count', () => {
+    const draft = '## tl;dr\n\nIntro content\n\n## Insurance'
+    const result = parseDraftSections(draft)
+    expect(result.sections.length).toBe(2)
+    expect(result.sections[1].name).toBe('insurance')
+    expect(result.sections[1].wordCount).toBe(0)
+    expect(result.sections[1].content).toBe('')
   })
 })
 
@@ -311,6 +327,27 @@ describe('mergeCritiques', () => {
     })
     expect(result.hasCritique).toBe(false)
   })
+
+  test('returns empty result for null input', () => {
+    const result = mergeCritiques(null)
+    expect(result.hasCritique).toBe(false)
+    expect(result.merged).toBe('')
+    expect(result.sources).toEqual([])
+  })
+
+  test('returns empty result for undefined input', () => {
+    const result = mergeCritiques(undefined)
+    expect(result.hasCritique).toBe(false)
+  })
+
+  test('handles missing provider key gracefully', () => {
+    const result = mergeCritiques({
+      gemini: { provider: 'gemini', raw: 'Feedback.', error: null },
+      // openai key missing entirely
+    })
+    expect(result.hasCritique).toBe(true)
+    expect(result.merged).toContain('Feedback')
+  })
 })
 
 // ── renderCritiquePrompt ────────────────────────────────
@@ -346,6 +383,14 @@ describe('renderCritiquePrompt', () => {
     const result = renderCritiquePrompt(template, 'Draft', { themes: [] })
     expect(result).toContain('(none)')
   })
+
+  test('returns empty string for null template', () => {
+    expect(renderCritiquePrompt(null, 'Draft', {})).toBe('')
+  })
+
+  test('returns empty string for null draft', () => {
+    expect(renderCritiquePrompt(template, null, {})).toBe('')
+  })
 })
 
 // ── renderRevisionPrompt ────────────────────────────────
@@ -369,6 +414,14 @@ describe('renderRevisionPrompt', () => {
     const result = renderRevisionPrompt(template, 'Draft', '')
     expect(result).toContain('Original:\n\nDraft')
     expect(result).toContain('Critique:\n\n')
+  })
+
+  test('returns empty string for null template', () => {
+    expect(renderRevisionPrompt(null, 'Draft', 'Critique')).toBe('')
+  })
+
+  test('returns empty string for null draft', () => {
+    expect(renderRevisionPrompt(template, null, 'Critique')).toBe('')
   })
 })
 

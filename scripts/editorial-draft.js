@@ -32,7 +32,7 @@ import {
   loadState,
   logActivity,
 } from './lib/editorial-state.js'
-import { buildDraftContext, buildSystemPrompt } from './lib/editorial-context.js'
+import { buildDraftContext } from './lib/editorial-context.js'
 import {
   callOpus,
   callCritiqueModels,
@@ -196,8 +196,8 @@ function acquireLock(sessionNum) {
         process.exit(1)
       }
       warn('Stale lock detected (>30 min) — overriding')
-    } catch {
-      warn('Unreadable lock file — overriding')
+    } catch (e) {
+      warn(`Unreadable lock file (${e.message}) — overriding`)
     }
   }
 
@@ -215,8 +215,8 @@ function updateLockStage(stage) {
     const lockData = JSON.parse(readFileSync(LOCK_FILE, 'utf-8'))
     lockData.stage = stage
     writeFileSync(LOCK_FILE, JSON.stringify(lockData, null, 2))
-  } catch {
-    // best effort
+  } catch (e) {
+    warn(`Failed to update lock stage to '${stage}': ${e.message}`)
   }
 }
 
@@ -234,7 +234,12 @@ function saveCostLog(sessionNum, costs, elapsed) {
   const costLogPath = join(ROOT, 'data/editorial/cost-log.json')
   let costLog = {}
   if (existsSync(costLogPath)) {
-    try { costLog = JSON.parse(readFileSync(costLogPath, 'utf-8')) } catch { costLog = {} }
+    try {
+      costLog = JSON.parse(readFileSync(costLogPath, 'utf-8'))
+    } catch (e) {
+      warn(`cost-log.json is corrupt (${e.message}) — starting fresh for this entry`)
+      costLog = {}
+    }
   }
 
   if (!costLog.sessions) costLog.sessions = {}
@@ -433,85 +438,87 @@ async function main() {
       try {
         critiqueTemplate = readFileSync(join(ROOT, 'config/prompts/editorial-critique.v1.txt'), 'utf-8')
       } catch (e) {
-        warn(`Failed to load critique template: ${e.message} — skipping critique`)
-        critiqueTemplate = null
+        err(`Failed to load critique template: ${e.message}`)
+        err('Fix the template file or use --skip-critique to bypass.')
+        logActivity('error', 'DRAFT critique failed', `Missing template: ${e.message}`)
+        releaseLock()
+        process.exit(1)
       }
 
-      if (critiqueTemplate) {
-        const themeNames = Object.values(state.themeRegistry || {}).map(t => t.name).slice(0, 20)
-        const sectionNames = parsed.sections.map(s => s.name)
+      const themeNames = Object.values(state.themeRegistry || {}).map(t => t.name).slice(0, 20)
+      const sectionNames = parsed.sections.map(s => s.name)
 
-        const critiquePrompt = renderCritiquePrompt(critiqueTemplate, initialDraft, {
-          themes: themeNames,
-          week,
-          sectionNames,
-        })
+      const critiquePrompt = renderCritiquePrompt(critiqueTemplate, initialDraft, {
+        themes: themeNames,
+        week,
+        sectionNames,
+      })
 
-        const critiqueSystem = 'You are an editorial reviewer for a weekly AI newsletter targeting senior enterprise leaders. Provide specific, actionable critique.'
+      const critiqueSystem = 'You are an editorial reviewer for a weekly AI newsletter targeting senior enterprise leaders. Provide specific, actionable critique.'
 
-        const critiqueResult = await callCritiqueModels(critiquePrompt, { system: critiqueSystem })
+      const critiqueResult = await callCritiqueModels(critiquePrompt, { system: critiqueSystem })
 
-        // Log critique results
-        if (critiqueResult.gemini.raw) {
-          log(`  Gemini critique: ${critiqueResult.gemini.raw.length} chars`)
-        } else {
-          warn(`  Gemini critique failed: ${critiqueResult.gemini.error || 'no response'}`)
+      // Log critique results
+      if (critiqueResult.gemini.raw) {
+        log(`  Gemini critique: ${critiqueResult.gemini.raw.length} chars`)
+      } else {
+        warn(`  Gemini critique failed: ${critiqueResult.gemini.error || 'no response'}`)
+      }
+      if (critiqueResult.openai.raw) {
+        log(`  GPT critique: ${critiqueResult.openai.raw.length} chars`)
+      } else {
+        warn(`  GPT critique failed: ${critiqueResult.openai.error || 'no response'}`)
+      }
+
+      // Merge critiques
+      const merged = mergeCritiques(critiqueResult)
+      critiqueData = {
+        gemini: { raw: critiqueResult.gemini.raw, error: critiqueResult.gemini.error },
+        openai: { raw: critiqueResult.openai.raw, error: critiqueResult.openai.error },
+        merged: merged.merged,
+      }
+
+      // 14. Revision (if we have critique feedback)
+      if (merged.hasCritique) {
+        updateLockStage('revising')
+        log('Revising draft based on critique...')
+
+        let reviseTemplate
+        try {
+          reviseTemplate = readFileSync(join(ROOT, 'config/prompts/editorial-revise.v1.txt'), 'utf-8')
+        } catch (e) {
+          err(`Failed to load revision template: ${e.message}`)
+          err('Fix the template file or use --skip-critique to bypass revision.')
+          logActivity('error', 'DRAFT revision failed', `Missing template: ${e.message}`)
+          releaseLock()
+          process.exit(1)
         }
-        if (critiqueResult.openai.raw) {
-          log(`  GPT critique: ${critiqueResult.openai.raw.length} chars`)
-        } else {
-          warn(`  GPT critique failed: ${critiqueResult.openai.error || 'no response'}`)
-        }
 
-        // Merge critiques
-        const merged = mergeCritiques(critiqueResult)
-        critiqueData = {
-          gemini: { raw: critiqueResult.gemini.raw, error: critiqueResult.gemini.error },
-          openai: { raw: critiqueResult.openai.raw, error: critiqueResult.openai.error },
-          merged: merged.merged,
-        }
+        const revisionPrompt = renderRevisionPrompt(reviseTemplate, initialDraft, merged.merged, { week })
 
-        // 14. Revision (if we have critique feedback)
-        if (merged.hasCritique) {
-          updateLockStage('revising')
-          log('Revising draft based on critique...')
+        try {
+          const revisionResponse = await callOpus(revisionPrompt, {
+            system: context.system,
+            maxTokens: 16000,
+            rawText: true,
+            temperature: 0.4,
+          })
 
-          let reviseTemplate
-          try {
-            reviseTemplate = readFileSync(join(ROOT, 'config/prompts/editorial-revise.v1.txt'), 'utf-8')
-          } catch (e) {
-            warn(`Failed to load revision template: ${e.message} — keeping v1 draft`)
-            reviseTemplate = null
+          log(`  Revision response: ${revisionResponse.inputTokens.toLocaleString()} in / ${revisionResponse.outputTokens.toLocaleString()} out`)
+
+          const revisedDraft = extractDraftMarkdown(revisionResponse.raw)
+          if (revisedDraft) {
+            finalDraft = revisedDraft
+            log(`  Revised draft: ~${revisedDraft.split(/\s+/).length} words`)
+          } else {
+            warn('Revision returned empty — keeping v1 draft')
           }
-
-          if (reviseTemplate) {
-            const revisionPrompt = renderRevisionPrompt(reviseTemplate, initialDraft, merged.merged, { week })
-
-            try {
-              const revisionResponse = await callOpus(revisionPrompt, {
-                system: context.system,
-                maxTokens: 16000,
-                rawText: true,
-                temperature: 0.4,
-              })
-
-              log(`  Revision response: ${revisionResponse.inputTokens.toLocaleString()} in / ${revisionResponse.outputTokens.toLocaleString()} out`)
-
-              const revisedDraft = extractDraftMarkdown(revisionResponse.raw)
-              if (revisedDraft) {
-                finalDraft = revisedDraft
-                log(`  Revised draft: ~${revisedDraft.split(/\s+/).length} words`)
-              } else {
-                warn('Revision returned empty — keeping v1 draft')
-              }
-            } catch (revErr) {
-              warn(`Revision Opus call failed: ${revErr.message} — keeping v1 draft`)
-              logActivity('error', 'DRAFT revision failed', revErr.message)
-            }
-          }
-        } else {
-          warn('No critique feedback available — skipping revision')
+        } catch (revErr) {
+          warn(`Revision Opus call failed: ${revErr.message} — keeping v1 draft`)
+          logActivity('error', 'DRAFT revision failed', revErr.message)
         }
+      } else {
+        warn('No critique feedback available — skipping revision')
       }
     } else {
       log('Critique skipped (--skip-critique)')
@@ -586,16 +593,30 @@ async function main() {
     log(`  Output:        ${finalPath}`)
 
   } catch (error) {
+    // Log costs even on failure (tracks real spend)
+    try {
+      const costs = getSessionCosts()
+      if (costs.total > 0) {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+        saveCostLog(sessionNum, costs, elapsed + ' (FAILED)')
+        warn(`Partial cost logged: $${costs.total.toFixed(4)}`)
+      }
+    } catch (costErr) {
+      warn(`Failed to save cost log for crashed run: ${costErr.message}`)
+    }
+
     releaseLock()
     err(`Fatal error: ${error.message}`)
+    console.error(error.stack)
     logActivity('error', 'DRAFT pipeline crash', error.message)
-    throw error
+    process.exit(1)
   }
 }
 
 // ── Run ─────────────────────────────────────────────────
 
 main().catch(error => {
+  // Catches errors before lock acquisition (validation, state loading)
   err(`Fatal error: ${error.message}`)
   console.error(error.stack)
   process.exit(1)

@@ -1,4 +1,4 @@
-You are revising a newsletter draft based on critique feedback from two independent reviewers.
+You are revising a newsletter draft for Week {week} based on critique feedback from two independent reviewers.
 
 Here is the original draft:
 

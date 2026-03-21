@@ -24,7 +24,7 @@ Evaluate this draft against these criteria. For each issue found, specify the se
 
 6. ACCURACY — Are there unsupported claims? Misattributed quotes? Fabricated statistics?
 
-7. COMPLETENESS — Given the analysis entries provided as context, has important material been overlooked?
+7. COMPLETENESS — Do any sections appear unusually thin or make vague claims that suggest source material was available but underutilised? Flag sections where the draft lacks specific evidence.
 
 Format your response as numbered critique points:
 

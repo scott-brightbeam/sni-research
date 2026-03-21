@@ -40,7 +40,7 @@ const SECTION_ALIASES = {
 function matchSectionName(heading) {
   const normalised = heading.toLowerCase().trim()
   for (const [name, aliases] of Object.entries(SECTION_ALIASES)) {
-    if (aliases.some(alias => normalised === alias)) {
+    if (aliases.some(alias => normalised === alias || normalised.startsWith(alias + ':'))) {
       return name
     }
   }
@@ -72,7 +72,8 @@ export function extractDraftMarkdown(rawResponse) {
   let text = rawResponse
 
   // Strip markdown code fences (```markdown, ```md, or bare ```)
-  const fenceMatch = text.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/m)
+  // Use greedy match to capture content up to the LAST closing fence
+  const fenceMatch = text.match(/^```(?:markdown|md)?\s*\n([\s\S]*)\n```\s*$/m)
   if (fenceMatch) {
     text = fenceMatch[1]
   }
@@ -109,10 +110,8 @@ export function parseDraftSections(markdown) {
     if (!part.trim()) continue
 
     const newlineIndex = part.indexOf('\n')
-    if (newlineIndex === -1) continue
-
-    const heading = part.slice(0, newlineIndex).trim()
-    const content = part.slice(newlineIndex + 1).trim()
+    const heading = newlineIndex === -1 ? part.trim() : part.slice(0, newlineIndex).trim()
+    const content = newlineIndex === -1 ? '' : part.slice(newlineIndex + 1).trim()
 
     const sectionName = matchSectionName(heading)
     if (sectionName) {
@@ -206,7 +205,11 @@ export function calculateDraftMetrics(markdown) {
  * @returns {{ merged: string, sources: Array<{ provider: string, available: boolean }>, hasCritique: boolean }}
  */
 export function mergeCritiques(critiqueResults) {
-  const entries = [critiqueResults.gemini, critiqueResults.openai]
+  if (!critiqueResults || typeof critiqueResults !== 'object') {
+    return { merged: '', sources: [], hasCritique: false }
+  }
+
+  const entries = [critiqueResults.gemini, critiqueResults.openai].filter(Boolean)
   const sources = []
   const parts = []
 
@@ -240,6 +243,9 @@ export function mergeCritiques(critiqueResults) {
  * @returns {string}
  */
 export function renderCritiquePrompt(template, draft, opts = {}) {
+  if (!template || typeof template !== 'string') return ''
+  if (!draft || typeof draft !== 'string') return ''
+
   const themes = opts?.themes?.length ? opts.themes.join(', ') : '(none)'
   const week = opts?.week != null ? String(opts.week) : '(current)'
   const sections = opts?.sectionNames?.length ? opts.sectionNames.join(', ') : '(all)'
@@ -262,6 +268,9 @@ export function renderCritiquePrompt(template, draft, opts = {}) {
  * @returns {string}
  */
 export function renderRevisionPrompt(template, draft, mergedCritique, opts = {}) {
+  if (!template || typeof template !== 'string') return ''
+  if (!draft || typeof draft !== 'string') return ''
+
   const week = opts?.week != null ? String(opts.week) : '(current)'
 
   return template
@@ -276,7 +285,14 @@ export function renderRevisionPrompt(template, draft, mergedCritique, opts = {})
  * Assemble the complete draft output artifact.
  *
  * @param {object} data
- * @returns {object} — JSON-serialisable artifact
+ * @param {number} data.session — ANALYSE session number
+ * @param {string} data.timestamp — ISO 8601 timestamp
+ * @param {string} data.initialDraft — v1 draft markdown
+ * @param {string} data.finalDraft — revised draft markdown (or same as initial if no critique)
+ * @param {object} data.critiques — merged critique data
+ * @param {object} data.metrics — { initial, final } metrics objects
+ * @param {object} data.costs — { opus, gemini, openai, total }
+ * @returns {{ version: number, session: number, timestamp: string, initialDraft: string, finalDraft: string, critiques: object, metrics: object, costs: object }}
  */
 export function buildDraftArtifact(data) {
   return {
