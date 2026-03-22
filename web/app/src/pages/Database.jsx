@@ -24,6 +24,7 @@ export default function Database() {
   const [tab, setTab] = useState('articles')
   const [showIngest, setShowIngest] = useState(false)
   const [draftRequest, setDraftRequest] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
@@ -76,6 +77,10 @@ export default function Database() {
                 onChange={e => setSearch(e.target.value)}
                 className="filter-search"
               />
+              <label className="archive-toggle">
+                <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+                Show archived
+              </label>
               {allResult.lastUpdated && (
                 <span className="updated-indicator">
                   Updated {formatRelativeTime(new Date(allResult.lastUpdated).toISOString())}
@@ -90,7 +95,7 @@ export default function Database() {
                 <div className="placeholder-text">Failed to load articles: {allResult.error}</div>
               ) : (
                 <ArticleTable
-                  articles={allResult.articles}
+                  articles={showArchived ? allResult.articles : (allResult.articles || []).filter(a => !a.archived)}
                   tab="all"
                   onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
                 />
@@ -104,6 +109,8 @@ export default function Database() {
             episodes={podcastResult.episodes}
             loading={podcastResult.loading}
             error={podcastResult.error}
+            showArchived={showArchived}
+            onShowArchivedChange={setShowArchived}
           />
         )}
 
@@ -134,7 +141,7 @@ export default function Database() {
 
 // ── Podcasts Tab ──────────────────────────────────────────
 
-function PodcastsTab({ episodes, loading, error }) {
+function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange }) {
   const [sourceFilter, setSourceFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [expandedIdx, setExpandedIdx] = useState(null)
@@ -148,7 +155,7 @@ function PodcastsTab({ episodes, loading, error }) {
   // Collect unique sources for filter dropdown
   const sources = [...new Set(episodes.map(e => e.source).filter(Boolean))].sort()
 
-  let filtered = episodes
+  let filtered = showArchived ? episodes : episodes.filter(e => !e.archived)
   if (sourceFilter) filtered = filtered.filter(e => e.source === sourceFilter)
   if (tierFilter) filtered = filtered.filter(e => String(e.tier) === tierFilter)
   if (debouncedSearch) {
@@ -191,6 +198,10 @@ function PodcastsTab({ episodes, loading, error }) {
           onChange={e => setSearchQuery(e.target.value)}
           className="filter-search"
         />
+        <label className="archive-toggle">
+          <input type="checkbox" checked={showArchived} onChange={e => onShowArchivedChange(e.target.checked)} />
+          Show archived
+        </label>
         <span className="filter-count">{filtered.length} episode{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -220,7 +231,7 @@ function PodcastCard({ episode, expanded, onToggle }) {
   const themes = digest.themes || ep.themes || []
 
   return (
-    <div className={`podcast-card ${expanded ? 'expanded' : ''}`} onClick={onToggle}>
+    <div className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
       <div className="podcast-card-header">
         <div className="podcast-card-title">{ep.title || ep.filename || 'Untitled episode'}</div>
         {ep.tier && (
@@ -320,6 +331,16 @@ function ArticleTable({ articles, tab, onReload }) {
     }
   }
 
+  async function handleArchiveToggle(a) {
+    setActionError(null)
+    try {
+      await apiPatch(`/api/articles/${a.date_published}/${a.sector}/${a.slug}`, { archived: !a.archived })
+      onReload()
+    } catch (err) {
+      setActionError(err.message)
+    }
+  }
+
   function handleRowClick(a) {
     const key = `${a.date_published}-${a.sector}-${a.slug}`
     setExpandedSlug(expandedSlug === key ? null : key)
@@ -355,6 +376,7 @@ function ArticleTable({ articles, tab, onReload }) {
                   onRowClick={() => handleRowClick(a)}
                   onSectorChange={(s) => handleSectorChange(a, s)}
                   onFlagToggle={() => handleFlagToggle(a)}
+                  onArchiveToggle={() => handleArchiveToggle(a)}
                   onDeleteClick={() => setDeleteConfirm(key)}
                   onDeleteConfirm={() => handleDelete(a)}
                   onDeleteCancel={() => setDeleteConfirm(null)}
@@ -375,7 +397,7 @@ function ArticleTable({ articles, tab, onReload }) {
 
 function ArticleRow({
   article: a, tab, isExpanded, isDeleting,
-  onRowClick, onSectorChange, onFlagToggle,
+  onRowClick, onSectorChange, onFlagToggle, onArchiveToggle,
   onDeleteClick, onDeleteConfirm, onDeleteCancel
 }) {
   const [detail, setDetail] = useState(null)
@@ -414,9 +436,12 @@ function ArticleRow({
 
   return (
     <>
-      <tr className={`article-row ${isExpanded ? 'expanded' : ''}`} onClick={handleClick}>
+      <tr className={`article-row ${isExpanded ? 'expanded' : ''} ${a.archived ? 'archived' : ''}`} onClick={handleClick}>
         <td>
-          <div className="article-title">{a.title}</div>
+          <div className="article-title">
+            {a.title}
+            {a.archived && <span className="badge-archived">archived</span>}
+          </div>
           <div className="article-source">{a.source}</div>
         </td>
         <td><SectorBadge sector={a.sector} /></td>
@@ -446,6 +471,13 @@ function ArticleRow({
                 title={a.flagged ? 'Unflag' : 'Flag for review'}
               >
                 {a.flagged ? '\u2691' : '\u2690'}
+              </button>
+              <button
+                className="btn-icon"
+                title={a.archived ? 'Restore' : 'Archive'}
+                onClick={e => { e.stopPropagation(); onArchiveToggle() }}
+              >
+                {a.archived ? '↩' : '📦'}
               </button>
               <button className="action-btn delete-btn" onClick={onDeleteClick} title="Delete">
                 \u2715

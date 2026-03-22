@@ -468,3 +468,63 @@ tr:hover .row-actions { opacity: 1; }
 .found-by-badge[data-layer="rss"] { background: var(--layer-rss-15); color: var(--layer-rss); }
 .found-by-badge[data-layer="headlines"] { background: var(--layer-hl-15); color: var(--layer-hl); }
 .found-by-badge[data-layer="unknown"] { background: var(--light-gray); color: var(--cloudy); }
+
+/* ── Archive UI ───────────────────────────────────────── */
+
+.archive-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: 13px;
+  color: var(--cloudy);
+  cursor: pointer;
+}
+
+.archive-toggle input {
+  cursor: pointer;
+}
+
+tr.archived td {
+  opacity: 0.5;
+}
+
+tr.archived .article-title {
+  text-decoration: line-through;
+}
+
+.badge-archived {
+  font-size: 11px;
+  background: var(--text-muted);
+  color: var(--pampas);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: var(--sp-1);
+}
+
+.podcast-card.archived {
+  opacity: 0.5;
+}
+
+.podcast-card.archived .podcast-card-title {
+  text-decoration: line-through;
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--cloudy);
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.btn-icon:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
