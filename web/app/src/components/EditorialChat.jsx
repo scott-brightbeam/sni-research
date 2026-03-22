@@ -40,9 +40,10 @@ const SUGGESTIONS = {
  * Editorial contextual chat panel — 380px sidebar with streaming AI responses.
  * Receives the current editorial tab to provide tab-specific context.
  */
-export default function EditorialChat({ tab, isOpen, onClose }) {
+export default function EditorialChat({ tab }) {
   const { messages, loading, error, send, clear } = useEditorialChat(tab)
   const [input, setInput] = useState('')
+  const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -51,10 +52,10 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Focus input when panel opens
+  // Focus input when panel expands
   useEffect(() => {
-    if (isOpen) inputRef.current?.focus()
-  }, [isOpen])
+    if (!collapsed) inputRef.current?.focus()
+  }, [collapsed])
 
   // Clear conversation when tab changes to avoid context mismatch
   useEffect(() => {
@@ -75,7 +76,19 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
     }
   }
 
-  if (!isOpen) return null
+  if (collapsed) {
+    return (
+      <div className="editorial-chat editorial-chat-collapsed">
+        <button
+          className="chat-expand-btn"
+          onClick={() => setCollapsed(false)}
+          title="Open AI chat"
+        >
+          AI
+        </button>
+      </div>
+    )
+  }
 
   const tabSuggestions = SUGGESTIONS[tab] || []
 
@@ -90,8 +103,8 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
           <button className="chat-btn" onClick={clear} title="Clear conversation">
             ↺
           </button>
-          <button className="chat-btn" onClick={onClose} title="Close">
-            ✕
+          <button className="chat-btn" onClick={() => setCollapsed(true)} title="Collapse">
+            ▶
           </button>
         </div>
       </div>

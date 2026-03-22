@@ -1,23 +1,45 @@
 /* ── Editorial chat sidebar ──────────────────────────────── */
 
 .editorial-chat {
-  position: fixed;
-  top: 0;
-  right: 0;
   width: 380px;
-  height: 100vh;
-  background: var(--card-bg);
-  border-left: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  min-width: 380px;
   display: flex;
   flex-direction: column;
-  z-index: 20;
-  animation: slide-in 0.2s ease-out;
+  border-left: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
-@keyframes slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+.editorial-chat-collapsed {
+  width: 48px;
+  min-width: 48px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: var(--sp-3);
+  border-left: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+}
+
+.chat-expand-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--terra);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+.chat-expand-btn:hover {
+  background: var(--terra-15);
+  color: var(--terra-light);
 }
 
 /* ── Header ─────────────────────────────────────────────── */
@@ -254,9 +276,9 @@
 /* ── Responsive ──────────────────────────────────────── */
 
 @media (max-width: 1400px) {
-  .editorial-chat { width: 320px; }
+  .editorial-chat { width: 320px; min-width: 320px; }
 }
 
 @media (max-width: 900px) {
-  .editorial-chat { width: 100%; }
+  .editorial-chat { width: 280px; min-width: 280px; }
 }

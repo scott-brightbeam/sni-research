@@ -40,7 +40,6 @@ export default function Editorial() {
   const initialTab = searchParams.get('tab') || 'state'
   const [tab, setTab] = useState(TABS.find(t => t.key === initialTab) ? initialTab : 'state')
   const [search, setSearch] = useState('')
-  const [chatOpen, setChatOpen] = useState(false)
   const [backlogFilter, setBacklogFilter] = useState({ status: '', priority: '' })
 
   const debouncedSearch = useDebouncedValue(search, 300)
@@ -77,12 +76,6 @@ export default function Editorial() {
           <button className="btn btn-ghost btn-sm" onClick={handleExportState}>
             <DownloadIcon /> Export
           </button>
-          <button
-            className={`chat-toggle ${chatOpen ? 'active' : ''}`}
-            onClick={() => setChatOpen(o => !o)}
-          >
-            {chatOpen ? 'Close AI' : 'Ask AI'}
-          </button>
         </div>
       </div>
 
@@ -98,20 +91,23 @@ export default function Editorial() {
         ))}
       </div>
 
-      {debouncedSearch ? (
-        <SearchResults query={debouncedSearch} />
-      ) : (
-        <>
-          {tab === 'state' && <AnalysisTab />}
-          {tab === 'themes' && <ThemesTab />}
-          {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} />}
-          {tab === 'decisions' && <DecisionsTab />}
-          {tab === 'activity' && <ActivityTab />}
-          {tab === 'newsletter' && <Draft embedded />}
-        </>
-      )}
-
-      <EditorialChat tab={tab} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <div className="editorial-columns">
+        <div className="editorial-content">
+          {debouncedSearch ? (
+            <SearchResults query={debouncedSearch} />
+          ) : (
+            <>
+              {tab === 'state' && <AnalysisTab />}
+              {tab === 'themes' && <ThemesTab />}
+              {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} />}
+              {tab === 'decisions' && <DecisionsTab />}
+              {tab === 'activity' && <ActivityTab />}
+              {tab === 'newsletter' && <Draft embedded />}
+            </>
+          )}
+        </div>
+        <EditorialChat tab={tab} />
+      </div>
     </div>
   )
 }
