@@ -200,6 +200,110 @@ export function buildPinContext(pins) {
   return lines.join('\n')
 }
 
+const EDITORIAL_TOKEN_BUDGET = 15000  // ~60k chars
+
+export function buildEditorialContext() {
+  const statePath = join(ROOT, 'data/editorial/state.json')
+  if (!existsSync(statePath)) return ''
+
+  let state
+  try {
+    state = JSON.parse(readFileSync(statePath, 'utf-8'))
+  } catch (err) {
+    console.error(`[buildEditorialContext] Failed to read/parse ${statePath}:`, err.message)
+    return ''
+  }
+
+  if (!state || typeof state !== 'object') return ''
+
+  const lines = ['\n## Editorial Intelligence\n']
+  let charBudget = EDITORIAL_TOKEN_BUDGET * 4  // ~4 chars per token
+
+  // --- Analysis Index: current session entries (cap ~30) ---
+  const analysisIndex = state.analysisIndex || {}
+  const currentSession = (state.counters?.nextSession || 1) - 1
+  const allEntries = Object.entries(analysisIndex)
+  // Prefer current session entries, fall back to most recent
+  let sessionEntries = allEntries.filter(([, e]) => e.session === currentSession)
+  if (sessionEntries.length === 0) {
+    // Fall back to entries from latest available session
+    const sessions = [...new Set(allEntries.map(([, e]) => e.session || 0))].sort((a, b) => b - a)
+    if (sessions.length > 0) {
+      sessionEntries = allEntries.filter(([, e]) => e.session === sessions[0])
+    }
+  }
+  sessionEntries = sessionEntries.slice(0, 30)
+
+  if (sessionEntries.length > 0) {
+    const sessionNum = sessionEntries[0]?.[1]?.session || currentSession
+    lines.push(`### Analysis Index (Session ${sessionNum})`)
+    for (const [id, entry] of sessionEntries) {
+      const themes = entry.themes?.length ? entry.themes.join(', ') : 'none'
+      const summary = (entry.summary || '').slice(0, 200)
+      lines.push(`- #${id}: ${entry.title} — Tier ${entry.tier ?? 1} — Themes: ${themes}`)
+      if (summary) lines.push(`  Summary: ${summary}`)
+    }
+    lines.push('')
+  }
+
+  // Check budget
+  let text = lines.join('\n')
+  if (text.length > charBudget) return text.slice(0, charBudget)
+
+  // --- Active Themes (cap ~20) ---
+  const themeRegistry = state.themeRegistry || {}
+  const themeEntries = Object.entries(themeRegistry)
+    .filter(([code]) => /^T\d{2}$/.test(code))
+    .slice(0, 20)
+
+  if (themeEntries.length > 0) {
+    lines.push('### Active Themes')
+    for (const [code, theme] of themeEntries) {
+      const docCount = theme.documentCount || 0
+      lines.push(`- ${code}: ${theme.name} (${docCount} docs)`)
+
+      // Last 2 evidence items
+      const evidence = theme.evidence || []
+      const recent = evidence.slice(-2)
+      for (const ev of recent) {
+        const content = (ev.content || '').slice(0, 150)
+        lines.push(`  Latest evidence: ${content}`)
+      }
+    }
+    lines.push('')
+  }
+
+  text = lines.join('\n')
+  if (text.length > charBudget) return text.slice(0, charBudget)
+
+  // --- Post Candidates: HIGH/IMMEDIATE priority (cap ~15) ---
+  const postBacklog = state.postBacklog || {}
+  const highPriorityPosts = Object.entries(postBacklog)
+    .filter(([, p]) => {
+      const priority = (p.priority || '').toLowerCase()
+      return (priority === 'high' || priority === 'immediate') &&
+             p.status !== 'published' && p.status !== 'rejected' && p.status !== 'archived'
+    })
+    .slice(0, 15)
+
+  if (highPriorityPosts.length > 0) {
+    lines.push('### Post Candidates')
+    for (const [id, post] of highPriorityPosts) {
+      const format = post.format || 'unspecified'
+      lines.push(`- #${id}: ${post.title} [${post.priority}] — ${format}`)
+      if (post.coreArgument) {
+        lines.push(`  ${post.coreArgument.slice(0, 200)}`)
+      }
+    }
+    lines.push('')
+  }
+
+  text = lines.join('\n')
+  if (text.length > charBudget) return text.slice(0, charBudget)
+
+  return text
+}
+
 export function assembleContext({ week, year, threadHistory, articleRef, podcastRef, ephemeral, draftContext, publishedExemplar }) {
   const TOKEN_BUDGET = 64000  // leave headroom for response
   let used = 0
@@ -239,6 +343,9 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
     }
   }
 
+  // 5. Editorial intelligence (if available)
+  const editorialBlock = !ephemeral ? buildEditorialContext() : ''
+
   // 6. Pins
   const pins = loadPins(week)
   const pinBlock = buildPinContext(pins)
@@ -251,7 +358,7 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
 
   // 8. Assemble with priority-based truncation
   // Priority (truncate first → last): thread history, podcast digests, article context
-  const preambleParts = [contextBlock, podcastBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean)
+  const preambleParts = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean)
   let preamble = preambleParts.join('\n')
   used += estimateTokens(preamble)
 
@@ -261,7 +368,7 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
     const podcastTokens = estimateTokens(podcastBlock)
     if (podcastTokens > 5000) {
       podcastBlock = podcastBlock.slice(0, 20000) // ~5000 tokens
-      preamble = [contextBlock, podcastBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
+      preamble = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
       used = estimateTokens(systemPrompt) + estimateTokens(preamble)
     }
   }

@@ -8,6 +8,9 @@ import { useEditorialDraft } from '../hooks/useEditorialDraft'
 import { useChatPanel } from '../hooks/useChatPanel'
 import { usePublished } from '../hooks/usePublished'
 import { useExclusions } from '../hooks/useExclusions'
+import { downloadFile } from '../lib/download'
+import { toast } from '../components/shared/Toast'
+import DownloadIcon from '../components/shared/DownloadIcon'
 import './Draft.css'
 
 const RIGHT_TABS = [
@@ -91,6 +94,13 @@ export default function Draft() {
   const recentlySaved = savedAt && Date.now() - savedAt < 2000
   const saveLabel = saving ? 'Saving...' : recentlySaved ? 'Saved' : 'Save'
   const hasDraft = draft !== null && draft !== undefined
+
+  function handleExportDraft() {
+    if (!hasDraft) return
+    const filename = `draft-week-${week}.md`
+    downloadFile(draft, filename, 'text/markdown')
+    toast(`Exported ${filename}`)
+  }
 
   // Custom renderers for react-markdown (preview tab)
   // Must be before early returns to satisfy Rules of Hooks
@@ -177,6 +187,13 @@ export default function Draft() {
             onClick={() => setShowPublished(!showPublished)}
           >
             {pub.published ? 'Published ✓' : 'Publish'}
+          </button>
+          <button
+            className="btn btn-ghost btn-md"
+            disabled={!hasDraft}
+            onClick={handleExportDraft}
+          >
+            <DownloadIcon /> Export
           </button>
           <button
             className={`btn btn-primary btn-md${recentlySaved ? ' saved' : ''}`}

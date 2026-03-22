@@ -1,0 +1,34 @@
+.error-boundary {
+  text-align: center;
+  padding: 60px var(--sp-6);
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.error-boundary-icon {
+  font-size: 48px;
+  margin-bottom: var(--sp-4);
+  opacity: 0.4;
+}
+
+.error-boundary-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-2);
+}
+
+.error-boundary-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-6);
+  line-height: 1.5;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: center;
+}

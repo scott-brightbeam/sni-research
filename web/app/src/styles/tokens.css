@@ -11,6 +11,7 @@
   --light-gray: rgba(255, 255, 255, 0.08);
   --border: rgba(255, 255, 255, 0.08);
   --hover-subtle: rgba(255, 255, 255, 0.04);
+  --overlay-bg: rgba(0, 0, 0, 0.6);
   --terra-bg: rgba(212, 113, 78, 0.1);
   --sage: #6FA584;
   --blue: #7CADD6;
@@ -112,6 +113,7 @@ h1, h2, h3, h4, h5, h6, button, input, select, textarea, .label {
 .btn-ghost:hover { color: var(--text-primary); background: var(--hover-subtle); }
 .btn-danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.export-icon { flex-shrink: 0; vertical-align: middle; }
 
 /* ═══════════════════════════════════════
    Shared: Tabs (§8.3.1)

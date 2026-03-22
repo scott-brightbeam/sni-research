@@ -125,3 +125,64 @@
 .status-text-active {
   color: var(--terra);
 }
+
+/* ── Responsive: icons-only at ≤1200px ───────────────── */
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 60px;
+    min-width: 60px;
+    padding: var(--sp-4) 0;
+  }
+
+  .sidebar-logo {
+    padding: 0 var(--sp-2) var(--sp-4);
+    text-align: center;
+  }
+
+  .sidebar-logo h1 {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .sidebar-logo span { display: none; }
+
+  .nav-item {
+    justify-content: center;
+    padding: 10px 0;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    gap: 0;
+  }
+
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--terra);
+  }
+
+  /* Hide text labels, show only icons */
+  .nav-item > :not(.nav-icon):not(.nav-badge) {
+    display: none;
+  }
+
+  .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    margin-left: 0;
+    font-size: 9px;
+    padding: 0 4px;
+  }
+
+  .nav-item {
+    position: relative;
+  }
+
+  .sidebar-footer {
+    padding: var(--sp-2);
+    align-items: center;
+  }
+
+  .status-text { display: none; }
+  .status-text-active { display: none; }
+}

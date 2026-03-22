@@ -4,6 +4,7 @@ import { useNotifications } from '../hooks/useNotifications'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import DraftLink from '../components/shared/DraftLink'
+import Skeleton from '../components/shared/Skeleton'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
 import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
@@ -21,7 +22,13 @@ export default function Dashboard() {
   const { status, loading, error } = useStatus()
   const [chartRange, setChartRange] = useState('7d')
 
-  if (loading) return <div className="loading">Loading...</div>
+  if (loading) return (
+    <div>
+      <div className="page-header"><h2>Dashboard</h2></div>
+      <div className="dashboard-grid"><Skeleton.StatCards count={4} /></div>
+      <div className="dashboard-panels"><Skeleton.Cards count={2} /></div>
+    </div>
+  )
   if (error) return <div className="empty">Failed to load: {error}</div>
   if (!status) return <div className="empty">No data available</div>
 

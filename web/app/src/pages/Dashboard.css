@@ -416,3 +416,16 @@
 .cost-summary-fill.cost-ok { background: var(--sage); }
 .cost-summary-fill.cost-warning { background: var(--warning); }
 .cost-summary-fill.cost-danger { background: var(--danger); }
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-editorial { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-panels { grid-template-columns: 1fr; }
+  .dashboard-editorial { grid-template-columns: 1fr; }
+}

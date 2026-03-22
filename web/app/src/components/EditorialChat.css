@@ -250,3 +250,13 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 1400px) {
+  .editorial-chat { width: 320px; }
+}
+
+@media (max-width: 900px) {
+  .editorial-chat { width: 100%; }
+}

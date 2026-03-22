@@ -1105,3 +1105,23 @@ button.btn-secondary.has-overlap-results {
   border-top: 1px solid var(--border);
   margin-top: 6px;
 }
+
+/* ── Responsive breakpoints ──────────────────────────── */
+
+@media (max-width: 1400px) {
+  .draft-panes { gap: var(--sp-2); }
+  .panel-tabs .panel-tab { padding: 8px 12px; font-size: 12px; }
+}
+
+@media (max-width: 900px) {
+  .draft-panes {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .draft-editor textarea { min-height: 400px; }
+  .draft-right-panel { min-height: 400px; }
+
+  .draft-toolbar { flex-wrap: wrap; }
+  .toolbar-centre { order: 3; width: 100%; justify-content: center; }
+}

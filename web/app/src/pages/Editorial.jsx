@@ -3,9 +3,14 @@ import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditori
 import { useEditorialStatus } from '../hooks/useEditorialStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatRelativeTime } from '../lib/format'
-import { apiPut } from '../lib/api'
+import { apiFetch, apiPut } from '../lib/api'
+import { downloadFile } from '../lib/download'
+import { toast } from '../components/shared/Toast'
 import EditorialChat from '../components/EditorialChat'
 import DraftLink from '../components/shared/DraftLink'
+import DownloadIcon from '../components/shared/DownloadIcon'
+import Skeleton from '../components/shared/Skeleton'
+import EmptyState from '../components/shared/EmptyState'
 import './Editorial.css'
 
 const TABS = [
@@ -35,6 +40,18 @@ export default function Editorial() {
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
+  async function handleExportState() {
+    try {
+      const data = await apiFetch('/api/editorial/state')
+      const date = new Date().toISOString().slice(0, 10)
+      const filename = `editorial-state-${date}.json`
+      downloadFile(JSON.stringify(data, null, 2), filename, 'application/json')
+      toast(`Exported ${filename}`)
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
+
   return (
     <div className="editorial-page">
       <div className="page-header">
@@ -47,6 +64,9 @@ export default function Editorial() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <button className="btn btn-ghost btn-sm" onClick={handleExportState}>
+            <DownloadIcon /> Export
+          </button>
           <button
             className={`chat-toggle ${chatOpen ? 'active' : ''}`}
             onClick={() => setChatOpen(o => !o)}
@@ -91,7 +111,7 @@ function AnalysisTab() {
   const { data, loading, error } = useEditorialState('analysisIndex')
   const costData = useEditorialCost()
 
-  if (loading) return <div className="loading-state">Loading analysis index...</div>
+  if (loading) return <Skeleton.List count={8} />
   if (error) return <div className="error-state">{error}</div>
 
   const entries = data?.entries || []
@@ -118,7 +138,7 @@ function AnalysisTab() {
       </div>
 
       {entries.length === 0 ? (
-        <div className="empty-state">No analysis entries yet. Run editorial-analyse.js to populate.</div>
+        <EmptyState icon="📄" title="No analysis entries" description="Run ANALYSE to process transcripts and populate the index." />
       ) : (
         <div className="analysis-list">
           {entries.map(entry => (
@@ -174,7 +194,7 @@ function ThemesTab() {
   const filters = showStale ? { stale: 'true' } : { active: 'true' }
   const { data, loading, error } = useEditorialState('themeRegistry')
 
-  if (loading) return <div className="loading-state">Loading themes...</div>
+  if (loading) return <Skeleton.List count={6} />
   if (error) return <div className="error-state">{error}</div>
 
   const allThemes = data?.themes || []
@@ -191,7 +211,7 @@ function ThemesTab() {
       </div>
 
       {allThemes.length === 0 ? (
-        <div className="empty-state">No themes registered yet.</div>
+        <EmptyState icon="🔗" title="No themes registered" description="Themes are discovered automatically during DISCOVER stage." />
       ) : (
         <div className="theme-list">
           {allThemes.map(theme => (
@@ -248,7 +268,33 @@ function ThemeCard({ theme }) {
 function BacklogTab({ filter, setFilter }) {
   const { data, loading, error, refetch } = useEditorialState('postBacklog')
 
-  if (loading) return <div className="loading-state">Loading backlog...</div>
+  async function handleExportBacklog() {
+    try {
+      const res = await apiFetch('/api/editorial/backlog')
+      const allPosts = res.posts || []
+      const date = new Date().toISOString().slice(0, 10)
+      const lines = [`# Post Backlog — Exported ${date}`, '']
+      for (const post of allPosts) {
+        lines.push(`## #${post.id}: ${post.title || post.workingTitle || '(untitled)'}`)
+        lines.push(`- **Status:** ${post.status || 'unknown'}`)
+        lines.push(`- **Priority:** ${post.priority || 'unset'}`)
+        lines.push(`- **Format:** ${post.format || 'unset'}`)
+        lines.push(`- **Core argument:** ${post.coreArgument || ''}`)
+        lines.push(`- **Source documents:** ${(post.sourceDocuments || []).join(', ')}`)
+        lines.push(`- **Notes:** ${post.notes || ''}`)
+        lines.push('')
+        lines.push('---')
+        lines.push('')
+      }
+      const filename = `editorial-backlog-${date}.md`
+      downloadFile(lines.join('\n'), filename, 'text/markdown')
+      toast(`Exported ${filename}`)
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
+
+  if (loading) return <Skeleton.List count={6} />
   if (error) return <div className="error-state">{error}</div>
 
   let posts = data?.posts || []
@@ -262,6 +308,9 @@ function BacklogTab({ filter, setFilter }) {
       <div className="section-header">
         <h3>Post Backlog</h3>
         <span className="count-badge">{posts.length} posts</span>
+        <button className="btn btn-ghost btn-sm" onClick={handleExportBacklog}>
+          <DownloadIcon /> Export
+        </button>
       </div>
 
       <div className="filter-bar">
@@ -283,7 +332,7 @@ function BacklogTab({ filter, setFilter }) {
       </div>
 
       {posts.length === 0 ? (
-        <div className="empty-state">No posts matching filters.</div>
+        <EmptyState icon="📝" title="No posts match filters" description="Try adjusting the priority or format filters." />
       ) : (
         <div className="backlog-list">
           {posts.map(post => (
@@ -384,7 +433,7 @@ function PostCard({ post, onStatusChange }) {
 function DecisionsTab() {
   const { data, loading, error } = useEditorialState('decisionLog')
 
-  if (loading) return <div className="loading-state">Loading decisions...</div>
+  if (loading) return <Skeleton.List count={4} />
   if (error) return <div className="error-state">{error}</div>
 
   const decisions = data?.decisions || []
@@ -397,7 +446,7 @@ function DecisionsTab() {
       </div>
 
       {decisions.length === 0 ? (
-        <div className="empty-state">No editorial decisions recorded yet.</div>
+        <EmptyState icon="⚖" title="No decisions recorded" description="Editorial decisions appear as the pipeline runs." />
       ) : (
         <div className="decision-list">
           {decisions.map((d, i) => (
@@ -432,7 +481,7 @@ function ActivityTab() {
     refetch()
   }
 
-  if (loading) return <div className="loading-state">Loading activity...</div>
+  if (loading) return <Skeleton.List count={5} />
   if (error) return <div className="error-state">{error}</div>
 
   return (
@@ -475,7 +524,7 @@ function ActivityTab() {
       </div>
 
       {activities.length === 0 ? (
-        <div className="empty-state">No pipeline activity recorded yet.</div>
+        <EmptyState icon="📊" title="No activity recorded" description="Activity appears as pipeline stages run." />
       ) : (
         <div className="activity-list">
           {activities.map((a, i) => (
@@ -510,7 +559,7 @@ function SearchResults({ query }) {
       </div>
 
       {results.length === 0 ? (
-        <div className="empty-state">No results found.</div>
+        <EmptyState icon="🔍" title="No results found" description="Try a different search term." />
       ) : (
         <div className="search-results">
           {results.map((r, i) => (
