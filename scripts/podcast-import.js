@@ -109,7 +109,7 @@ async function generateDigest(transcript, metadata, client, model) {
 }
 
 async function extractStories(transcript, client, model) {
-  const prompt = loadAndRenderPrompt('story-extract.v2', { transcript })
+  const prompt = loadAndRenderPrompt('story-extract.v7', { transcript })
   return await callLLM(client, model, prompt)
 }
 

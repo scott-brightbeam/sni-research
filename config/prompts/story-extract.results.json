@@ -1,0 +1,81 @@
+{
+  "prompt_version": "v7",
+  "evaluated_at": "2026-03-22",
+  "dataset": "data/test/story-extract-labels.json",
+  "dataset_size": 5,
+  "ground_truth_stories": 58,
+  "metrics": {
+    "recall": 0.926,
+    "precision": 0.890,
+    "per_source_breakdown": {
+      "AI Daily Brief (Mar 17)": {
+        "ground_truth": 15,
+        "extracted": 17,
+        "matched": 15,
+        "recall": "100.0%",
+        "precision": "88.2%",
+        "notes": "All 15 stories caught. 2 FPs from expanded extraction."
+      },
+      "AI Daily Brief (Mar 4)": {
+        "ground_truth": 11,
+        "extracted": 10,
+        "matched": 9,
+        "recall": "81.8%",
+        "precision": "90.0%",
+        "notes": "Still misses Thomas Domke startup and QuitGPT boycott. QuitGPT never extracted across any version — likely too embedded in analysis."
+      },
+      "Moonshots Meta/GPT/Fruitfly (Mar 17)": {
+        "ground_truth": 16,
+        "extracted": 15,
+        "matched": 13,
+        "recall": "81.3%",
+        "precision": "86.7%",
+        "notes": "3 brief mentions in 90-min episode still missed (cryogenic synapses, China robots, NY legislation). These are one-sentence mentions in a long conversational transcript."
+      },
+      "Moonshots Elon (Mar 17)": {
+        "ground_truth": 4,
+        "extracted": 5,
+        "matched": 4,
+        "recall": "100.0%",
+        "precision": "80.0%",
+        "notes": "1 FP (interview content misclassified as news). Interview dedup guidance in v7 reduced from 3 FPs in v2."
+      },
+      "Moonshots AI CEO (Feb 13)": {
+        "ground_truth": 12,
+        "extracted": 12,
+        "matched": 12,
+        "recall": "100.0%",
+        "precision": "100.0%",
+        "notes": "Perfect extraction maintained from v2. 2h11m episode."
+      }
+    }
+  },
+  "targets": {
+    "recall": ">0.90",
+    "precision": ">0.80"
+  },
+  "target_met": true,
+  "version_history": {
+    "v2": {
+      "evaluated_at": "2026-03-20",
+      "recall": 0.931,
+      "precision": 0.896,
+      "notes": "Initial passing version. Re-eval on 2026-03-22 showed 89.6% recall (LLM non-determinism)."
+    },
+    "v7": {
+      "evaluated_at": "2026-03-22",
+      "recall": 0.926,
+      "precision": 0.890,
+      "notes": "Added few-shot examples for structured, conversational, and interview formats. Improved interview dedup. PASS."
+    }
+  },
+  "changes_from_v2": {
+    "prompt_improvements": [
+      "Added three few-shot examples: structured news format, conversational panel, interview format",
+      "Added explicit EXCLUDED annotations after each example showing what fails the news peg test",
+      "Improved interview dedup guidance with explicit 2-5 story cap for 20-30 min interviews",
+      "Added transcription error correction list (Open Claw → OpenClaw, Quit GPT → QuitGPT)",
+      "Added sector classification reference table"
+    ]
+  }
+}
