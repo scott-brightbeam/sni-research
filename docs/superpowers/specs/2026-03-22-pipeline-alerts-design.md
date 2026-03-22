@@ -42,7 +42,7 @@ const TELEGRAM_API = 'https://api.telegram.org';
  * Send a Telegram message via Zaphod's bot API.
  * @param {string} text — message body (Markdown)
  * @param {object} [opts]
- * @param {string} [opts.parseMode='Markdown'] — 'Markdown' | 'HTML'
+ * @param {string} [opts.parseMode='HTML'] — 'MarkdownV2' | 'HTML'
  * @returns {Promise<{ ok: boolean, messageId?: number, error?: string }>}
  */
 export async function sendTelegram(text, opts = {}) {
@@ -60,7 +60,7 @@ export async function sendTelegram(text, opts = {}) {
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: opts.parseMode || 'Markdown',
+        parse_mode: opts.parseMode || 'HTML',
         disable_web_page_preview: true,
       }),
     });
@@ -129,38 +129,159 @@ function checkBraveApi(runSummary) {
     return {
       type: 'brave-api-down',
       severity: 'critical',
-      message: `🚨 *Brave Search API down* — 0 results from ${braveQueries.length} queries. Check API key / spend cap.`,
+      message: `🚨 <b>Brave Search API down</b> — 0 results from ${braveQueries.length} queries. Check API key / spend cap.`,
     };
   }
 
-  // Also check error log for 402 pattern
-  // (handled separately via log scanning)
+  // High error rate across Brave queries (individual URL fetch errors)
+  const errorRate = totalErrors / braveQueries.length;
+  if (errorRate > 0.80) {
+    return {
+      type: 'brave-api-errors',
+      severity: 'critical',
+      message: `🚨 <b>Brave Search</b> — ${(errorRate * 100).toFixed(0)}% query error rate (${totalErrors}/${braveQueries.length}). API may be degraded.`,
+    };
+  }
+
   return null;
 }
 ```
 
 **Log scanning for 402 errors:**
 
+The fetch error log format is `[HH:MM:SS] ⚠ Brave API error 402 for: <query>` with no date prefix. We use the file's mtime to determine if it was written today, then read the tail (last 500 lines) to count 402 errors. This avoids parsing the entire log.
+
 ```js
+import { statSync } from 'fs';
+
 function checkFetchErrorLog() {
   const logPath = join(ROOT, 'logs', 'fetch-error.log');
   if (!existsSync(logPath)) return null;
 
-  const content = readFileSync(logPath, 'utf8');
+  // Only check if log was modified today
+  const mtime = statSync(logPath).mtime;
   const today = new Date().toISOString().slice(0, 10);
-  const todayLines = content.split('\n')
-    .filter(line => line.includes(today) || line.includes('Brave API error 402'));
+  if (mtime.toISOString().slice(0, 10) !== today) return null;
 
-  // Count 402 errors from today's timestamps
-  const errors402 = todayLines.filter(l => l.includes('402')).length;
+  const content = readFileSync(logPath, 'utf8');
+  const lines = content.split('\n');
+  // Read last 500 lines (tail of today's run)
+  const tail = lines.slice(-500);
+
+  const errors402 = tail.filter(l => l.includes('Brave API error 402')).length;
   if (errors402 > 10) {
     return {
       type: 'brave-api-402',
       severity: 'critical',
-      message: `🚨 *Brave Search API* — ${errors402} HTTP 402 errors today. Spend limit likely exceeded.`,
+      message: `🚨 <b>Brave Search API</b> — ${errors402} HTTP 402 errors in latest run. Spend limit likely exceeded.`,
     };
   }
   return null;
+}
+```
+
+**Zero articles check:**
+
+```js
+function checkZeroArticles(runSummary) {
+  const fetchStage = runSummary.stages?.find(s => s.name === 'fetch');
+  if (!fetchStage || fetchStage.status === 'failed') return null; // handled by checkStageFailed
+
+  const saved = fetchStage.stats?.saved ?? -1;
+  if (saved === 0) {
+    return {
+      type: 'zero-articles',
+      severity: 'critical',
+      message: '🚨 <b>Fetch saved 0 articles</b> — pipeline has no new content.',
+    };
+  }
+  return null;
+}
+```
+
+**Stage failure check:**
+
+```js
+function checkStageFailed(runSummary) {
+  const failed = (runSummary.stages || []).filter(s => s.status === 'failed');
+  return failed.map(s => ({
+    type: `stage-failed-${s.name}`,
+    severity: 'critical',
+    message: `🚨 Pipeline stage <b>${s.name}</b> failed: ${s.errors?.[0] || 'unknown error'}`,
+  }));
+}
+```
+
+**Job didn't run check:**
+
+```js
+function checkJobRan() {
+  const today = new Date().toISOString().slice(0, 10);
+  const summaryPath = join(ROOT, 'output', 'runs', `pipeline-${today}.json`);
+
+  if (!existsSync(summaryPath)) {
+    // Check if pipeline is still running (lock file present)
+    const lockPath = join(ROOT, 'data', '.pipeline.lock');
+    if (existsSync(lockPath)) return null; // still running, don't alert
+
+    return {
+      type: 'job-didnt-run',
+      severity: 'warning',
+      message: '⚠️ No pipeline run summary for today — launchd job may have failed.',
+    };
+  }
+  return null;
+}
+```
+
+**High flag rate check:**
+
+```js
+function checkHighFlagRate(runSummary) {
+  // Check both 'score' and 'score-discover' stages
+  const scoreStages = (runSummary.stages || [])
+    .filter(s => (s.name === 'score' || s.name === 'score-discover') && s.status === 'success');
+
+  for (const stage of scoreStages) {
+    const { total, moved } = stage.stats || {};
+    if (!total || total === 0 || !moved) continue;
+
+    const pct = ((moved / total) * 100).toFixed(1);
+    if (moved / total > 0.25) {
+      return {
+        type: 'high-flag-rate',
+        severity: 'warning',
+        message: `⚠️ ${pct}% of articles flagged for review (${moved}/${total}) — possible scoring issue.`,
+      };
+    }
+  }
+  return null;
+}
+```
+
+**Source health check:**
+
+```js
+function checkSourceHealth() {
+  const healthPath = join(ROOT, 'data', 'source-health.json');
+  if (!existsSync(healthPath)) return [];
+
+  try {
+    const health = JSON.parse(readFileSync(healthPath, 'utf8'));
+    const alerts = [];
+    for (const [name, entry] of Object.entries(health)) {
+      if ((entry.consecutiveFailures || 0) >= 3) {
+        alerts.push({
+          type: `source-health-${name.toLowerCase().replace(/\s+/g, '-')}`,
+          severity: 'warning',
+          message: `⚠️ RSS source <b>${name}</b> has failed ${entry.consecutiveFailures} consecutive times: ${entry.lastError || 'unknown'}`,
+        });
+      }
+    }
+    return alerts;
+  } catch {
+    return [];
+  }
 }
 ```
 
@@ -171,7 +292,7 @@ Compare today's run against the rolling 7-day history.
 | Check | Condition | Severity | Message |
 |-------|-----------|----------|---------|
 | **Volume drop** | Today's `saved` count < 50% of 7-day daily average | 🟡 Warning | `⚠️ Article volume down — {today} saved vs {avg} avg/day (7d)` |
-| **Error rate rising** | `fetchErrors / totalQueries > 0.30` AND higher than 7-day avg | 🟡 Warning | `⚠️ Fetch error rate {pct}% — rising trend over 7 days` |
+| **Error rate rising** | `fetchErrors / Object.keys(queryStats).length > 0.30` AND higher than 7-day avg | 🟡 Warning | `⚠️ Fetch error rate {pct}% — rising trend over 7 days` |
 | **RSS source failures** | `source-health.json` entry with `consecutiveFailures >= 3` | 🟡 Warning | `⚠️ RSS source "{name}" has failed {n} consecutive times: {lastError}` |
 
 **Rolling history logic:**
@@ -216,7 +337,7 @@ function checkSatelliteJob(prefix, label) {
     return {
       type: `${prefix}-missing`,
       severity: 'warning',
-      message: `⚠️ *${label}* didn't run today — check launchd job.`,
+      message: `⚠️ <b>${label}</b> didn't run today — check launchd job.`,
     };
   }
 
@@ -228,7 +349,7 @@ function checkSatelliteJob(prefix, label) {
       return {
         type: `${prefix}-empty`,
         severity: 'warning',
-        message: `⚠️ *${label}* ran but produced 0 results.`,
+        message: `⚠️ <b>${label}</b> ran but produced 0 results.`,
       };
     }
   } catch {}
@@ -375,8 +496,8 @@ Same structure, `--check satellite` flag, `Hour` = 8, `Minute` = 0.
 ## .env additions
 
 ```
-TELEGRAM_BOT_TOKEN=8483619891:AAGXrnRRT2EjIaUzWC80EyjIHs8Fmkq65B8
-TELEGRAM_CHAT_ID=8454135977
+TELEGRAM_BOT_TOKEN=<your-bot-token>
+TELEGRAM_CHAT_ID=<your-chat-id>
 ```
 
 ## Testing strategy
@@ -413,13 +534,15 @@ Tests use fixture data (inline JSON objects), not live files. Each check functio
 
 ## Consolidated message format
 
-When multiple alerts fire in one run, group them into a single Telegram message:
+When multiple alerts fire in one run, group them into a single Telegram message using HTML parse mode:
 
 ```
-🚨 *SNI Pipeline Alerts* — 2026-03-22
+🚨 <b>SNI Pipeline Alerts</b> — 2026-03-22
 
 • Brave Search API down — 0 results from 329 queries
 • Fetch saved 0 articles
 
-_2 critical issues detected. Check dashboard for details._
+<i>2 critical issues detected. Check dashboard for details.</i>
 ```
+
+**Message length:** Telegram has a 4096-character limit. If the consolidated message exceeds 3800 characters, truncate the alert list and append `... and N more`. This is unlikely with the current check set but protects against future expansion or verbose error messages.
