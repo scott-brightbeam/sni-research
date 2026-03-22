@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditorialCost } from '../hooks/useEditorialState'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatRelativeTime } from '../lib/format'
+import EditorialChat from '../components/EditorialChat'
 import './Editorial.css'
 
 const TABS = [
@@ -13,12 +14,12 @@ const TABS = [
 ]
 
 const STATUS_COLOURS = {
-  suggested: 'var(--color-text-secondary)',
-  approved: 'var(--color-accent)',
-  'in-progress': 'var(--color-warning)',
-  published: 'var(--color-success)',
-  rejected: 'var(--color-danger)',
-  archived: 'var(--color-text-secondary)',
+  suggested: 'var(--text-secondary)',
+  approved: 'var(--terra)',
+  'in-progress': 'var(--warning)',
+  published: 'var(--sage)',
+  rejected: 'var(--danger)',
+  archived: 'var(--text-muted)',
 }
 
 const PRIORITY_LABELS = { high: '🔴', medium: '🟡', low: '⚪' }
@@ -26,6 +27,7 @@ const PRIORITY_LABELS = { high: '🔴', medium: '🟡', low: '⚪' }
 export default function Editorial() {
   const [tab, setTab] = useState('state')
   const [search, setSearch] = useState('')
+  const [chatOpen, setChatOpen] = useState(false)
   const [backlogFilter, setBacklogFilter] = useState({ status: '', priority: '' })
 
   const debouncedSearch = useDebouncedValue(search, 300)
@@ -42,6 +44,12 @@ export default function Editorial() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <button
+            className={`chat-toggle ${chatOpen ? 'active' : ''}`}
+            onClick={() => setChatOpen(o => !o)}
+          >
+            {chatOpen ? 'Close AI' : 'Ask AI'}
+          </button>
         </div>
       </div>
 
@@ -68,6 +76,8 @@ export default function Editorial() {
           {tab === 'activity' && <ActivityTab />}
         </>
       )}
+
+      <EditorialChat tab={tab} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   )
 }
