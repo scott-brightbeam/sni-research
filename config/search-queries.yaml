@@ -39,7 +39,8 @@ search_queries:
 
     medtech:
       # Regulatory/technical (ChatGPT)
-      - "predetermined change control plan PCCP AI device {month} {year}"
+      # Replaced: "predetermined change control plan PCCP" — 0 saves L1 + L4 combined
+      - "AI medical device software update lifecycle {month} {year}"
       - "good machine learning practice GMLP medical device {month} {year}"
       - "MDR IVDR AI Act medical device artificial intelligence {month} {year}"
       - "AI ambient scribe clinical documentation {month} {year}"
@@ -50,7 +51,8 @@ search_queries:
       # Operational/trend (Gemini)
       - "medtech AI acquisition premium {month} {year}"
       - "ambulatory surgery center AI robotics {month} {year}"
-      - "capability driven procurement medtech {month} {year}"
+      # Replaced: "capability driven procurement medtech" — 0 saves L1 + L4 combined
+      - "AI value-based care medtech {month} {year}"
       - "connected care ecosystem acquisition {month} {year}"
       - "telemedicine AI diagnostic tools clearance {month} {year}"
       - "medtech digital transformation divestiture {month} {year}"
@@ -109,67 +111,49 @@ search_queries:
       - "AI military blacklist defense department {month} {year}"
 
   layer2_sources:
-    # Existing sources (already in RSS or original plan)
-    - query: "site:reuters.com artificial intelligence"
-      name: Reuters
+    # ── Productive L2 queries (confirmed saves in 16-run analysis, Mar 2026) ──
     - query: "site:cnbc.com artificial intelligence"
-      name: CNBC
-    - query: "site:finance.yahoo.com artificial intelligence"
-      name: Yahoo Finance
-    - query: "site:wired.com artificial intelligence"
-      name: Wired
-    # Biopharma (ChatGPT + Gemini)
+      name: CNBC                          # 8 saves — best L2 performer (adding RSS too, see sources.yaml)
     - query: "site:biospace.com artificial intelligence"
-      name: BioSpace
-    - query: "site:genengnews.com artificial intelligence"
-      name: GEN
-    - query: "site:labiotech.eu artificial intelligence"
-      name: Labiotech
-    - query: "site:bioworld.com artificial intelligence"
-      name: BioWorld
-    - query: "site:pharmaphorum.com artificial intelligence"
-      name: Pharmaphorum
-    # Medtech (ChatGPT + Gemini)
-    - query: "site:massdevice.com artificial intelligence"
-      name: MassDevice
-    - query: "site:radiologybusiness.com artificial intelligence"
-      name: Radiology Business
-    # Manufacturing (ChatGPT + Gemini)
-    - query: "site:industryweek.com artificial intelligence"
-      name: IndustryWeek
-    - query: "site:themanufacturer.com artificial intelligence"
-      name: The Manufacturer
-    - query: "site:manufacturingdive.com artificial intelligence"
-      name: Manufacturing Dive
-    - query: "site:automationworld.com artificial intelligence"
-      name: Automation World
-    - query: "site:industrytoday.com artificial intelligence"
-      name: Industry Today
-    # Insurance (ChatGPT + Gemini)
-    - query: "site:insuranceerm.com artificial intelligence"
-      name: InsuranceERM
+      name: BioSpace                      # 4 saves — biopharma niche
     - query: "site:reinsurancene.ws artificial intelligence"
-      name: Reinsurance News
-    - query: "site:instech.london artificial intelligence"
-      name: Instech
-    - query: "site:fintechglobal.com artificial intelligence insurance"
-      name: FinTech Global
-    - query: "site:carriermanagement.com artificial intelligence"
-      name: Carrier Management
-    # Regulatory primary sources (ChatGPT)
-    - query: "site:nist.gov artificial intelligence"
-      name: NIST
-    - query: "site:fdalawblog.net artificial intelligence"
-      name: FDA Law Blog
-    # Research (Gemini)
+      name: Reinsurance News              # 4 saves — insurance niche, high conversion
+    - query: "site:genengnews.com artificial intelligence"
+      name: GEN                           # 3 saves — biopharma niche
     - query: "site:arxiv.org artificial intelligence"
-      name: arXiv
+      name: arXiv                         # 3 saves — research papers
+    - query: "site:nist.gov artificial intelligence"
+      name: NIST                          # 1 save — regulatory primary source, unique content
+    # ── Borderline L2 queries (kept for sector coverage, re-evaluate monthly) ──
+    - query: "site:massdevice.com artificial intelligence"
+      name: MassDevice                    # 0 saves but medtech-specific; 5 results, all errored
+    - query: "site:industrytoday.com artificial intelligence"
+      name: Industry Today                # 0 saves; sparse but manufacturing coverage
+    - query: "site:carriermanagement.com artificial intelligence"
+      name: Carrier Management            # 0 saves; sparse but insurance coverage
+    # ── Dropped 15 L2 queries (Mar 2026 analysis) ──────────────────────────
+    # reuters.com — 89% error rate, all fetches 403-blocked
+    # finance.yahoo.com — 140 results, 0 saves in 16 runs (aggregated/generic content)
+    # wired.com — covered by headline scraping + The Verge AI RSS
+    # labiotech.eu — indexed but articles never pass scoring
+    # manufacturingdive.com — redundant with RSS feed (RSS delivers 6 articles, L2 delivers 0)
+    # radiologybusiness.com — 91% error rate on article fetch
+    # bioworld.com — not indexed by Brave at all (0 results)
+    # pharmaphorum.com — not indexed by Brave (0 results)
+    # industryweek.com — not indexed by Brave (0 results)
+    # themanufacturer.com — not indexed by Brave (0 results)
+    # automationworld.com — not indexed by Brave (0 results)
+    # insuranceerm.com — not indexed by Brave (0 results)
+    # instech.london — not indexed by Brave (0 results)
+    # fintechglobal.com — not indexed by Brave (0 results)
+    # fdalawblog.net — not indexed by Brave (0 results)
 
   layer3_themes:
     # Workforce & labour (ChatGPT + Gemini)
     - "AI workforce displacement automation layoffs {month} {year}"
     - "AI upskilling reskilling corporate training {month} {year}"
-    - "AI institutional knowledge capture retirement {month} {year}"
+    # Dropped: "AI institutional knowledge capture retirement" — 0 saves, off-target results
+    - "AI corporate knowledge graph enterprise {month} {year}"
     - "superagency employee AI empowerment {month} {year}"
     # AI assurance & standards (ChatGPT)
     - "AI audit assurance testing certification {month} {year}"
@@ -186,7 +170,7 @@ search_queries:
     - "AI export controls sanctions technology restrictions {month} {year}"
     - "sovereign AI national data localization {month} {year}"
     - "China AI competition technology rivalry {month} {year}"
-    - "state vs federal AI regulation conflict {month} {year}"
+    # Dropped: "state vs federal AI regulation conflict" — 0 saves, overlaps with L1 "federal deregulation" and L3 "AI regulation EU AI Act"
     - "AI regulation EU AI Act implementation {month} {year}"
     # Agent failure & security (ChatGPT)
     - "AI agent failure hallucination reliability {month} {year}"
@@ -194,7 +178,7 @@ search_queries:
     - "AI model poisoning data integrity {month} {year}"
     # Platform & distribution (ChatGPT + Gemini)
     - "agentic AI autonomous workflow enterprise {month} {year}"
-    - "vibe coding internal software generation {month} {year}"
+    # Dropped: "vibe coding internal software generation" — 0 saves, overlaps with productive L1 "vibe coding enterprise software" (6 saves)
     - "AI scare trade SaaS valuation {month} {year}"
     - "AI copilot enterprise integration Microsoft Google {month} {year}"
     - "open source vs proprietary AI model debate {month} {year}"
@@ -217,7 +201,7 @@ headline_sources:
     selector: ".article-item__title span"
   - name: Insurance Journal AI
     url: https://www.insurancejournal.com/ai/
-    selector: ".article-list h2, .article-list h3"
+    selector: ".topic-article h4"             # Fixed Mar 2026 — was ".article-list h2, .article-list h3" (returned 0 headlines)
   - name: Harvard Business Review AI
     url: https://hbr.org/topic/subject/ai-and-machine-learning
     selector: "article h3 a, .stream-item h3 a"

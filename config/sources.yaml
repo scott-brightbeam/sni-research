@@ -59,6 +59,8 @@ rss_feeds:
       name: PYMNTS
     - url: https://news.samsung.com/global/feed
       name: Samsung Newsroom
+    - url: https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114
+      name: CNBC Technology             # Added Mar 2026 — 8 saves from L2 query; RSS avoids Brave cost
 
   # AI lab newsrooms — direct source for frontier AI announcements
   ai_labs:
