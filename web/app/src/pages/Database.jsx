@@ -5,7 +5,6 @@ import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
 import { usePodcasts } from '../hooks/usePodcasts'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import SectorBadge from '../components/shared/SectorBadge'
-import DraftLink from '../components/shared/DraftLink'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
@@ -98,6 +97,7 @@ export default function Database() {
                   articles={showArchived ? allResult.articles : (allResult.articles || []).filter(a => !a.archived)}
                   tab="all"
                   onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
+                  onDraftInChat={setDraftRequest}
                 />
               )}
             </div>
@@ -111,6 +111,7 @@ export default function Database() {
             error={podcastResult.error}
             showArchived={showArchived}
             onShowArchivedChange={setShowArchived}
+            onDraftInChat={setDraftRequest}
           />
         )}
 
@@ -125,6 +126,7 @@ export default function Database() {
                 articles={flaggedResult.articles}
                 tab="flagged"
                 onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
+                onDraftInChat={setDraftRequest}
               />
             )}
           </div>
@@ -141,7 +143,7 @@ export default function Database() {
 
 // ── Podcasts Tab ──────────────────────────────────────────
 
-function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange }) {
+function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange, onDraftInChat }) {
   const [sourceFilter, setSourceFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [expandedIdx, setExpandedIdx] = useState(null)
@@ -215,6 +217,7 @@ function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedCha
               episode={ep}
               expanded={expandedIdx === i}
               onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
+              onDraftInChat={onDraftInChat}
             />
           ))}
         </div>
@@ -223,7 +226,7 @@ function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedCha
   )
 }
 
-function PodcastCard({ episode, expanded, onToggle }) {
+function PodcastCard({ episode, expanded, onToggle, onDraftInChat }) {
   const ep = episode
   const digest = ep.digest || {}
   const storiesExtracted = digest.stories?.length || ep.storiesExtracted || 0
@@ -282,11 +285,20 @@ function PodcastCard({ episode, expanded, onToggle }) {
               </ul>
             </div>
           )}
-          <DraftLink
-            label="Open in Draft"
-            source={{ type: 'podcast', source: ep.source, title: ep.title }}
-            content={{ digest: ep.digest }}
-          />
+          <button
+            className="draft-link"
+            onClick={e => {
+              e.stopPropagation()
+              const stories = (digest.stories || digest.key_stories || [])
+                .map(s => typeof s === 'string' ? s : s.headline || s.title || '')
+                .filter(Boolean)
+                .join('\n- ')
+              const prompt = `Draft a newsletter post about this podcast episode:\n\n**${ep.title || 'Untitled'}** (${ep.source})\n\n${digest.summary || ''}\n\nKey stories:\n- ${stories}`
+              onDraftInChat(prompt)
+            }}
+          >
+            ✏️ Draft in chat
+          </button>
         </div>
       )}
     </div>
@@ -295,7 +307,7 @@ function PodcastCard({ episode, expanded, onToggle }) {
 
 // ── Article Table (carried forward from Articles.jsx) ─────
 
-function ArticleTable({ articles, tab, onReload }) {
+function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
   const [expandedSlug, setExpandedSlug] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [actionError, setActionError] = useState(null)
@@ -346,6 +358,11 @@ function ArticleTable({ articles, tab, onReload }) {
     setExpandedSlug(expandedSlug === key ? null : key)
   }
 
+  function handleDraftInChat(a) {
+    const prompt = `Draft a newsletter post about this article:\n\n**${a.title}** (${a.source || 'unknown'}, ${a.sector})\n\n${a.snippet || ''}`
+    onDraftInChat(prompt)
+  }
+
   return (
     <>
       {actionError && <div className="action-error">{actionError}</div>}
@@ -380,6 +397,7 @@ function ArticleTable({ articles, tab, onReload }) {
                   onDeleteClick={() => setDeleteConfirm(key)}
                   onDeleteConfirm={() => handleDelete(a)}
                   onDeleteCancel={() => setDeleteConfirm(null)}
+                  onDraftInChat={() => handleDraftInChat(a)}
                 />
               )
             })}
@@ -398,7 +416,7 @@ function ArticleTable({ articles, tab, onReload }) {
 function ArticleRow({
   article: a, tab, isExpanded, isDeleting,
   onRowClick, onSectorChange, onFlagToggle, onArchiveToggle,
-  onDeleteClick, onDeleteConfirm, onDeleteCancel
+  onDeleteClick, onDeleteConfirm, onDeleteCancel, onDraftInChat
 }) {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -478,6 +496,13 @@ function ArticleRow({
                 onClick={e => { e.stopPropagation(); onArchiveToggle() }}
               >
                 {a.archived ? '↩' : '📦'}
+              </button>
+              <button
+                className="btn-icon draft-chat-btn"
+                title="Draft in chat"
+                onClick={e => { e.stopPropagation(); onDraftInChat() }}
+              >
+                ✏️ Draft
               </button>
               <button className="action-btn delete-btn" onClick={onDeleteClick} title="Delete">
                 \u2715
