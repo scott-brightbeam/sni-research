@@ -1015,6 +1015,16 @@ button.btn-secondary.has-overlap-results {
   border-radius: var(--radius);
 }
 
+.overlap-warning {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+  color: var(--warning);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--warning-bg);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-2);
+}
+
 .overlap-empty {
   font-family: 'Poppins', Arial, sans-serif;
   font-size: 13px;

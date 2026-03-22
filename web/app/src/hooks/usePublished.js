@@ -36,7 +36,7 @@ export function usePublished(week) {
   useEffect(() => { load() }, [load])
 
   const save = useCallback(async (content, meta = {}) => {
-    if (!week) return false
+    if (!week) return { ok: false, error: 'No week specified' }
     setSaving(true)
     setError(null)
     try {
@@ -45,13 +45,13 @@ export function usePublished(week) {
         setPublished({ content, meta: result.meta })
         setSaving(false)
       }
-      return true
+      return { ok: true }
     } catch (err) {
       if (mountedRef.current) {
         setError(err.message)
         setSaving(false)
       }
-      return false
+      return { ok: false, error: err.message || 'Failed to save' }
     }
   }, [week])
 

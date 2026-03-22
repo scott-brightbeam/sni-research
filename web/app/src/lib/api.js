@@ -9,7 +9,11 @@ export async function apiFetch(path, opts = {}) {
     err.status = res.status
     throw err
   }
-  return res.json()
+  try {
+    return await res.json()
+  } catch (parseErr) {
+    throw new Error(`Invalid JSON response from ${path}: ${parseErr.message}`)
+  }
 }
 
 export async function apiStream(path, body, signal) {

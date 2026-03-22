@@ -219,12 +219,12 @@ export async function handleCheckOverlap({ week } = {}) {
 
   // Tier 2 LLM check
   const overlaps = []
+  let tier2FailedCount = 0
   if (tier2Candidates.length > 0) {
     const client = getClient()
     const model = 'claude-sonnet-4-20250514'
 
     let tier2CallIndex = 0
-    let tier2FailedCount = 0
     for (const { current, archived, similarity } of tier2Candidates) {
       // 200ms delay between Tier 2 LLM calls to avoid rate limiting (PRD §5.5)
       if (tier2CallIndex > 0) {
@@ -264,7 +264,7 @@ export async function handleCheckOverlap({ week } = {}) {
     archivedWeeks,
     tier1CandidateCount: tier1Pairs.length,
     tier2CheckedCount: tier2Candidates.length,
-    tier2FailedCount: tier2FailedCount || 0,
+    tier2FailedCount,
     durationMs: Math.round(performance.now() - startTime),
   }
 }

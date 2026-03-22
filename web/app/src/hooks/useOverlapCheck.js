@@ -23,6 +23,8 @@ export function useOverlapCheck(week) {
         setStats({
           archivedWeeks: response.archivedWeeks || [],
           durationMs: response.durationMs ?? null,
+          tier2FailedCount: response.tier2FailedCount ?? 0,
+          tier2CheckedCount: response.tier2CheckedCount ?? 0,
         })
       }
     } catch (err) {

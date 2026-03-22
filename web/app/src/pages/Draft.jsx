@@ -559,12 +559,12 @@ function PublishedPanel({ week, pub, draft, excl }) {
     if (!draft?.trim()) return
     setPublishError(null)
     setJustPublished(false)
-    const ok = await pub.save(draft)
-    if (ok) {
+    const result = await pub.save(draft)
+    if (result.ok) {
       setJustPublished(true)
       setTimeout(() => setJustPublished(false), 3000)
     } else {
-      setPublishError(pub.error || 'Failed to publish')
+      setPublishError(result.error || 'Failed to publish')
     }
   }
 
@@ -711,6 +711,12 @@ function OverlapPanel({ open, results, stats, error, onClose }) {
       <div className="overlap-body">
         {error && (
           <div className="overlap-error">{error}</div>
+        )}
+
+        {!error && stats?.tier2FailedCount > 0 && (
+          <div className="overlap-warning">
+            {stats.tier2FailedCount} of {stats.tier2CheckedCount} comparison{stats.tier2CheckedCount !== 1 ? 's' : ''} failed — results may be incomplete. Try running the check again.
+          </div>
         )}
 
         {!error && (!results || results.length === 0) && (
