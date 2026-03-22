@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Shell from './components/layout/Shell'
 import Dashboard from './pages/Dashboard'
 import Articles from './pages/Articles'
 import Draft from './pages/Draft'
+import Editorial from './pages/Editorial'
 import Copilot from './pages/Copilot'
 import Config from './pages/Config'
 import Sources from './pages/Sources'
@@ -13,8 +14,10 @@ export default function App() {
       <Routes>
         <Route element={<Shell />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/articles" element={<Articles />} />
+          <Route path="/database" element={<Articles />} />
+          <Route path="/articles" element={<Navigate to="/database" replace />} />
           <Route path="/draft" element={<Draft />} />
+          <Route path="/editorial" element={<Editorial />} />
           <Route path="/copilot" element={<Copilot />} />
           <Route path="/config" element={<Config />} />
           <Route path="/sources" element={<Sources />} />
