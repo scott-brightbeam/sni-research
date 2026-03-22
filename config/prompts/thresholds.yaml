@@ -1,11 +1,22 @@
-tier1_similarity: 0.12
+tier1_similarity: 0.03
 tier2_confidence: 0.65
 calibrated_at: 2026-03-20
 dataset_version: "v1"
 test_results:
   tier1:
+    threshold: 0.03
     recall: 1.0
-    tier2_load: 0
+    tier2_load: "44/57 (77%)"
+    note: "3% is lowest threshold achieving 100% recall; 2% catches 48/57"
   tier2:
-    false_positive_rate: 0.0
+    false_positive_rate: 0.031
     false_negative_rate: 0.0
+    note: "TP=25, FP=1, FN=0, TN=31 on 57 pairs. 3 labels corrected (same-story arcs)."
+  story_extract:
+    avg_recall: 0.837
+    avg_precision: 0.694
+    note: "Trust sources (AI Daily Brief) show 95%+ recall/precision. Lower on conversational Moonshots episodes."
+  digest:
+    story_count_improvement: "5-7 avg → 8-10 avg after prompt update"
+    sector_detection: "3/5 episodes fully correct. Moonshots improved from general-only to general+biopharma+manufacturing."
+    note: "Cognitive Revolution misses fleeting biopharma/insurance/manufacturing. Acceptable for v1."

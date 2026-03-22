@@ -10,6 +10,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const args = process.argv.slice(2)
 const promptArg = args.find(a => a.startsWith('--prompt='))?.split('=')[1]
 const datasetArg = args.find(a => a.startsWith('--dataset='))?.split('=')[1]
+const versionArg = args.find(a => a.startsWith('--version='))?.split('=')[1]
 const sweepMode = args.includes('--threshold-sweep')
 
 // Load env key (Bun .env bug workaround)
@@ -59,32 +60,72 @@ async function callLLM(prompt) {
 }
 
 // --- Story Extract Evaluator ---
+function headlineTokens(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 1)
+}
+
+function headlineSimilarity(a, b) {
+  const tokA = new Set(headlineTokens(a))
+  const tokB = new Set(headlineTokens(b))
+  const intersection = new Set([...tokA].filter(x => tokB.has(x)))
+  const union = new Set([...tokA, ...tokB])
+  return union.size === 0 ? 0 : intersection.size / union.size
+}
+
 async function evalStoryExtract(dataset) {
   const labels = JSON.parse(readFileSync(join(ROOT, dataset), 'utf8'))
   let totalRecall = 0, totalPrecision = 0
+  const MATCH_THRESHOLD = 0.2
 
   for (const entry of labels) {
     const transcript = readFileSync(entry.source_path.replace('~', process.env.HOME), 'utf8')
-    const prompt = loadAndRenderPrompt('story-extract.v1', { transcript })
+    const promptName = `story-extract.${versionArg || 'v1'}`
+    const prompt = loadAndRenderPrompt(promptName, { transcript })
     const extracted = await callLLM(prompt)
 
-    let matched = 0
-    for (const story of extracted) {
-      const matchesAny = entry.ground_truth_stories.some(gt =>
-        story.headline.toLowerCase().includes(gt.headline.toLowerCase().split(' ').slice(0, 3).join(' '))
-      )
-      if (matchesAny) matched++
+    // Bipartite best-match: each ground truth matched to best extracted
+    const gtMatched = new Set()
+    const exMatched = new Set()
+
+    for (let gi = 0; gi < entry.ground_truth_stories.length; gi++) {
+      const gt = entry.ground_truth_stories[gi]
+      let bestScore = 0, bestIdx = -1
+      for (let ei = 0; ei < extracted.length; ei++) {
+        if (exMatched.has(ei)) continue
+        // Headline token similarity
+        const sim = headlineSimilarity(gt.headline, extracted[ei].headline)
+        // Entity overlap: count how many GT entities appear in extracted
+        const gtEntities = (gt.entities || []).map(e => e.toLowerCase())
+        const exEntities = (extracted[ei].entities || []).map(e => e.toLowerCase())
+        const exHeadlineLower = (extracted[ei].headline || '').toLowerCase()
+        let entityMatches = 0
+        for (const ge of gtEntities) {
+          if (exEntities.some(ex => ex.includes(ge) || ge.includes(ex)) || exHeadlineLower.includes(ge)) {
+            entityMatches++
+          }
+        }
+        const entityScore = gtEntities.length > 0 ? entityMatches / gtEntities.length : 0
+        // Combined score: best of headline sim or entity overlap
+        const score = Math.max(sim, entityScore * 0.5)
+        if (score > bestScore) { bestScore = score; bestIdx = ei }
+      }
+      if (bestScore >= MATCH_THRESHOLD && bestIdx >= 0) {
+        gtMatched.add(gi)
+        exMatched.add(bestIdx)
+      } else {
+        console.log(`  MISS: "${gt.headline}" (best score: ${bestScore.toFixed(2)})`)
+      }
     }
 
-    const recall = matched / entry.ground_truth_stories.length
-    const precision = extracted.length > 0 ? matched / extracted.length : 0
+    const recall = gtMatched.size / entry.ground_truth_stories.length
+    const precision = extracted.length > 0 ? exMatched.size / extracted.length : 0
     totalRecall += recall
     totalPrecision += precision
 
     console.log(`\n--- ${entry.filename} ---`)
     console.log(`  Ground truth: ${entry.ground_truth_stories.length} stories`)
     console.log(`  Extracted: ${extracted.length} stories`)
-    console.log(`  Matched: ${matched}`)
+    console.log(`  Matched: ${gtMatched.size}`)
     console.log(`  Recall: ${(recall * 100).toFixed(1)}%`)
     console.log(`  Precision: ${(precision * 100).toFixed(1)}%`)
   }

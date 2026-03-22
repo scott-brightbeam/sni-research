@@ -27,12 +27,17 @@ Return ONLY JSON, no markdown fencing, no explanation outside the JSON:
 }
 
 ## Rules
-- Capture ALL distinct news stories mentioned, not just the main topic.
+- Capture ALL distinct news stories mentioned, not just the main topic. For dense news roundup episodes (AI Daily Brief, Moonshots), aim for 10-15 stories. For focused interviews, 3-5.
 - Select quotes that are insightful, surprising, or quotable — not filler or greetings.
 - Limit to 3-5 quotes per episode. Prefer quotes with named speakers over unnamed hosts.
 - Themes should be abstract enough to connect across episodes (e.g. "enterprise AI adoption" not "Jensen Huang's GTC keynote").
 - The summary should be useful to an editor deciding whether to reference this episode in a newsletter.
-- Sector tags: include ALL sectors touched by the episode, not just the primary one.
+- Sector tags: include ALL sectors touched by the episode, even briefly. Use these sector triggers:
+  - "general": any AI company, model release, funding, regulation, or industry trend
+  - "biopharma": drug discovery, clinical trials, genomics, neuroscience, biotech, brain research, CRISPR
+  - "medtech": medical devices, diagnostics, digital health, FDA clearances, hospital AI
+  - "manufacturing": chips, semiconductors, supply chains, robotics, 3D printing, data centres, energy for AI, factory automation
+  - "insurance": underwriting, claims, actuarial, InsurTech, risk modelling
 - Whisper transcripts may contain errors in proper nouns. Use context to infer correct names.
 - If the episode is primarily about non-AI topics (geopolitics, culture, etc.), sector_tags should be empty and the summary should note limited AI relevance.
 
