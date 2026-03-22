@@ -1,5 +1,5 @@
 import { getStatus } from './routes/status.js'
-import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
+import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated, getPublications, manualIngest } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory, handleCheckOverlap } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
@@ -60,6 +60,15 @@ const server = Bun.serve({
 
       if (path === '/api/articles/last-updated' && req.method === 'GET') {
         return json(await getLastUpdated())
+      }
+
+      if (path === '/api/articles/publications' && req.method === 'GET') {
+        return json(await getPublications())
+      }
+
+      if (path === '/api/articles/manual' && req.method === 'POST') {
+        const body = await req.json()
+        return json(await manualIngest(body))
       }
 
       // Single article: /api/articles/:date/:sector/:slug

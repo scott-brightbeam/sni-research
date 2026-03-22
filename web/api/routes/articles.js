@@ -156,6 +156,17 @@ export async function patchArticle(date, sector, slug, body) {
     }
   }
 
+  // Handle archive toggle
+  if (body.archived === true) {
+    raw.archived = true
+    writeFileSync(filePath, JSON.stringify(raw, null, 2))
+    result.article.archived = true
+  } else if (body.archived === false) {
+    delete raw.archived
+    writeFileSync(filePath, JSON.stringify(raw, null, 2))
+    delete result.article.archived
+  }
+
   return result
 }
 
@@ -234,6 +245,82 @@ export async function ingestArticle(body) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+export async function getPublications() {
+  const sources = new Set()
+  const verifiedDir = join(ROOT, 'data/verified')
+  if (!existsSync(verifiedDir)) return { publications: [] }
+
+  for (const dateDir of readdirSync(verifiedDir)) {
+    const datePath = join(verifiedDir, dateDir)
+    if (!statSync(datePath).isDirectory()) continue
+    for (const sectorDir of readdirSync(datePath)) {
+      const sectorPath = join(datePath, sectorDir)
+      if (!statSync(sectorPath).isDirectory()) continue
+      for (const file of readdirSync(sectorPath)) {
+        if (!file.endsWith('.json')) continue
+        try {
+          const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+          if (raw.source) sources.add(raw.source)
+        } catch { /* skip malformed */ }
+      }
+    }
+  }
+
+  return { publications: [...sources].sort((a, b) => a.localeCompare(b)) }
+}
+
+export async function manualIngest(body) {
+  const { title, content, source, sector, url, date_published } = body || {}
+
+  if (!title || !title.trim()) {
+    const err = new Error('Title is required')
+    err.status = 400
+    throw err
+  }
+  if (!content || !content.trim()) {
+    const err = new Error('Content is required')
+    err.status = 400
+    throw err
+  }
+
+  const dateStr = date_published || new Date().toISOString().split('T')[0]
+  const sectorStr = (sector || 'general').toLowerCase()
+  validateParam(sectorStr, 'sector')
+
+  // Generate slug: lowercase, replace non-alphanum with hyphens, max 80 chars
+  const slug = title.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80)
+
+  const article = {
+    title: title.trim(),
+    url: url || null,
+    source: source || null,
+    source_type: 'manual',
+    date_published: dateStr,
+    date_confidence: 'high',
+    date_verified_method: 'manual',
+    sector: sectorStr,
+    keywords_matched: [],
+    snippet: content.trim().slice(0, 500),
+    full_text: content.trim(),
+    found_by: ['manual-ingest'],
+    scraped_at: null,
+    ingested_at: new Date().toISOString(),
+    score: null,
+    score_reason: null,
+  }
+
+  const destDir = join(ROOT, 'data/verified', dateStr, sectorStr)
+  mkdirSync(destDir, { recursive: true })
+  const destPath = join(destDir, `${slug}.json`)
+  writeFileSync(destPath, JSON.stringify(article, null, 2))
+
+  const relPath = `data/verified/${dateStr}/${sectorStr}/${slug}.json`
+  return { article, path: relPath }
 }
 
 export async function getLastUpdated() {
