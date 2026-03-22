@@ -49,10 +49,11 @@ export async function readSSEStream(reader, onEvent) {
 
     for (const line of lines) {
       if (!line.startsWith('data: ')) continue
+      let data
       try {
-        const data = JSON.parse(line.slice(6))
-        if (onEvent(data) === false) return
-      } catch { /* skip unparseable SSE lines */ }
+        data = JSON.parse(line.slice(6))
+      } catch { continue } // skip unparseable SSE lines
+      if (onEvent(data) === false) return
     }
   }
 }

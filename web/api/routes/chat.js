@@ -291,7 +291,10 @@ export async function handleChat(req) {
       const send = (data) => {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-        } catch { /* stream closed */ }
+        } catch (err) {
+          if (err.message?.includes('close') || err.message?.includes('enqueue')) return
+          console.error('[chat] SSE send failed:', err.message, data?.type)
+        }
       }
 
       let fullText = ''

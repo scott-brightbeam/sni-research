@@ -575,10 +575,12 @@ export async function postEditorialChat(body, req) {
     sdkMessages.push({ role: 'user', content: message.trim() })
   }
 
-  // Create abort controller
+  // Create abort controller — check if client already disconnected
   const abort = new AbortController()
-  if (req.signal) {
-    req.signal.addEventListener('abort', () => abort.abort())
+  if (req.signal?.aborted) {
+    abort.abort()
+  } else if (req.signal) {
+    req.signal.addEventListener('abort', () => abort.abort(), { once: true })
   }
 
   const client = getClient()
@@ -594,7 +596,10 @@ export async function postEditorialChat(body, req) {
       const send = (data) => {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-        } catch { /* stream closed */ }
+        } catch (err) {
+          if (err.message?.includes('close') || err.message?.includes('enqueue')) return
+          console.error('[editorial-chat] SSE send failed:', err.message, data?.type)
+        }
       }
 
       let fullText = ''
@@ -629,7 +634,7 @@ export async function postEditorialChat(body, req) {
         send({ type: 'error', error: err.message })
       }
 
-      controller.close()
+      try { controller.close() } catch { /* already closed */ }
     }
   })
 

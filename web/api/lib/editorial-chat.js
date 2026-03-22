@@ -7,7 +7,6 @@
 
 import { readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
-import { getClient } from './claude.js'
 import { estimateTokens } from './context.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
@@ -135,7 +134,11 @@ export function buildEditorialContext(tab, state = null) {
       const activityPath = join(EDITORIAL_DIR, 'activity.json')
       let activities = []
       if (existsSync(activityPath)) {
-        try { activities = JSON.parse(readFileSync(activityPath, 'utf-8')) } catch { /* skip */ }
+        try {
+          activities = JSON.parse(readFileSync(activityPath, 'utf-8'))
+        } catch (err) {
+          console.error('[editorial-chat] Failed to parse activity.json:', err.message)
+        }
       }
       const recent = activities.slice(-30).reverse()
       sections.push(`\n## Recent Activity (${recent.length} entries)\n`)
@@ -154,7 +157,9 @@ export function buildEditorialContext(tab, state = null) {
             sections.push(`\n## Cost (${weeks[weeks.length - 1]})`)
             sections.push(`Weekly total: $${latest.weeklyTotal?.toFixed(2) || '0.00'} / $${latest.budget || 50}`)
           }
-        } catch { /* skip */ }
+        } catch (err) {
+          console.error('[editorial-chat] Failed to parse cost-log.json:', err.message)
+        }
       }
       break
     }

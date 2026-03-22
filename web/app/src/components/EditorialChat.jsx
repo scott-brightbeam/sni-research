@@ -51,6 +51,11 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
     if (isOpen) inputRef.current?.focus()
   }, [isOpen])
 
+  // Clear conversation when tab changes to avoid context mismatch
+  useEffect(() => {
+    clear()
+  }, [tab, clear])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!input.trim() || loading) return
@@ -92,7 +97,7 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
             <p>Ask about {TAB_LABELS[tab]?.toLowerCase() || 'editorial state'} — I have full context loaded.</p>
             <div className="chat-suggestions">
               {tabSuggestions.map(text => (
-                <Suggestion key={text} text={text} onClick={send} />
+                <Suggestion key={text} text={text} onClick={send} disabled={loading} />
               ))}
             </div>
           </div>
@@ -134,9 +139,9 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
   )
 }
 
-function Suggestion({ text, onClick }) {
+function Suggestion({ text, onClick, disabled }) {
   return (
-    <button className="chat-suggestion" onClick={() => onClick(text)}>
+    <button className="chat-suggestion" onClick={() => onClick(text)} disabled={disabled}>
       {text}
     </button>
   )
