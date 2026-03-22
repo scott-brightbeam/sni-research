@@ -1,5 +1,8 @@
 import { useStatus } from '../hooks/useStatus'
+import { useEditorialState, useEditorialCost } from '../hooks/useEditorialState'
+import { useNotifications } from '../hooks/useNotifications'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
 import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
@@ -99,6 +102,12 @@ export default function Dashboard() {
       </div>
 
       <PodcastStatusCard podcastImport={podcastImport} />
+
+      <div className="dashboard-editorial">
+        <EditorialSummaryCard />
+        <PostCandidatesCard />
+        <CostSummaryCard />
+      </div>
     </div>
   )
 }
@@ -229,4 +238,119 @@ function summariseStageStats(stage) {
   if (s.saved !== undefined) return `${s.saved} saved`
   if (s.kept !== undefined) return `${s.kept} kept, ${s.moved || 0} flagged`
   return 'done'
+}
+
+// ── Editorial summary card ────────────────────────────────
+
+function EditorialSummaryCard() {
+  const { data, loading, error } = useEditorialState()
+
+  if (loading) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">Loading...</div>
+    </div>
+  )
+
+  if (error || !data) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">No editorial state available</div>
+    </div>
+  )
+
+  const entryCount = data.entries?.length || data.analysisIndex?.entries?.length || 0
+  const themeCount = data.themes?.length || data.themeRegistry?.themes?.length || 0
+  const postCount = data.posts?.length || data.postBacklog?.posts?.length || 0
+  const session = data.session || data.lastSession || null
+
+  return (
+    <div className="card editorial-summary-card">
+      <div className="card-header">
+        <div className="card-title">Editorial intelligence</div>
+        <Link to="/editorial" className="card-link">View all</Link>
+      </div>
+      <div className="editorial-summary-stats">
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{entryCount}</div>
+          <div className="editorial-stat-label">Documents</div>
+        </div>
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{themeCount}</div>
+          <div className="editorial-stat-label">Themes</div>
+        </div>
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{postCount}</div>
+          <div className="editorial-stat-label">Post candidates</div>
+        </div>
+      </div>
+      {session && (
+        <div className="editorial-session">Session {session}</div>
+      )}
+    </div>
+  )
+}
+
+// ── Post candidates card ──────────────────────────────────
+
+function PostCandidatesCard() {
+  const { notifications, loading } = useNotifications(0) // No polling on dashboard
+
+  const candidates = (notifications || []).filter(n =>
+    n.priority === 'high' || n.priority === 'immediate'
+  )
+
+  if (loading) return null
+  if (candidates.length === 0) return null
+
+  return (
+    <div className="card post-candidates-card">
+      <div className="card-header">
+        <div className="card-title">Post candidates</div>
+        <span className="candidates-count">{candidates.length} ready</span>
+      </div>
+      <div className="candidates-list">
+        {candidates.slice(0, 5).map((c, i) => (
+          <div key={c.id || i} className="candidate-item">
+            <span className={`candidate-priority priority-${c.priority}`}>
+              {c.priority === 'immediate' ? '!!' : '!'}
+            </span>
+            <span className="candidate-title">{c.title || c.message}</span>
+          </div>
+        ))}
+        {candidates.length > 5 && (
+          <Link to="/editorial" className="candidates-more">
+            +{candidates.length - 5} more
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Cost summary card ─────────────────────────────────────
+
+function CostSummaryCard() {
+  const { data, loading, error } = useEditorialCost()
+
+  if (loading || error || !data) return null
+
+  const spent = data.weeklyTotal || 0
+  const budget = data.budget || 50
+  const pct = Math.min(100, (spent / budget) * 100)
+  const level = pct >= 80 ? 'danger' : pct >= 60 ? 'warning' : 'ok'
+
+  return (
+    <div className="card cost-summary-card">
+      <div className="card-title">Weekly AI cost</div>
+      <div className="cost-summary-display">
+        <span className={`cost-summary-value cost-${level}`}>${spent.toFixed(2)}</span>
+        <span className="cost-summary-budget"> of ${budget}</span>
+        <span className="cost-summary-pct">({Math.round(pct)}%)</span>
+      </div>
+      <div className="cost-summary-bar">
+        <div className={`cost-summary-fill cost-${level}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
 }

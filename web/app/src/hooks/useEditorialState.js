@@ -69,7 +69,7 @@ export function useEditorialActivity(limit = 20) {
     setLoading(true)
     setError(null)
     try {
-      const res = await api(`/api/editorial/activity?limit=${limit}`)
+      const res = await apiFetch(`/api/editorial/activity?limit=${limit}`)
       if (!mountedRef.current) return
       setData(res.activities || [])
     } catch (err) {
