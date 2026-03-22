@@ -348,7 +348,7 @@ const server = Bun.serve({
         return json(await testLogins())
       }
       if (path === '/api/subscriptions/fetch' && req.method === 'POST') {
-        const body = await req.json()
+        const body = await req.json().catch(() => ({}))
         return json(triggerFetch(body))
       }
 

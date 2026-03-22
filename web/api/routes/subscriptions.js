@@ -10,26 +10,31 @@ export function getSubscriptions() {
   if (!existsSync(configPath)) return { sources: [] }
 
   const config = yaml.load(readFileSync(configPath, 'utf-8'))
-  const sources = (config.sources || []).map(s => {
-    // Find latest run for this source
-    const runsDir = join(ROOT, 'output/runs')
-    let lastRun = null
-    if (existsSync(runsDir)) {
-      const runFiles = readdirSync(runsDir)
-        .filter(f => f.startsWith('subscription-') && f.endsWith('.json'))
-        .sort()
-      if (runFiles.length > 0) {
-        try {
-          const data = JSON.parse(readFileSync(join(runsDir, runFiles[runFiles.length - 1]), 'utf-8'))
-          const result = (data.results || []).find(r => r.source === s.name)
-          if (result) lastRun = { date: data.startedAt, success: result.success, error: result.error }
-        } catch { /* ignore */ }
-      }
+
+  // Read latest run data once (not per-source)
+  let lastRunData = null
+  const runsDir = join(ROOT, 'output/runs')
+  if (existsSync(runsDir)) {
+    const runFiles = readdirSync(runsDir)
+      .filter(f => f.startsWith('subscription-') && f.endsWith('.json'))
+      .sort()
+    if (runFiles.length > 0) {
+      try {
+        lastRunData = JSON.parse(readFileSync(join(runsDir, runFiles[runFiles.length - 1]), 'utf-8'))
+      } catch { /* ignore corrupt run files */ }
     }
+  }
 
-    // Check if credentials exist by checking the encrypted file
-    const hasCredentials = existsSync(join(ROOT, '.credentials.enc'))
+  // Note: hasCredentials checks file existence only — it cannot determine per-source
+  // credential presence without decrypting. Per-source checking deferred until needed.
+  const hasCredentials = existsSync(join(ROOT, '.credentials.enc'))
 
+  const sources = (config.sources || []).map(s => {
+    let lastRun = null
+    if (lastRunData) {
+      const result = (lastRunData.results || []).find(r => r.source === s.name)
+      if (result) lastRun = { date: lastRunData.startedAt, success: result.success, error: result.error }
+    }
     return { ...s, lastRun, hasCredentials }
   })
 
@@ -54,6 +59,7 @@ export function saveCredentials(body) {
   })
 
   if (proc.exitCode !== 0) {
+    console.error('credential-store stderr:', proc.stderr?.toString())
     const err = new Error('Failed to save credentials')
     err.status = 500
     throw err
@@ -73,15 +79,15 @@ export function testLogins() {
     proc.stdout.on('data', d => { output += d })
     proc.stderr.on('data', d => { output += d })
 
-    proc.on('close', (code) => {
-      resolve({ success: code === 0, output: output.slice(-2000) })
-    })
-
-    // Timeout after 60s
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       proc.kill()
       resolve({ success: false, output: 'Timeout after 60s' })
     }, 60000)
+
+    proc.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ success: code === 0, output: output.slice(-2000) })
+    })
   })
 }
 

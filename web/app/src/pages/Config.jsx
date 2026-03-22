@@ -403,6 +403,7 @@ function SubscriptionCredentials() {
   const [sources, setSources] = useState([])
   const [creds, setCreds] = useState({})
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
@@ -419,12 +420,15 @@ function SubscriptionCredentials() {
 
   async function handleSave() {
     setSaving(true)
+    setSaveError(null)
     try {
       const credList = Object.entries(creds)
         .filter(([, v]) => v.email && v.password)
         .map(([name, v]) => ({ name, email: v.email, password: v.password }))
       await apiPut('/api/subscriptions/credentials', { sources: credList })
-    } catch {}
+    } catch (err) {
+      setSaveError(err.message || 'Failed to save credentials')
+    }
     setSaving(false)
   }
 
@@ -480,6 +484,9 @@ function SubscriptionCredentials() {
           {testing ? 'Testing...' : 'Test Logins'}
         </button>
       </div>
+      {saveError && (
+        <p className="credential-error">{saveError}</p>
+      )}
       {testResult && (
         <pre className="test-output">{testResult.output || (testResult.success ? 'All logins succeeded' : 'Some logins failed')}</pre>
       )}
