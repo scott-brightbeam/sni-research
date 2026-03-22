@@ -5,7 +5,7 @@
  * then streams Opus responses back via SSE. Keeps context under 30k tokens.
  */
 
-import { readFileSync, existsSync, statSync } from 'fs'
+import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 
@@ -215,6 +215,115 @@ export function buildEditorialContext(tab, state = null) {
         sections.push('\n### Active Posts\n')
         for (const [id, post] of inProgress) {
           sections.push(formatPost(id, post))
+        }
+      }
+      break
+    }
+
+    case 'articles': {
+      const verifiedDir = join(ROOT, 'data/verified')
+      if (existsSync(verifiedDir)) {
+        const now = new Date()
+        const cutoff = new Date(now)
+        cutoff.setDate(cutoff.getDate() - 7)
+        const cutoffStr = cutoff.toISOString().split('T')[0]
+
+        const articles = []
+        for (const dateDir of readdirSync(verifiedDir).sort().reverse()) {
+          if (dateDir < cutoffStr) break
+          const datePath = join(verifiedDir, dateDir)
+          if (!statSync(datePath).isDirectory()) continue
+          for (const sectorDir of readdirSync(datePath)) {
+            const sectorPath = join(datePath, sectorDir)
+            if (!statSync(sectorPath).isDirectory()) continue
+            for (const file of readdirSync(sectorPath)) {
+              if (!file.endsWith('.json')) continue
+              try {
+                const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+                if (raw.archived) continue
+                articles.push({ title: raw.title, source: raw.source, sector: raw.sector || sectorDir, date: raw.date_published || dateDir })
+              } catch { /* skip */ }
+            }
+          }
+        }
+
+        sections.push(`\n## Article Corpus (last 7 days, ${articles.length} articles)\n`)
+        for (const a of articles) {
+          const line = `- **${a.title}** (${a.source || 'unknown'}, ${a.sector}, ${a.date})`
+          if (estimateTokens(sections.join('\n') + line) > budget) break
+          sections.push(line)
+        }
+
+        const bySector = {}
+        for (const a of articles) {
+          bySector[a.sector] = (bySector[a.sector] || 0) + 1
+        }
+        sections.push(`\n**Stats:** ${articles.length} total — ${Object.entries(bySector).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
+      }
+      break
+    }
+
+    case 'podcasts': {
+      const podcastDir = join(ROOT, 'data/podcasts')
+      if (existsSync(podcastDir)) {
+        const digests = []
+        for (const dateDir of readdirSync(podcastDir).sort().reverse().slice(0, 14)) {
+          const datePath = join(podcastDir, dateDir)
+          if (!statSync(datePath).isDirectory()) continue
+          for (const sourceDir of readdirSync(datePath)) {
+            const sourcePath = join(datePath, sourceDir)
+            if (!statSync(sourcePath).isDirectory()) continue
+            for (const file of readdirSync(sourcePath)) {
+              if (!file.endsWith('.digest.json')) continue
+              try {
+                const raw = JSON.parse(readFileSync(join(sourcePath, file), 'utf-8'))
+                if (raw.archived) continue
+                digests.push({
+                  title: raw.title || file, source: raw.source || sourceDir,
+                  date: raw.date || dateDir, summary: raw.summary || '',
+                  stories: (raw.key_stories || raw.stories || []).map(s => typeof s === 'string' ? s : s.headline || s.title || '').filter(Boolean),
+                })
+              } catch { /* skip */ }
+            }
+          }
+        }
+
+        sections.push(`\n## Podcast Digests (${digests.length} episodes)\n`)
+        for (const d of digests) {
+          const stories = d.stories.length > 0 ? `\n  Stories: ${d.stories.join('; ')}` : ''
+          const line = `### ${d.title} (${d.source}, ${d.date})\n${d.summary.slice(0, 300)}${stories}\n`
+          if (estimateTokens(sections.join('\n') + line) > budget) break
+          sections.push(line)
+        }
+      }
+      break
+    }
+
+    case 'flagged': {
+      const reviewDir = join(ROOT, 'data/review')
+      if (existsSync(reviewDir)) {
+        const articles = []
+        for (const dateDir of readdirSync(reviewDir).sort().reverse()) {
+          const datePath = join(reviewDir, dateDir)
+          if (!statSync(datePath).isDirectory()) continue
+          for (const sectorDir of readdirSync(datePath)) {
+            const sectorPath = join(datePath, sectorDir)
+            if (!statSync(sectorPath).isDirectory()) continue
+            for (const file of readdirSync(sectorPath)) {
+              if (!file.endsWith('.json')) continue
+              try {
+                const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+                articles.push({ title: raw.title, source: raw.source, sector: raw.sector || sectorDir, date: raw.date_published || dateDir, snippet: (raw.snippet || '').slice(0, 200) })
+              } catch { /* skip */ }
+            }
+          }
+        }
+
+        sections.push(`\n## Flagged Articles (${articles.length})\n`)
+        for (const a of articles) {
+          const line = `- **${a.title}** (${a.source || 'unknown'}, ${a.sector}, ${a.date})\n  ${a.snippet}`
+          if (estimateTokens(sections.join('\n') + line) > budget) break
+          sections.push(line)
         }
       }
       break

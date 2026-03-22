@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import EditorialChat from '../components/EditorialChat'
 import { useArticles } from '../hooks/useArticles'
 import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
 import { usePodcasts } from '../hooks/usePodcasts'
@@ -22,6 +23,7 @@ export default function Database() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('articles')
   const [showIngest, setShowIngest] = useState(false)
+  const [draftRequest, setDraftRequest] = useState(null)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
@@ -31,94 +33,101 @@ export default function Database() {
   const podcastResult = usePodcasts()
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>Database</h2>
-        <button
-          className="btn btn-primary btn-md"
-          onClick={() => setShowIngest(!showIngest)}
-        >
-          + Ingest Article
-        </button>
-      </div>
+    <div className="database-columns">
+      <div className="database-content">
+        <div className="page-header">
+          <h2>Database</h2>
+          <button
+            className="btn btn-primary btn-md"
+            onClick={() => setShowIngest(!showIngest)}
+          >
+            + Ingest Article
+          </button>
+        </div>
 
-      {showIngest && <ManualIngestForm onSuccess={() => { setShowIngest(false); allResult.reload() }} />}
+        {showIngest && <ManualIngestForm onSuccess={() => { setShowIngest(false); allResult.reload() }} />}
 
-      <div className="tabs">
-        <button className={`tab ${tab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')}>
-          Articles <span className="tab-count">({allResult.total ?? 0})</span>
-        </button>
-        <button className={`tab ${tab === 'podcasts' ? 'active' : ''}`} onClick={() => setTab('podcasts')}>
-          Podcasts <span className="tab-count">({podcastResult.episodes.length})</span>
-        </button>
-        <button className={`tab ${tab === 'flagged' ? 'active' : ''}`} onClick={() => setTab('flagged')}>
-          Flagged <span className="tab-count">({flaggedResult.total ?? 0})</span>
-        </button>
-      </div>
+        <div className="tabs">
+          <button className={`tab ${tab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')}>
+            Articles <span className="tab-count">({allResult.total ?? 0})</span>
+          </button>
+          <button className={`tab ${tab === 'podcasts' ? 'active' : ''}`} onClick={() => setTab('podcasts')}>
+            Podcasts <span className="tab-count">({podcastResult.episodes.length})</span>
+          </button>
+          <button className={`tab ${tab === 'flagged' ? 'active' : ''}`} onClick={() => setTab('flagged')}>
+            Flagged <span className="tab-count">({flaggedResult.total ?? 0})</span>
+          </button>
+        </div>
 
-      {tab === 'articles' && (
-        <>
-          <div className="filter-bar">
-            <select value={sector} onChange={e => setSector(e.target.value)}>
-              <option value="">All sectors</option>
-              {SECTORS.filter(Boolean).map(s => (
-                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-              ))}
-            </select>
-            <TimeRangeSelector value={range} onChange={setRange} />
-            <input
-              type="text"
-              placeholder="Search articles..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="filter-search"
-            />
-            {allResult.lastUpdated && (
-              <span className="updated-indicator">
-                Updated {formatRelativeTime(new Date(allResult.lastUpdated).toISOString())}
-              </span>
-            )}
-          </div>
+        {tab === 'articles' && (
+          <>
+            <div className="filter-bar">
+              <select value={sector} onChange={e => setSector(e.target.value)}>
+                <option value="">All sectors</option>
+                {SECTORS.filter(Boolean).map(s => (
+                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                ))}
+              </select>
+              <TimeRangeSelector value={range} onChange={setRange} />
+              <input
+                type="text"
+                placeholder="Search articles..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="filter-search"
+              />
+              {allResult.lastUpdated && (
+                <span className="updated-indicator">
+                  Updated {formatRelativeTime(new Date(allResult.lastUpdated).toISOString())}
+                </span>
+              )}
+            </div>
 
+            <div className="card card-flush">
+              {allResult.loading ? (
+                <div className="placeholder-text">Loading...</div>
+              ) : allResult.error ? (
+                <div className="placeholder-text">Failed to load articles: {allResult.error}</div>
+              ) : (
+                <ArticleTable
+                  articles={allResult.articles}
+                  tab="all"
+                  onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {tab === 'podcasts' && (
+          <PodcastsTab
+            episodes={podcastResult.episodes}
+            loading={podcastResult.loading}
+            error={podcastResult.error}
+          />
+        )}
+
+        {tab === 'flagged' && (
           <div className="card card-flush">
-            {allResult.loading ? (
+            {flaggedResult.loading ? (
               <div className="placeholder-text">Loading...</div>
-            ) : allResult.error ? (
-              <div className="placeholder-text">Failed to load articles: {allResult.error}</div>
+            ) : flaggedResult.error ? (
+              <div className="placeholder-text">Failed to load flagged articles: {flaggedResult.error}</div>
             ) : (
               <ArticleTable
-                articles={allResult.articles}
-                tab="all"
+                articles={flaggedResult.articles}
+                tab="flagged"
                 onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
               />
             )}
           </div>
-        </>
-      )}
-
-      {tab === 'podcasts' && (
-        <PodcastsTab
-          episodes={podcastResult.episodes}
-          loading={podcastResult.loading}
-          error={podcastResult.error}
-        />
-      )}
-
-      {tab === 'flagged' && (
-        <div className="card card-flush">
-          {flaggedResult.loading ? (
-            <div className="placeholder-text">Loading...</div>
-          ) : flaggedResult.error ? (
-            <div className="placeholder-text">Failed to load flagged articles: {flaggedResult.error}</div>
-          ) : (
-            <ArticleTable
-              articles={flaggedResult.articles}
-              tab="flagged"
-              onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
-            />
-          )}
-        </div>
-      )}
+        )}
+      </div>
+      <EditorialChat
+        tab={tab}
+        draftRequest={draftRequest}
+        onDraftConsumed={() => setDraftRequest(null)}
+      />
     </div>
   )
 }

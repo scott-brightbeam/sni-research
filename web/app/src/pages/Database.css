@@ -1,6 +1,22 @@
 /* ── Database page ─────────────────────────────────────── */
 /* Extends Articles styling with podcast cards             */
 
+/* ── Column layout ───────────────────────────────────── */
+
+.database-columns {
+  display: flex;
+  gap: var(--sp-4);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.database-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
 /* ── Filter bar ──────────────────────────────────────── */
 
 .filter-bar {

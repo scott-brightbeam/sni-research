@@ -9,6 +9,9 @@ const TAB_LABELS = {
   decisions: 'Decisions',
   activity: 'Activity',
   newsletter: 'Newsletter',
+  articles: 'Articles',
+  podcasts: 'Podcasts',
+  flagged: 'Flagged',
 }
 
 const SUGGESTIONS = {
@@ -33,6 +36,18 @@ const SUGGESTIONS = {
   newsletter: [
     'Review the current draft for quality and consistency.',
     'Suggest improvements to the opening section.',
+  ],
+  articles: [
+    'What are the key themes across this week\'s articles?',
+    'Which sectors have the most coverage?',
+  ],
+  podcasts: [
+    'Summarise the main stories from this week\'s podcasts.',
+    'Which podcast episodes cover similar topics?',
+  ],
+  flagged: [
+    'Why were these articles flagged?',
+    'Which flagged articles are most relevant to current themes?',
   ],
 }
 
