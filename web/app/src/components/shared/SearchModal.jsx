@@ -102,7 +102,7 @@ export default function SearchModal({ open, onClose }) {
         if (cancelled || !mountedRef.current) return
         // Gracefully handle missing endpoint
         setResults([])
-        setError(err.message.includes('404') ? null : err.message)
+        setError(err.status === 404 ? null : err.message)
       })
       .finally(() => {
         if (!cancelled && mountedRef.current) setLoading(false)

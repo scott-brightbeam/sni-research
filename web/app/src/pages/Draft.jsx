@@ -97,9 +97,13 @@ export default function Draft() {
 
   function handleExportDraft() {
     if (!hasDraft) return
-    const filename = `draft-week-${week}.md`
-    downloadFile(draft, filename, 'text/markdown')
-    toast(`Exported ${filename}`)
+    try {
+      const filename = `draft-week-${week}.md`
+      downloadFile(draft, filename, 'text/markdown')
+      toast(`Exported ${filename}`)
+    } catch (err) {
+      toast(err.message, 'error')
+    }
   }
 
   // Custom renderers for react-markdown (preview tab)
