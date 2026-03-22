@@ -61,9 +61,9 @@ The `PodcastStatusCard` receives data from `useStatus()` which calls `GET /api/s
 
 **Three concrete bugs in `getPodcastImport()` (`web/api/routes/status.js`):**
 
-1. **Missing manifest file:** `manifest.json` does not exist — only `manifest.json.bak` exists. The function checks `existsSync(manifestPath)` for `manifest.json`, which returns false, so `episodesThisWeek` is always 0. **Fix:** Try `manifest.json` first, fall back to `manifest.json.bak`, then fall back to digest file scanner (same pattern as `web/api/routes/podcasts.js`).
+1. **Missing manifest file:** `manifest.json` does not exist — only `manifest.json.bak` exists. The function checks `existsSync(manifestPath)` for `manifest.json`, which returns false, so `episodesThisWeek` is always 0. **Fix:** Try `manifest.json` first, fall back to `manifest.json.bak`, then fall back to digest file scanner.
 
-2. **Dict, not array:** The manifest is an object keyed by filename (`{ "filename.md": { ... }, ... }`), not an array. The function does `manifest.episodes || manifest || []` then `Array.isArray(episodes)`. Since the manifest is a dict (no `episodes` property), it assigns the dict to `episodes`, the `Array.isArray()` check fails, and `episodesThisWeek` stays 0. **Fix:** Extract entries with `Object.values(manifest)` (matching the pattern in `handleGetPodcasts()` at podcasts.js line 68–70).
+2. **Dict, not array:** The manifest is an object keyed by filename (`{ "filename.md": { ... }, ... }`), not an array. The function does `manifest.episodes || manifest || []` then `Array.isArray(episodes)`. Since the manifest is a dict (no `episodes` property), it assigns the dict to `episodes`, the `Array.isArray()` check fails, and `episodesThisWeek` stays 0. **Fix:** Extract entries with `Object.values(manifest)` to get an array of episode objects.
 
 3. **Wrong field name:** The week filter uses `ep.date_published` but manifest entries use the field `date` (e.g., `"date": "2026-03-20"`). The filter always returns false. **Fix:** Change filter to use `ep.date`.
 
@@ -84,7 +84,7 @@ const postCount = data.posts?.length || data.postBacklog?.posts?.length || 0
 **Root cause:** The no-section response returns `counters: { nextSession: 16, nextDocument: 138, nextPost: 92 }` — these are sequence counters (next ID), not counts. There are no `entries`, `themes`, or `posts` arrays at the top level. The fallback `analysisIndex` is also absent from this response. Every destructure path returns `undefined`, so all stats show 0.
 
 **Fix (two-part):**
-1. **API handler** (`web/api/routes/editorial.js`, line 123–128): Add computed counts to the no-section response. The handler already reads the full state — compute `Object.keys(state.analysisIndex || {}).length`, `(state.themeRegistry?.themes || []).length`, `(state.postBacklog?.posts || Object.keys(state.postBacklog || {}).filter(k => k !== 'posts')).length`.
+1. **API handler** (`web/api/routes/editorial.js`, line 123–128): Add computed counts to the no-section response. The handler already reads the full state — compute `Object.keys(state.analysisIndex || {}).length`, `Object.keys(state.themeRegistry || {}).length` (themeRegistry is keyed by theme code like `T01`, `T02` — no `.themes` sub-property), `Object.keys(state.postBacklog || {}).length`.
 2. **Dashboard component** (`web/app/src/pages/Dashboard.jsx`, lines 277–280): Replace the broken destructuring with `data.entryCount || 0`, `data.themeCount || 0`, `data.postCount || 0`.
 
 **Updated no-section API response shape:**
@@ -192,7 +192,7 @@ All follow the existing pattern: markdown-formatted context string with token es
 - Modify: `web/app/src/pages/Database.css` — add column layout styles
 - Modify: `web/api/lib/editorial-chat.js` — add `articles`, `podcasts`, `flagged` context cases in `buildEditorialContext()`
 - Modify: `web/app/src/components/EditorialChat.jsx` — add Database tab labels to TAB_LABELS and SUGGESTIONS maps
-- Modify: `web/api/server.js` — no new routes needed (reuses existing `/api/chat` endpoint with tab context)
+- Modify: `web/api/server.js` — no new routes needed (reuses existing `/api/editorial/chat` endpoint at server.js line 283 with tab context)
 
 ### 3. Archive functionality
 
@@ -202,7 +202,7 @@ Add `archived: true` flag to article and podcast JSON. Reversible. Uses the exis
 - `PATCH /api/articles/:date/:sector/:slug` already accepts `{ flagged, sector }` in the body. Extend it to also accept `{ archived: true/false }`. When `archived: true`, set the flag in the JSON file. When `archived: false`, remove the flag.
 - Database article list filters out archived by default. Add "Show archived" toggle.
 - Archived articles shown with reduced opacity, strikethrough title, "archived" badge, and "Restore" button.
-- Newsletter draft pipeline skips articles with `archived: true`.
+- **Note:** The newsletter draft pipeline (in `scripts/`) cannot be modified to skip archived articles. Archiving is a UI-only concept — archived articles are hidden from the Database page display and from the editorial chat context, but remain on disk in their original location. If Scott needs to exclude an article from the pipeline, the existing soft-delete (`DELETE /api/articles/...` which moves to `data/deleted/`) already serves that purpose.
 
 **Podcasts — new PATCH endpoint:**
 - New endpoint: `PATCH /api/podcasts/:date/:source/:slug` — accepts `{ archived: true/false }`. The slug maps to a `{slug}.digest.json` file in `data/podcasts/{date}/{source}/`. Reads the digest JSON, sets/removes `archived` flag, writes back using write-validate-swap pattern.
