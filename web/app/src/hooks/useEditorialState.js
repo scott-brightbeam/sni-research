@@ -75,6 +75,7 @@ export function useEditorialActivity(limit = 20) {
     } catch (err) {
       if (!mountedRef.current) return
       setError(err.message)
+      setData([])
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -103,6 +104,7 @@ export function useEditorialSearch(query) {
     mountedRef.current = true
     if (!query || query.trim().length < 2) {
       setResults([])
+      setError(null)
       setLoading(false)
       return
     }
@@ -141,17 +143,20 @@ export function useEditorialCost(week = null) {
   useEffect(() => {
     mountedRef.current = true
     setLoading(true)
+    setError(null)
 
     const url = week ? `/api/editorial/cost?week=${week}` : '/api/editorial/cost'
     apiFetch(url)
       .then(res => {
         if (!mountedRef.current) return
         setData(res)
+        setError(null)
         setLoading(false)
       })
       .catch(err => {
         if (!mountedRef.current) return
         setError(err.message)
+        setData(null)
         setLoading(false)
       })
 
