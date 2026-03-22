@@ -177,7 +177,7 @@
 
 /* ── Error state ────────────────────────────────────────── */
 
-.chat-error {
+.editorial-chat-error {
   padding: var(--sp-2) var(--sp-3);
   background: var(--danger-bg);
   color: var(--danger);

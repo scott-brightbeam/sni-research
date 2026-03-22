@@ -10,6 +10,27 @@ const TAB_LABELS = {
   activity: 'Activity',
 }
 
+const SUGGESTIONS = {
+  state: [
+    'What are the key themes this week?',
+    'Which entries have the highest post potential?',
+  ],
+  themes: [
+    'Which themes have the most cross-connections?',
+    'Are any themes going stale?',
+  ],
+  backlog: [
+    'Which posts are ready to move to in-progress?',
+    'Suggest a fresh angle for the top-priority post.',
+  ],
+  decisions: [
+    'Summarise recent editorial decisions.',
+  ],
+  activity: [
+    'How much has the pipeline cost this week?',
+  ],
+}
+
 /**
  * Editorial contextual chat panel — 380px sidebar with streaming AI responses.
  * Receives the current editorial tab to provide tab-specific context.
@@ -46,6 +67,8 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
 
   if (!isOpen) return null
 
+  const tabSuggestions = SUGGESTIONS[tab] || []
+
   return (
     <div className="editorial-chat">
       <div className="chat-header">
@@ -68,22 +91,17 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
           <div className="chat-welcome">
             <p>Ask about {TAB_LABELS[tab]?.toLowerCase() || 'editorial state'} — I have full context loaded.</p>
             <div className="chat-suggestions">
-              {tab === 'state' && <Suggestion text="What are the key themes this week?" onClick={send} />}
-              {tab === 'state' && <Suggestion text="Which entries have the highest post potential?" onClick={send} />}
-              {tab === 'themes' && <Suggestion text="Which themes have the most cross-connections?" onClick={send} />}
-              {tab === 'themes' && <Suggestion text="Are any themes going stale?" onClick={send} />}
-              {tab === 'backlog' && <Suggestion text="Which posts are ready to move to in-progress?" onClick={send} />}
-              {tab === 'backlog' && <Suggestion text="Suggest a fresh angle for the top-priority post." onClick={send} />}
-              {tab === 'decisions' && <Suggestion text="Summarise recent editorial decisions." onClick={send} />}
-              {tab === 'activity' && <Suggestion text="How much has the pipeline cost this week?" onClick={send} />}
+              {tabSuggestions.map(text => (
+                <Suggestion key={text} text={text} onClick={send} />
+              ))}
             </div>
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`chat-message chat-${msg.role}`}>
+        {messages.map(msg => (
+          <div key={msg.id} className={`chat-message chat-${msg.role}`}>
             <div className="message-role">{msg.role === 'user' ? 'You' : 'AI'}</div>
-            <div className="message-content">{msg.content || (loading && i === messages.length - 1 ? '...' : '')}</div>
+            <div className="message-content">{msg.content || (loading && msg.role === 'assistant' ? '...' : '')}</div>
             {msg.contextTokens && (
               <div className="message-meta">~{msg.contextTokens} context tokens</div>
             )}
@@ -91,7 +109,7 @@ export default function EditorialChat({ tab, isOpen, onClose }) {
         ))}
 
         {error && (
-          <div className="chat-error">{error}</div>
+          <div className="editorial-chat-error">{error}</div>
         )}
 
         <div ref={messagesEndRef} />
