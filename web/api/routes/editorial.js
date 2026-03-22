@@ -551,7 +551,7 @@ Style: UK English, analytical but accessible, cite specific entries/themes by ID
  * @returns {Response} — SSE stream
  */
 export async function postEditorialChat(body, req) {
-  const { message, tab, history } = body
+  const { message, tab, history, injectContext } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
@@ -559,8 +559,14 @@ export async function postEditorialChat(body, req) {
 
   const activeTab = tab || 'state'
 
-  // Build tab-specific context
-  const { context, tokenEstimate } = buildEditorialContext(activeTab)
+  // Only build context on first message per tab (lazy injection)
+  let context = null
+  let tokenEstimate = 0
+  if (injectContext !== false) {
+    const ctx = buildEditorialContext(activeTab)
+    context = ctx.context
+    tokenEstimate = ctx.tokenEstimate
+  }
 
   // Trim history to budget
   const trimmedHistory = trimEditorialHistory(history || [])

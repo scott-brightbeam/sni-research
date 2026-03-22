@@ -5,22 +5,27 @@ let nextId = 1
 
 /**
  * Hook for editorial contextual chat with SSE streaming.
- * Similar pattern to useChat but specific to editorial page context.
+ * Maintains per-tab conversation threads — switching tabs preserves messages.
+ * Context (editorial state) is only injected on the first message per tab.
  *
  * @param {string} tab — current editorial tab for context assembly
  * @returns {{ messages, loading, error, send, clear }}
  */
 export function useEditorialChat(tab = 'state') {
-  const [messages, setMessages] = useState([])
+  // Map of tab -> messages[]
+  const [threads, setThreads] = useState({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const abortRef = useRef(null)
   const mountedRef = useRef(true)
-  const messagesRef = useRef([])
   const loadingRef = useRef(false)
+  const threadsRef = useRef({})
+
+  // Current tab's messages
+  const messages = threads[tab] || []
 
   // Keep refs in sync with state
-  useEffect(() => { messagesRef.current = messages }, [messages])
+  useEffect(() => { threadsRef.current = threads }, [threads])
   useEffect(() => { loadingRef.current = loading }, [loading])
 
   // Mounted guard + abort cleanup on unmount
@@ -41,19 +46,31 @@ export function useEditorialChat(tab = 'state') {
     const controller = new AbortController()
     abortRef.current = controller
 
+    const currentThread = threadsRef.current[tab] || []
+    const isFirstMessage = currentThread.length === 0
+
     const userMsg = { id: `msg_${nextId++}`, role: 'user', content: trimmed, timestamp: new Date().toISOString() }
     const assistantId = `msg_${nextId++}`
     const assistantMsg = { id: assistantId, role: 'assistant', content: '', timestamp: new Date().toISOString() }
 
-    setMessages(prev => [...prev, userMsg, assistantMsg])
+    // Update thread map
+    setThreads(prev => ({
+      ...prev,
+      [tab]: [...(prev[tab] || []), userMsg, assistantMsg]
+    }))
     setLoading(true)
     setError(null)
 
     try {
+      const currentHistory = currentThread
+        .filter(m => m.content)
+        .map(m => ({ role: m.role, content: m.content }))
+
       const res = await apiStream('/api/editorial/chat', {
         message: trimmed,
         tab,
-        history: messagesRef.current.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
+        injectContext: isFirstMessage,
+        history: currentHistory,
       }, controller.signal)
 
       let fullText = ''
@@ -63,17 +80,23 @@ export function useEditorialChat(tab = 'state') {
 
         if (data.type === 'delta') {
           fullText += data.text
-          setMessages(prev => prev.map(m =>
-            m.id === assistantId ? { ...m, content: fullText } : m
-          ))
+          setThreads(prev => ({
+            ...prev,
+            [tab]: (prev[tab] || []).map(m =>
+              m.id === assistantId ? { ...m, content: fullText } : m
+            )
+          }))
         } else if (data.type === 'done') {
-          setMessages(prev => prev.map(m =>
-            m.id === assistantId
-              ? { ...m, content: data.text || fullText, contextTokens: data.contextTokens }
-              : m
-          ))
+          setThreads(prev => ({
+            ...prev,
+            [tab]: (prev[tab] || []).map(m =>
+              m.id === assistantId
+                ? { ...m, content: data.text || fullText, contextTokens: data.contextTokens }
+                : m
+            )
+          }))
         } else if (data.type === 'error') {
-          setError(data.error)
+          if (mountedRef.current) setError(data.error)
         }
       })
     } catch (err) {
@@ -81,7 +104,10 @@ export function useEditorialChat(tab = 'state') {
       if (!mountedRef.current) return
       setError(err.message)
       // Remove the empty assistant message on error
-      setMessages(prev => prev.filter(m => m.id !== assistantId))
+      setThreads(prev => ({
+        ...prev,
+        [tab]: (prev[tab] || []).filter(m => m.id !== assistantId)
+      }))
     } finally {
       if (mountedRef.current) {
         setLoading(false)
@@ -92,10 +118,10 @@ export function useEditorialChat(tab = 'state') {
 
   const clear = useCallback(() => {
     if (abortRef.current) abortRef.current.abort()
-    setMessages([])
+    setThreads(prev => ({ ...prev, [tab]: [] }))
     setError(null)
     setLoading(false)
-  }, [])
+  }, [tab])
 
   return { messages, loading, error, send, clear }
 }

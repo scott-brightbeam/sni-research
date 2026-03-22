@@ -61,11 +61,6 @@ export default function EditorialChat({ tab }) {
     wasCollapsedRef.current = collapsed
   }, [collapsed])
 
-  // Clear conversation when tab changes to avoid context mismatch
-  useEffect(() => {
-    clear()
-  }, [tab, clear])
-
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!input.trim() || loading) return
