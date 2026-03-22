@@ -3,13 +3,13 @@ import { useArticles } from '../hooks/useArticles'
 import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
 import { usePodcasts } from '../hooks/usePodcasts'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { useStatus } from '../hooks/useStatus'
 import SectorBadge from '../components/shared/SectorBadge'
 import DraftLink from '../components/shared/DraftLink'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
 import { getDateRange } from '../lib/dateRange'
+import ManualIngestForm from '../components/ManualIngestForm'
 import './Database.css'
 
 const SECTORS = ['', 'general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
@@ -29,9 +29,6 @@ export default function Database() {
   const allResult = useArticles({ sector, dateFrom, dateTo, search: debouncedSearch })
   const flaggedResult = useFlaggedArticles()
   const podcastResult = usePodcasts()
-  const { status } = useStatus()
-
-  const ingestOnline = status?.ingestServer?.online ?? false
 
   return (
     <div>
@@ -39,14 +36,13 @@ export default function Database() {
         <h2>Database</h2>
         <button
           className="btn btn-primary btn-md"
-          disabled={!ingestOnline}
           onClick={() => setShowIngest(!showIngest)}
         >
-          {ingestOnline ? '+ Ingest URL' : '+ Ingest (offline)'}
+          + Ingest Article
         </button>
       </div>
 
-      {showIngest && <IngestForm onSuccess={() => { setShowIngest(false); allResult.reload() }} />}
+      {showIngest && <ManualIngestForm onSuccess={() => { setShowIngest(false); allResult.reload() }} />}
 
       <div className="tabs">
         <button className={`tab ${tab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')}>
