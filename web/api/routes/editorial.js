@@ -619,7 +619,7 @@ export async function postEditorialChat(body, req) {
 
       try {
         const modelId = model === 'opus'
-          ? 'claude-opus-4-0725'
+          ? 'claude-opus-4-6'
           : 'claude-sonnet-4-20250514'
 
         const response = await client.messages.create({
