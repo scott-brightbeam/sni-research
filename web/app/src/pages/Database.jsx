@@ -50,13 +50,13 @@ export default function Database() {
 
       <div className="tabs">
         <button className={`tab ${tab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')}>
-          Articles <span className="tab-count">({allResult.total})</span>
+          Articles <span className="tab-count">({allResult.total ?? 0})</span>
         </button>
         <button className={`tab ${tab === 'podcasts' ? 'active' : ''}`} onClick={() => setTab('podcasts')}>
           Podcasts <span className="tab-count">({podcastResult.episodes.length})</span>
         </button>
         <button className={`tab ${tab === 'flagged' ? 'active' : ''}`} onClick={() => setTab('flagged')}>
-          Flagged <span className="tab-count">({flaggedResult.total})</span>
+          Flagged <span className="tab-count">({flaggedResult.total ?? 0})</span>
         </button>
       </div>
 
@@ -209,11 +209,12 @@ function PodcastCard({ episode, expanded, onToggle }) {
       </div>
       {themes.length > 0 && (
         <div className="podcast-card-themes">
-          {themes.map(t => (
-            <span key={typeof t === 'string' ? t : t.code || t.name} className="theme-pill">
-              {typeof t === 'string' ? t : t.name || t.code}
-            </span>
-          ))}
+          {themes.map((t, i) => {
+            const label = typeof t === 'string' ? t : (t.name || t.code || 'Unknown')
+            return (
+              <span key={`${label}-${i}`} className="theme-pill">{label}</span>
+            )
+          })}
         </div>
       )}
       <div className="podcast-card-stats">
@@ -230,13 +231,17 @@ function PodcastCard({ episode, expanded, onToggle }) {
             <div className="podcast-stories">
               <strong>Stories referenced:</strong>
               <ul>
-                {digest.stories.map((s, i) => (
-                  <li key={i}>
-                    {s.headline || s.title || s}
-                    {s.matched && <span className="story-matched"> (matched)</span>}
-                    {s.url && <span className="story-url"> — {s.url}</span>}
-                  </li>
-                ))}
+                {digest.stories.map((s, i) => {
+                  if (s == null) return null
+                  const title = typeof s === 'string' ? s : (s.headline || s.title || 'Untitled')
+                  return (
+                    <li key={i}>
+                      {title}
+                      {typeof s === 'object' && s.matched && <span className="story-matched"> (matched)</span>}
+                      {typeof s === 'object' && s.url && <span className="story-url"> — {s.url}</span>}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}

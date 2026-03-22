@@ -3,9 +3,9 @@ import { apiFetch } from '../lib/api'
 
 /**
  * Hook for fetching editorial notifications (post candidates, alerts).
- * Polls at a configurable interval.
+ * Polls at a configurable interval with backoff on consecutive failures.
  *
- * @param {number} pollIntervalMs — polling interval in ms (default 60s)
+ * @param {number} pollIntervalMs — polling interval in ms (0 to disable, default 60s)
  * @returns {{ notifications, loading, error, dismiss, refetch }}
  */
 export function useNotifications(pollIntervalMs = 60000) {
@@ -13,6 +13,7 @@ export function useNotifications(pollIntervalMs = 60000) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const mountedRef = useRef(true)
+  const failCountRef = useRef(0)
 
   useEffect(() => {
     mountedRef.current = true
@@ -23,10 +24,15 @@ export function useNotifications(pollIntervalMs = 60000) {
     try {
       const data = await apiFetch('/api/editorial/notifications')
       if (!mountedRef.current) return
-      setNotifications(data.notifications || data || [])
+      const items = Array.isArray(data?.notifications) ? data.notifications
+        : Array.isArray(data) ? data
+        : []
+      setNotifications(items)
       setError(null)
+      failCountRef.current = 0
     } catch (err) {
       if (!mountedRef.current) return
+      failCountRef.current++
       setError(err.message)
     } finally {
       if (mountedRef.current) setLoading(false)
@@ -35,10 +41,13 @@ export function useNotifications(pollIntervalMs = 60000) {
 
   useEffect(() => { load() }, [load])
 
-  // Poll for new notifications
+  // Poll with automatic stop after 5 consecutive failures
   useEffect(() => {
     if (!pollIntervalMs) return
-    const interval = setInterval(load, pollIntervalMs)
+    const interval = setInterval(() => {
+      if (failCountRef.current >= 5) return
+      load()
+    }, pollIntervalMs)
     return () => clearInterval(interval)
   }, [load, pollIntervalMs])
 

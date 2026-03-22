@@ -260,7 +260,14 @@ function EditorialSummaryCard() {
     </div>
   )
 
-  if (error || !data) return (
+  if (error) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">Failed to load editorial state</div>
+    </div>
+  )
+
+  if (!data) return (
     <div className="card editorial-summary-card">
       <div className="card-title">Editorial intelligence</div>
       <div className="empty">No editorial state available</div>
@@ -302,13 +309,19 @@ function EditorialSummaryCard() {
 // ── Post candidates card ──────────────────────────────────
 
 function PostCandidatesCard() {
-  const { notifications, loading } = useNotifications(0) // No polling on dashboard
+  const { notifications, loading, error } = useNotifications(0) // No polling on dashboard
 
   const candidates = (notifications || []).filter(n =>
     n.priority === 'high' || n.priority === 'immediate'
   )
 
   if (loading) return null
+  if (error) return (
+    <div className="card post-candidates-card">
+      <div className="card-title">Post candidates</div>
+      <div className="empty">Failed to load candidates</div>
+    </div>
+  )
   if (candidates.length === 0) return null
 
   return (
@@ -346,7 +359,14 @@ function PostCandidatesCard() {
 function CostSummaryCard() {
   const { data, loading, error } = useEditorialCost()
 
-  if (loading || error || !data) return null
+  if (loading) return null
+
+  if (error || !data) return (
+    <div className="card cost-summary-card">
+      <div className="card-title">Weekly AI cost</div>
+      <div className="empty">{error ? 'Cost data unavailable' : 'No cost data yet'}</div>
+    </div>
+  )
 
   const spent = data.weeklyTotal || 0
   const budget = data.budget || 50
