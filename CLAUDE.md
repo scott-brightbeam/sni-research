@@ -15,7 +15,7 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 
 ## Architecture constraints — non-negotiable
 
-- All new code goes in `web/`. Pipeline scripts are **never** modified.
+- All new web UI code goes in `web/`. New pipeline scripts may be added to `scripts/`. New config files may be added to `config/`. Existing files in `scripts/` and `config/` are **never** modified.
 - Two servers: pipeline ingest (port 3847, unchanged), UI API (port 3900, new)
 - API server reads `data/`, `output/`, `config/`, `logs/` — never imports pipeline modules
 - Branch: `feature/web-ui` — pipeline runs from `master` via launchd
@@ -106,6 +106,13 @@ Analyse the current situation and invoke relevant skills:
 - **Flagged:** Articles marked for editorial review (high relevance score or manual flag)
 - **Week N:** Pipeline runs weekly; data directories named by week number (e.g., `data/verified/week-9/`)
 - **Co-pilot:** AI chat assistant for editorial writing (Phase 3)
+
+## Sector keyword config rules — non-negotiable
+
+- **Canonical AI terms:** `required_any_group_1` in `config/sectors.yaml` MUST be identical across all five sectors. One list, copied exactly. Never add sector-specific terms to group 1.
+- **Sector-specific AI phrasings** (e.g. "computational drug design", "digital twin", "computer-aided detection") belong in that sector's `required_any_group_2`, not group 1.
+- **Company names** never go in group 1. They belong in `required_any_group_2` or `boost` for the relevant sector.
+- **When updating AI terms**, update all five sectors simultaneously to maintain parity.
 
 ## Scott's preferences
 

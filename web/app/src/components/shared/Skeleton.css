@@ -1,0 +1,107 @@
+/* ── Loading skeletons ──────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    var(--card-bg) 50%,
+    var(--surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-text-sm {
+  height: 10px;
+  margin-bottom: 6px;
+  width: 60%;
+}
+
+.skeleton-heading {
+  height: 20px;
+  width: 40%;
+  margin-bottom: 12px;
+}
+
+/* ── Stat card skeleton ───────────────────────────────── */
+
+.skeleton-stat-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  border: 1px solid var(--light-gray);
+}
+
+.skeleton-stat-label {
+  height: 10px;
+  width: 80px;
+  margin-bottom: 8px;
+}
+
+.skeleton-stat-value {
+  height: 28px;
+  width: 60px;
+  margin-bottom: 4px;
+}
+
+.skeleton-stat-detail {
+  height: 12px;
+  width: 140px;
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skeleton-text-short {
+  width: 60%;
+}
+
+/* ── List item skeleton ───────────────────────────────── */
+
+.skeleton-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.skeleton-badge {
+  height: 18px;
+  width: 36px;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 14px;
+  flex: 1;
+}
+
+.skeleton-meta {
+  height: 10px;
+  width: 80px;
+}
+
+/* ── Card skeleton ────────────────────────────────────── */
+
+.skeleton-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--light-gray);
+}

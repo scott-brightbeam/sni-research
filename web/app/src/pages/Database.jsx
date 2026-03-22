@@ -1,85 +1,44 @@
 import { useState } from 'react'
 import { useArticles } from '../hooks/useArticles'
 import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
+import { usePodcasts } from '../hooks/usePodcasts'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useStatus } from '../hooks/useStatus'
 import SectorBadge from '../components/shared/SectorBadge'
+import DraftLink from '../components/shared/DraftLink'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
-import './Articles.css'
+import TimeRangeSelector from '../components/shared/TimeRangeSelector'
+import { getDateRange } from '../lib/dateRange'
+import './Database.css'
 
 const SECTORS = ['', 'general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
 
-const DATE_PRESETS = [
-  { key: 'week', label: 'This week' },
-  { key: 'month', label: 'This month' },
-  { key: '30d', label: 'Last 30 days' },
-  { key: 'all', label: 'All time' },
-]
+const TIER_LABELS = { 1: 'Tier 1', 2: 'Tier 2' }
 
-function getPresetRange(key, lastFridayRunAt) {
-  const today = new Date().toISOString().split('T')[0]
-  if (key === 'week' && lastFridayRunAt) {
-    return { from: lastFridayRunAt.split('T')[0], to: today }
-  }
-  if (key === 'month') {
-    const d = new Date()
-    const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-    return { from, to: today }
-  }
-  if (key === '30d') {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return { from: d.toISOString().split('T')[0], to: today }
-  }
-  return { from: '', to: '' }
-}
-
-export default function Articles() {
+export default function Database() {
   const [sector, setSector] = useState('')
-  const [datePreset, setDatePreset] = useState('week')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
+  const [range, setRange] = useState('7d')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState('all')
+  const [tab, setTab] = useState('articles')
   const [showIngest, setShowIngest] = useState(false)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
-  const { status } = useStatus()
-  const lastFridayRunAt = status?.lastFridayRunAt || null
-  const ingestOnline = status?.ingestServer?.online ?? false
-
-  // Build date range from preset or custom
-  const dateRange = (() => {
-    if (datePreset === 'custom') return { from: customFrom, to: customTo }
-    return getPresetRange(datePreset, lastFridayRunAt)
-  })()
-
-  const allResult = useArticles({
-    sector,
-    from: dateRange.from,
-    to: dateRange.to,
-    search: debouncedSearch,
-  })
+  const { startDate: dateFrom, endDate: dateTo } = getDateRange(range)
+  const allResult = useArticles({ sector, dateFrom, dateTo, search: debouncedSearch })
   const flaggedResult = useFlaggedArticles()
+  const podcastResult = usePodcasts()
+  const { status } = useStatus()
 
-  const { articles, total, loading, error, reload, lastUpdated } = tab === 'all' ? allResult : flaggedResult
-
-  function handlePresetChange(key) {
-    setDatePreset(key)
-    if (key !== 'custom') {
-      setCustomFrom('')
-      setCustomTo('')
-    }
-  }
+  const ingestOnline = status?.ingestServer?.online ?? false
 
   return (
     <div>
       <div className="page-header">
-        <h2>Articles</h2>
+        <h2>Database</h2>
         <button
-          className="btn btn-primary"
+          className="btn btn-primary btn-md"
           disabled={!ingestOnline}
           onClick={() => setShowIngest(!showIngest)}
         >
@@ -87,55 +46,22 @@ export default function Articles() {
         </button>
       </div>
 
-      {showIngest && <IngestForm onSuccess={() => { setShowIngest(false); reload() }} />}
+      {showIngest && <IngestForm onSuccess={() => { setShowIngest(false); allResult.reload() }} />}
 
       <div className="tabs">
-        <button className={`tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-          All articles <span className="tab-count">({allResult.total})</span>
+        <button className={`tab ${tab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')}>
+          Articles <span className="tab-count">({allResult.total ?? 0})</span>
+        </button>
+        <button className={`tab ${tab === 'podcasts' ? 'active' : ''}`} onClick={() => setTab('podcasts')}>
+          Podcasts <span className="tab-count">({podcastResult.episodes.length})</span>
         </button>
         <button className={`tab ${tab === 'flagged' ? 'active' : ''}`} onClick={() => setTab('flagged')}>
-          Flagged <span className="tab-count">({flaggedResult.total})</span>
+          Flagged <span className="tab-count">({flaggedResult.total ?? 0})</span>
         </button>
       </div>
 
-      {tab === 'all' && (
+      {tab === 'articles' && (
         <>
-          <div className="date-bar">
-            <div className="date-presets">
-              {DATE_PRESETS.map(p => (
-                <button
-                  key={p.key}
-                  className={`date-preset ${datePreset === p.key ? 'active' : ''}`}
-                  onClick={() => handlePresetChange(p.key)}
-                >
-                  {p.label}
-                </button>
-              ))}
-              <button
-                className={`date-preset ${datePreset === 'custom' ? 'active' : ''}`}
-                onClick={() => setDatePreset('custom')}
-              >
-                Custom
-              </button>
-            </div>
-            {datePreset === 'custom' && (
-              <div className="date-custom">
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="date-input"
-                />
-                <span className="date-sep">to</span>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="date-input"
-                />
-              </div>
-            )}
-          </div>
           <div className="filter-bar">
             <select value={sector} onChange={e => setSector(e.target.value)}>
               <option value="">All sectors</option>
@@ -143,6 +69,7 @@ export default function Articles() {
                 <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
               ))}
             </select>
+            <TimeRangeSelector value={range} onChange={setRange} />
             <input
               type="text"
               placeholder="Search articles..."
@@ -150,31 +77,186 @@ export default function Articles() {
               onChange={e => setSearch(e.target.value)}
               className="filter-search"
             />
-            {lastUpdated && (
+            {allResult.lastUpdated && (
               <span className="updated-indicator">
-                Updated {formatRelativeTime(new Date(lastUpdated).toISOString())}
+                Updated {formatRelativeTime(new Date(allResult.lastUpdated).toISOString())}
               </span>
+            )}
+          </div>
+
+          <div className="card card-flush">
+            {allResult.loading ? (
+              <div className="placeholder-text">Loading...</div>
+            ) : allResult.error ? (
+              <div className="placeholder-text">Failed to load articles: {allResult.error}</div>
+            ) : (
+              <ArticleTable
+                articles={allResult.articles}
+                tab="all"
+                onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
+              />
             )}
           </div>
         </>
       )}
 
-      <div className="card card-flush">
-        {loading ? (
-          <div className="placeholder-text">Loading...</div>
-        ) : error ? (
-          <div className="placeholder-text">Failed to load articles: {error}</div>
-        ) : (
-          <ArticleTable
-            articles={articles}
-            tab={tab}
-            onReload={() => { reload(); flaggedResult.reload?.() }}
-          />
-        )}
-      </div>
+      {tab === 'podcasts' && (
+        <PodcastsTab
+          episodes={podcastResult.episodes}
+          loading={podcastResult.loading}
+          error={podcastResult.error}
+        />
+      )}
+
+      {tab === 'flagged' && (
+        <div className="card card-flush">
+          {flaggedResult.loading ? (
+            <div className="placeholder-text">Loading...</div>
+          ) : flaggedResult.error ? (
+            <div className="placeholder-text">Failed to load flagged articles: {flaggedResult.error}</div>
+          ) : (
+            <ArticleTable
+              articles={flaggedResult.articles}
+              tab="flagged"
+              onReload={() => { allResult.reload(); flaggedResult.reload?.() }}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
+// ── Podcasts Tab ──────────────────────────────────────────
+
+function PodcastsTab({ episodes, loading, error }) {
+  const [sourceFilter, setSourceFilter] = useState('')
+  const [tierFilter, setTierFilter] = useState('')
+  const [expandedIdx, setExpandedIdx] = useState(null)
+
+  if (loading) return <div className="placeholder-text">Loading podcast episodes...</div>
+  if (error) return <div className="placeholder-text">Failed to load podcasts: {error}</div>
+
+  // Collect unique sources for filter dropdown
+  const sources = [...new Set(episodes.map(e => e.source).filter(Boolean))].sort()
+
+  let filtered = episodes
+  if (sourceFilter) filtered = filtered.filter(e => e.source === sourceFilter)
+  if (tierFilter) filtered = filtered.filter(e => String(e.tier) === tierFilter)
+
+  return (
+    <>
+      <div className="filter-bar">
+        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
+          <option value="">All sources</option>
+          {sources.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <div className="tier-pills">
+          <button
+            className={`tier-pill ${!tierFilter ? 'active' : ''}`}
+            onClick={() => setTierFilter('')}
+          >All</button>
+          <button
+            className={`tier-pill ${tierFilter === '1' ? 'active' : ''}`}
+            onClick={() => setTierFilter('1')}
+          >Tier 1</button>
+          <button
+            className={`tier-pill ${tierFilter === '2' ? 'active' : ''}`}
+            onClick={() => setTierFilter('2')}
+          >Tier 2</button>
+        </div>
+        <span className="filter-count">{filtered.length} episode{filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="placeholder-text">No podcast episodes matching filters.</div>
+      ) : (
+        <div className="podcast-list">
+          {filtered.map((ep, i) => (
+            <PodcastCard
+              key={ep.filename || i}
+              episode={ep}
+              expanded={expandedIdx === i}
+              onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function PodcastCard({ episode, expanded, onToggle }) {
+  const ep = episode
+  const digest = ep.digest || {}
+  const storiesExtracted = digest.stories?.length || ep.storiesExtracted || 0
+  const storiesFound = ep.storiesFound || 0
+  const themes = digest.themes || ep.themes || []
+
+  return (
+    <div className={`podcast-card ${expanded ? 'expanded' : ''}`} onClick={onToggle}>
+      <div className="podcast-card-header">
+        <div className="podcast-card-title">{ep.title || ep.filename || 'Untitled episode'}</div>
+        {ep.tier && (
+          <span className={`badge badge-tier${ep.tier}`}>{TIER_LABELS[ep.tier] || `Tier ${ep.tier}`}</span>
+        )}
+      </div>
+      <div className="podcast-card-meta">
+        <span>{ep.source || 'Unknown source'}</span>
+        {ep.host && <span> · {ep.host}</span>}
+        {ep.date && <span> · {formatDate(ep.date)}</span>}
+        {ep.week && <span> · Week {ep.week}</span>}
+      </div>
+      {themes.length > 0 && (
+        <div className="podcast-card-themes">
+          {themes.map((t, i) => {
+            const label = typeof t === 'string' ? t : (t.name || t.code || 'Unknown')
+            return (
+              <span key={`${label}-${i}`} className="theme-pill">{label}</span>
+            )
+          })}
+        </div>
+      )}
+      <div className="podcast-card-stats">
+        Stories: {storiesExtracted} extracted
+        {storiesFound > 0 && <> · {storiesFound} found</>}
+      </div>
+
+      {expanded && (
+        <div className="podcast-card-detail">
+          {digest.summary && (
+            <div className="podcast-summary">{digest.summary}</div>
+          )}
+          {digest.stories?.length > 0 && (
+            <div className="podcast-stories">
+              <strong>Stories referenced:</strong>
+              <ul>
+                {digest.stories.map((s, i) => {
+                  if (s == null) return null
+                  const title = typeof s === 'string' ? s : (s.headline || s.title || 'Untitled')
+                  return (
+                    <li key={i}>
+                      {title}
+                      {typeof s === 'object' && s.matched && <span className="story-matched"> (matched)</span>}
+                      {typeof s === 'object' && s.url && <span className="story-url"> — {s.url}</span>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+          <DraftLink
+            label="Open in Draft"
+            source={{ type: 'podcast', source: ep.source, title: ep.title }}
+            content={{ digest: ep.digest }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Article Table (carried forward from Articles.jsx) ─────
 
 function ArticleTable({ articles, tab, onReload }) {
   const [expandedSlug, setExpandedSlug] = useState(null)
@@ -380,6 +462,30 @@ function ArticleDetail({ article, detail, loading, error }) {
             <dt>Scraped</dt><dd>{d.scraped_at ? formatDate(d.scraped_at) : '\u2014'}</dd>
             <dt>Type</dt><dd>{d.source_type || 'automated'}</dd>
             {d.score != null && <><dt>Score reason</dt><dd>{d.score_reason || '\u2014'}</dd></>}
+            {d.found_by?.length > 0 && (
+              <>
+                <dt>Discovered by</dt>
+                <dd>
+                  <div className="found-by-badges">
+                    {d.found_by.map((fb, i) => {
+                      const layer = fb.match(/^(L[1-4]|RSS|HL):/)?.[1] || 'unknown'
+                      const layerKey = layer === 'HL' ? 'headlines' : layer === 'RSS' ? 'rss' : layer
+                      return (
+                        <span key={i} className="found-by-badge" data-layer={layerKey} title={fb}>
+                          {layer}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </dd>
+              </>
+            )}
+            {(!d.found_by || d.found_by.length === 0) && d.source_type !== 'manual' && (
+              <>
+                <dt>Discovered by</dt>
+                <dd className="cell-meta">Unknown</dd>
+              </>
+            )}
           </dl>
           {d.keywords_matched?.length > 0 && (
             <div className="detail-keywords">
@@ -394,6 +500,8 @@ function ArticleDetail({ article, detail, loading, error }) {
     </div>
   )
 }
+
+// ── Ingest Form ───────────────────────────────────────────
 
 function IngestForm({ onSuccess }) {
   const [url, setUrl] = useState('')
@@ -450,7 +558,7 @@ function IngestForm({ onSuccess }) {
       </select>
       <button
         type="submit"
-        className="btn btn-primary"
+        className="btn btn-primary btn-md"
         disabled={status?.type === 'loading'}
       >
         {status?.type === 'loading' ? status.message : 'Ingest'}

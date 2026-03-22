@@ -398,11 +398,16 @@ function KeywordGroup({ label, keywords, onAdd, onRemove }) {
 }
 
 function getCurrentWeekNumber() {
+  // Return the editorial week number (ISO week of next Thursday, or today if Thursday)
   const now = new Date()
-  const jan4 = new Date(now.getFullYear(), 0, 4)
-  const start = new Date(jan4)
-  start.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
-  const diff = now - start
-  const oneWeek = 604800000
-  return Math.ceil(diff / oneWeek)
+  const day = now.getDay() // 0=Sun
+  const daysToThu = (4 - day + 7) % 7
+  const thu = new Date(now)
+  thu.setDate(now.getDate() + daysToThu)
+  // ISO week of that Thursday
+  const d = new Date(Date.UTC(thu.getFullYear(), thu.getMonth(), thu.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
 }

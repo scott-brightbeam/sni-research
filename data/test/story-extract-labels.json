@@ -1,0 +1,438 @@
+[
+  {
+    "filename": "2026-03-17-ai-daily-brief-the-race-to-put-ai-agents-everywhere.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-17-ai-daily-brief-the-race-to-put-ai-agents-everywhere.md",
+    "ground_truth_stories": [
+      {
+        "headline": "NVIDIA CEO Jensen Huang predicts trillion dollars in revenue by 2027 at GTC keynote",
+        "entities": ["NVIDIA", "Jensen Huang"],
+        "sector": "semiconductors",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "NVIDIA unveils Grok-powered inference server combining 256 Grok chips with 72 Rubin GPUs",
+        "entities": ["NVIDIA"],
+        "sector": "semiconductors",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "NVIDIA announces DLSS5 AI-enhanced real-time video game graphics system",
+        "entities": ["NVIDIA"],
+        "sector": "gaming",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Meta signs $27 billion five-year deal with neocloud Nebius for AI data centers",
+        "entities": ["Meta", "Nebius", "NVIDIA"],
+        "sector": "cloud-infrastructure",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI restructures Stargate data center division under former Intel exec Sachin Kati",
+        "entities": ["OpenAI", "Intel", "Sachin Kati", "Greg Brockman"],
+        "sector": "cloud-infrastructure",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Encyclopedia Britannica and Merriam-Webster sue OpenAI over training data",
+        "entities": ["Encyclopedia Britannica", "Merriam-Webster", "OpenAI"],
+        "sector": "legal",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Alibaba restructures AI org into Alibaba Token Hub under CEO Eddie Wu to focus on monetization",
+        "entities": ["Alibaba", "Eddie Wu"],
+        "sector": "enterprise-ai",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Z.ai releases GLM5 Turbo as closed-source model, signaling shift in Chinese open-source strategy",
+        "entities": ["Z.ai"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "NVIDIA launches NemoClaw enterprise security toolkit for OpenClaw agents",
+        "entities": ["NVIDIA"],
+        "sector": "enterprise-ai",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Manus launches desktop app with My Computer feature for local agent access",
+        "entities": ["Manus", "Meta"],
+        "sector": "agents",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Adaptive launches Adaptive Computer with always-on personal AI agent and encoded memory",
+        "entities": ["Adaptive"],
+        "sector": "agents",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI refocuses strategy on enterprise and coding, VP Vicky Simo warns against side quests",
+        "entities": ["OpenAI", "Vicky Simo"],
+        "sector": "enterprise-ai",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI adds native sub-agent support to Codex for multi-agent workflows",
+        "entities": ["OpenAI", "Codex"],
+        "sector": "developer-tools",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "GPT-5.4 ramps to 5 trillion tokens per day and $1 billion annualized new revenue within a week",
+        "entities": ["OpenAI", "Greg Brockman"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Perplexity launches Computer, Computer for Enterprise, and Personal Computer agent products",
+        "entities": ["Perplexity", "Arvind Srinivas"],
+        "sector": "agents",
+        "url": null,
+        "confidence": "medium"
+      }
+    ]
+  },
+  {
+    "filename": "2026-03-04-ai-daily-brief-the-big-questions-that-will-decide-the-consumer-ai-war.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-04-ai-daily-brief-the-big-questions-that-will-decide-the-consumer-ai-war.md",
+    "ground_truth_stories": [
+      {
+        "headline": "OpenAI developing internal alternative to GitHub for code repository",
+        "entities": ["OpenAI", "GitHub", "Microsoft"],
+        "sector": "developer-tools",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Former GitHub CEO Thomas Domke launches startup to rebuild GitHub for agentic era",
+        "entities": ["Thomas Domke", "GitHub", "Microsoft"],
+        "sector": "developer-tools",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Meta forms new applied AI engineering organization bridging hardware and model teams",
+        "entities": ["Meta", "Reality Labs"],
+        "sector": "enterprise-ai",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Amazon explores building AI advertising technology for chatbots and agents",
+        "entities": ["Amazon", "Pinterest"],
+        "sector": "advertising",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "US officials consider 75,000 chip cap per customer on NVIDIA sales to China",
+        "entities": ["NVIDIA", "AMD", "Alibaba", "Tencent", "ByteDance"],
+        "sector": "geopolitics",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Apple unveils M5-powered MacBook lineup with neural accelerator for AI",
+        "entities": ["Apple"],
+        "sector": "hardware",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Stripe previews automatic token-based usage billing for AI app developers",
+        "entities": ["Stripe", "Vercel", "OpenRouter"],
+        "sector": "fintech",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI releases GPT-5.3 Instant with improved personality and fewer refusals",
+        "entities": ["OpenAI"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Claude Code rolls out voice mode capability to users",
+        "entities": ["Anthropic"],
+        "sector": "developer-tools",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Anthropic reaches $19 billion ARR, nearly matching OpenAI revenue",
+        "entities": ["Anthropic", "OpenAI"],
+        "sector": "business",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "QuitGPT.org claims 2.5 million people joined ChatGPT boycott after Pentagon deal",
+        "entities": ["OpenAI", "Anthropic", "QuitGPT"],
+        "sector": "ethics",
+        "url": null,
+        "confidence": "medium"
+      }
+    ]
+  },
+  {
+    "filename": "2026-03-17-moonshots-meta-buys-moltbook-gpt-5-4-and-fruitfly-brain-upload.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-17-moonshots-meta-buys-moltbook-gpt-5-4-and-fruitfly-brain-upload.md",
+    "ground_truth_stories": [
+      {
+        "headline": "Future Vision X-Prize launched with $3.5 million to incentivize optimistic sci-fi film creation",
+        "entities": ["X-Prize", "Google", "Range Media", "Rod Roddenberry"],
+        "sector": "media",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Anthropic AI safety lead resigns citing concerns about interconnected crises",
+        "entities": ["Anthropic"],
+        "sector": "ai-safety",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI releases GPT-5.4 with breakthrough Frontier Math Tier 4 benchmark results",
+        "entities": ["OpenAI"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Claude consumer growth surges past ChatGPT amid Anthropic-Pentagon controversy",
+        "entities": ["Anthropic", "OpenAI"],
+        "sector": "business",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Meta acquires Moltbook, the AI agent social network",
+        "entities": ["Meta", "Moltbook"],
+        "sector": "acquisitions",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Yan LeCun raises $1 billion for Advanced Machine Intelligence Lab in largest European AI round",
+        "entities": ["Yan LeCun", "AMI Lab"],
+        "sector": "funding",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Andrej Karpathy releases Auto Research tool automating AI research experimentation",
+        "entities": ["Andrej Karpathy"],
+        "sector": "research",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Apple launches M5 Pro and Max chips with neural core, signaling AI-first silicon strategy",
+        "entities": ["Apple", "TSMC"],
+        "sector": "hardware",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Sam Altman's World ID eye-scanning verification systems to launch in retail stores",
+        "entities": ["Sam Altman", "World"],
+        "sector": "identity",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Eon Systems announces first multi-behavior fruitfly brain upload at Abundance Summit",
+        "entities": ["Eon Systems", "Alex Wissner-Gross"],
+        "sector": "neuroscience",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "XAI commits to building 1.2 gigawatt data centers for AI compute",
+        "entities": ["XAI", "SpaceX"],
+        "sector": "cloud-infrastructure",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Florida advances bill to formalize regulatory framework for flying cars and eVTOLs",
+        "entities": ["Archer Aviation", "Joby"],
+        "sector": "transportation",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "OpenAI partners with Cerebras for 1000 tokens per second inference speed on Codex",
+        "entities": ["OpenAI", "Cerebras"],
+        "sector": "cloud-infrastructure",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "Research achieves protection of brain synapses at cryogenic temperatures",
+        "entities": ["21st Century Medicine", "Alcor Foundation"],
+        "sector": "biotech",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "China installed more robots than all developed countries combined",
+        "entities": [],
+        "sector": "robotics",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "New York introduces legislation to halt data center development over energy concerns",
+        "entities": [],
+        "sector": "policy",
+        "url": null,
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "filename": "2026-03-17-moonshots-elon-musk-optimus-3-is-coming-recursive-self-improvement-is.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-17-moonshots-elon-musk-optimus-3-is-coming-recursive-self-improvement-is.md",
+    "ground_truth_stories": [
+      {
+        "headline": "Tesla Optimus 3 robot in final stages, production to begin this summer",
+        "entities": ["Tesla", "Elon Musk"],
+        "sector": "robotics",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Elon Musk says recursive self-improvement is already happening and we are in hard takeoff",
+        "entities": ["Elon Musk", "XAI", "Grok"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Elon Musk predicts 10x global economy in 10 years with moon base and Mars presence",
+        "entities": ["Elon Musk", "SpaceX"],
+        "sector": "economics",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "David Sinclair begins human trials for ER100 epigenetic reprogramming therapy",
+        "entities": ["David Sinclair"],
+        "sector": "biotech",
+        "url": null,
+        "confidence": "medium"
+      }
+    ]
+  },
+  {
+    "filename": "2026-02-13-moonshots-the-ai-ceo-arrives-sam-altman-s-succession-plan-job-loss.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-02-13-moonshots-the-ai-ceo-arrives-sam-altman-s-succession-plan-job-loss.md",
+    "ground_truth_stories": [
+      {
+        "headline": "Sam Altman tells Forbes he would let AI become CEO of OpenAI",
+        "entities": ["Sam Altman", "OpenAI", "Forbes"],
+        "sector": "enterprise-ai",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "OpenAI achieves 70% reduction in time between model releases, from 97 to 29 days",
+        "entities": ["OpenAI", "Anthropic"],
+        "sector": "foundation-models",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Vision Claw launches agentic AI integration for Meta Ray-Ban glasses",
+        "entities": ["Anthropic", "Meta"],
+        "sector": "wearables",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "US jobs disappear at fastest rate since Great Recession in January 2026",
+        "entities": ["Amazon", "UPS"],
+        "sector": "economics",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "XAI co-founder Igor praises Opus 4.6 physics capabilities as potential research breakthrough",
+        "entities": ["XAI", "Anthropic"],
+        "sector": "research",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Top five US AI unicorns now valued at over $1.2 trillion, exceeding all dot-com era IPOs",
+        "entities": [],
+        "sector": "business",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "Diamandis and Wissner-Gross unveil Solve Everything paper on achieving abundance by 2035",
+        "entities": ["Peter Diamandis", "Alex Wissner-Gross"],
+        "sector": "research",
+        "url": "https://solveeverything.org",
+        "confidence": "high"
+      },
+      {
+        "headline": "Anthropic AI safety lead resigns citing concerns about interconnected crises",
+        "entities": ["Anthropic"],
+        "sector": "ai-safety",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "New York introduces legislation to halt data center development over energy concerns",
+        "entities": [],
+        "sector": "policy",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "Tesla FSD autonomously drives heart attack patient to hospital, saving his life",
+        "entities": ["Tesla"],
+        "sector": "autonomous-vehicles",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "China installed more robots than all developed countries combined",
+        "entities": [],
+        "sector": "robotics",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "Research achieves protection of brain synapses at cryogenic temperatures",
+        "entities": ["21st Century Medicine", "Alcor Foundation"],
+        "sector": "biotech",
+        "url": null,
+        "confidence": "high"
+      }
+    ]
+  }
+]

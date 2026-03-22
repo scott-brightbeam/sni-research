@@ -1,0 +1,629 @@
+/* ── Editorial page layout ─────────────────────────────── */
+
+.editorial-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  height: 100%;
+}
+
+.editorial-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.editorial-page .header-actions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.editorial-page .search-input {
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 240px;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.editorial-page .search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.editorial-page .search-input:focus {
+  outline: none;
+  border-color: var(--terra);
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Two-column layout ───────────────────────────────────── */
+
+.editorial-columns {
+  display: flex;
+  gap: var(--sp-4);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editorial-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* ── Tab content ──────────────────────────────────────── */
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.section-header h3 {
+  margin: 0;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 16px;
+}
+
+.count-badge {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  padding: 2px var(--sp-2);
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.editorial-page .btn-sm {
+  padding: 4px var(--sp-2);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Poppins', Arial, sans-serif;
+  margin-left: auto;
+}
+
+.editorial-page .btn-sm:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-left: auto;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+/* ── Cost bar ─────────────────────────────────────────── */
+
+.cost-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.cost-label {
+  color: var(--text-secondary);
+}
+
+.cost-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.cost-budget {
+  color: var(--text-secondary);
+}
+
+.cost-progress {
+  flex: 1;
+  max-width: 200px;
+  height: 6px;
+  background: var(--card-bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cost-fill {
+  height: 100%;
+  background: var(--terra);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ── Analysis entries ─────────────────────────────────── */
+
+.analysis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.analysis-entry {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.analysis-entry:hover {
+  background: var(--card-bg);
+}
+
+.entry-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.entry-id {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: 'Poppins', Arial, sans-serif;
+  min-width: 36px;
+}
+
+.entry-title {
+  flex: 1;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.entry-tier {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.tier-1 { background: var(--sage-15); color: var(--sage); }
+.tier-2 { background: var(--purple-15); color: var(--purple); }
+.tier-3 { background: rgba(112, 110, 102, 0.15); color: var(--text-muted); }
+
+.entry-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  padding-left: 44px;
+}
+
+.entry-themes {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-left: 44px;
+}
+
+.theme-tag {
+  background: var(--card-bg);
+  color: var(--terra);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.entry-summary {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--pampas);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-family: 'Lora', Georgia, serif;
+}
+
+/* ── Theme cards ──────────────────────────────────────── */
+
+.theme-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theme-card {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.theme-card:hover {
+  background: var(--card-bg);
+}
+
+.theme-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.theme-code {
+  color: var(--terra);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: 'Poppins', Arial, sans-serif;
+  min-width: 40px;
+}
+
+.theme-name {
+  flex: 1;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.theme-docs {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.theme-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  padding-left: 48px;
+}
+
+.theme-details {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--pampas);
+  border-radius: var(--radius);
+}
+
+.evidence-item {
+  margin-bottom: var(--sp-2);
+}
+
+.evidence-source {
+  font-size: 11px;
+  color: var(--terra);
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.evidence-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+  line-height: 1.4;
+  font-family: 'Lora', Georgia, serif;
+}
+
+.cross-connections {
+  margin-top: var(--sp-2);
+  font-size: 13px;
+}
+
+.cross-link {
+  display: inline-block;
+  margin-left: var(--sp-1);
+  color: var(--terra);
+  background: var(--card-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* ── Backlog posts ────────────────────────────────────── */
+
+.filter-bar {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.filter-bar select {
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.backlog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.post-card {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.post-card:hover {
+  background: var(--card-bg);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.post-id {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: 'Poppins', Arial, sans-serif;
+  min-width: 36px;
+}
+
+.post-priority {
+  font-size: 12px;
+}
+
+.post-title {
+  flex: 1;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.post-status {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.post-status.status-suggested { color: var(--text-secondary); }
+.post-status.status-approved { color: var(--terra); }
+.post-status.status-in-progress { color: var(--warning); }
+.post-status.status-published { color: var(--sage); }
+.post-status.status-rejected { color: var(--danger); }
+.post-status.status-archived { color: var(--text-muted); }
+
+.post-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  padding-left: 44px;
+}
+
+.post-format {
+  background: var(--card-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.post-details {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--pampas);
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.post-details strong {
+  color: var(--text-secondary);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+}
+
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Trigger bar ─────────────────────────────────────── */
+
+.trigger-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-4);
+}
+
+.trigger-error {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+  color: var(--danger);
+  margin-left: var(--sp-2);
+}
+
+/* ── Decisions ────────────────────────────────────────── */
+
+.decision-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.decision-item {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.decision-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.decision-type {
+  font-size: 11px;
+  color: var(--terra);
+  text-transform: uppercase;
+  font-weight: 600;
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.decision-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.decision-content {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.decision-reasoning {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Activity log ─────────────────────────────────────── */
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-item {
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--card-bg);
+}
+
+.activity-analyse { border-left-color: var(--terra); }
+.activity-discover { border-left-color: var(--sage); }
+.activity-draft { border-left-color: var(--warning); }
+.activity-track { border-left-color: var(--blue); }
+.activity-error { border-left-color: var(--danger); }
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.activity-stage {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--terra);
+  font-family: 'Poppins', Arial, sans-serif;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.activity-message {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.activity-detail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Search results ───────────────────────────────────── */
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.result-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--terra);
+  font-family: 'Poppins', Arial, sans-serif;
+  min-width: 80px;
+}
+
+.result-title {
+  flex: 1;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+}
+
+.result-source {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.result-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* ── State helpers ────────────────────────────────────── */
+
+.loading-state,
+.empty-state,
+.error-state {
+  padding: var(--sp-8);
+  text-align: center;
+  color: var(--text-secondary);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+}
+
+.error-state {
+  color: var(--danger);
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.sni.podcast-import</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/scott/.bun/bin/bun</string>
+		<string>/Users/scott/Projects/sni-research-v2/scripts/podcast-import.js</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>7</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/scott/Projects/sni-research-v2</string>
+	<key>StandardOutPath</key>
+	<string>/Users/scott/Projects/sni-research-v2/logs/podcast-import.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/scott/Projects/sni-research-v2/logs/podcast-import-error.log</string>
+	<key>Nice</key>
+	<integer>10</integer>
+</dict>
+</plist>

@@ -1,7 +1,11 @@
 .env
 data/
+!data/test/
+!data/podcasts/.gitkeep
+!data/podcast-articles/.gitkeep
 output/*
 !output/published/
+!output/overlap-cache/
 node_modules/
 *.log
 .DS_Store

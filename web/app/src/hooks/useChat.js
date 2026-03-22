@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { apiFetch, apiStream } from '../lib/api'
+import { apiFetch, apiStream, readSSEStream } from '../lib/api'
 
 export function useChat(week) {
   const [threads, setThreads] = useState([])
@@ -9,8 +9,18 @@ export function useChat(week) {
   const [error, setError] = useState(null)
   const [model, setModel] = useState('claude-sonnet-4-20250514')
   const [articleRef, setArticleRef] = useState(null)
+  const [podcastRef, setPodcastRef] = useState(null)
   const [dailyUsage, setDailyUsage] = useState(null)
   const abortRef = useRef(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
 
   // Load threads for the week
   const loadThreads = useCallback(async () => {
@@ -99,53 +109,40 @@ export function useChat(week) {
         ephemeral: false,
         week,
         articleRef,
+        podcastRef,
       }, controller.signal)
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.type === 'delta') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + data.text } : m
-              ))
-            } else if (data.type === 'done') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
-              ))
-            } else if (data.type === 'error') {
-              setError(data.message)
-            }
-          } catch { /* skip malformed SSE */ }
+      await readSSEStream(res.body.getReader(), (data) => {
+        if (!mountedRef.current) return false
+        if (data.type === 'delta') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: m.content + data.text } : m
+          ))
+        } else if (data.type === 'done') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
+          ))
+        } else if (data.type === 'error') {
+          setError(data.message)
         }
-      }
+      })
 
-      // Clear article ref after sending
-      setArticleRef(null)
+      // Clear refs after sending
+      if (mountedRef.current) {
+        setArticleRef(null)
+        setPodcastRef(null)
+      }
       // Reload threads (to get updated stats) and usage
       await loadThreads()
       await loadUsage()
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        setError(err.message)
-      }
+      if (err.name === 'AbortError') return
+      if (mountedRef.current) setError(err.message)
     } finally {
-      setSending(false)
+      if (mountedRef.current) setSending(false)
       abortRef.current = null
     }
-  }, [sending, model, activeThread, week, articleRef, loadThreads, loadUsage])
+  }, [sending, model, activeThread, week, articleRef, podcastRef, loadThreads, loadUsage])
 
   // Cancel streaming
   const cancelStream = useCallback(() => {
@@ -175,8 +172,8 @@ export function useChat(week) {
   }, [messages, week, activeThread])
 
   return {
-    threads, activeThread, messages, sending, error, model, articleRef, dailyUsage,
-    setModel, setArticleRef, sendMessage, cancelStream, createThread, selectThread,
+    threads, activeThread, messages, sending, error, model, articleRef, podcastRef, dailyUsage,
+    setModel, setArticleRef, setPodcastRef, sendMessage, cancelStream, createThread, selectThread,
     renameThread, pinMessage, loadUsage,
   }
 }

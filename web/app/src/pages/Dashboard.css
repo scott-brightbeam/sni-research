@@ -8,7 +8,7 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -72,53 +72,23 @@
   margin-bottom: 16px;
 }
 
-/* ─── Article Chart ───────────────────────────────────────────────────────── */
-
-.card-title-row {
+.card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
 }
 
-.card-title-row .card-title {
+.card-header .card-title {
   margin-bottom: 0;
 }
 
-.chart-range-toggles {
-  display: flex;
-  gap: 4px;
-}
-
-.chart-empty {
+.bar-chart-empty {
   font-family: 'Poppins', sans-serif;
   font-size: 13px;
   color: var(--cloudy);
-  padding: 24px 0;
   text-align: center;
-}
-
-.aggregate-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 0 8px;
-}
-
-.aggregate-total {
-  font-family: 'Poppins', sans-serif;
-  font-size: 40px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-.aggregate-label {
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  color: var(--cloudy);
-  margin-top: 4px;
+  padding: 24px 0;
 }
 
 .bar-chart {
@@ -142,6 +112,8 @@
   border-radius: 4px 4px 0 0;
   transition: height 0.3s;
   min-height: 2px;
+  height: var(--bar-h, 2px);
+  background: var(--bar-bg, var(--light-gray));
 }
 
 .bar-label {
@@ -157,117 +129,13 @@
   flex-wrap: wrap;
 }
 
-/* ─── Token Cost Card ──────────────────────────────────────────────────────── */
-
-.token-cost-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.cost-models {
-  display: flex;
-  gap: 12px;
-  margin-bottom: auto;
-}
-
-.cost-model-row {
-  font-family: 'Poppins', sans-serif;
-  font-size: 12px;
-  color: var(--cloudy);
-}
-
-.cost-toggles {
-  display: flex;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.cost-toggle {
-  font-family: 'Poppins', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--light-gray);
-  background: transparent;
-  color: var(--cloudy);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.cost-toggle:hover {
-  background: var(--hover-subtle);
-  color: var(--text-primary);
-}
-
-.cost-toggle.active {
-  background: var(--terra-bg);
-  border-color: var(--terra);
-  color: var(--terra);
-}
-
-/* ─── Next Pipeline Card ──────────────────────────────────────────────────── */
-
-.next-pipeline-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.pipeline-schedule {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.pipeline-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: var(--stage-bg);
-  border-radius: var(--radius);
-}
-
-.pipeline-type {
-  font-family: 'Poppins', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.pipeline-time {
-  font-family: 'Poppins', sans-serif;
-  font-size: 12px;
-  color: var(--cloudy);
-}
-
-/* ─── Sector Filter Buttons ───────────────────────────────────────────────── */
-
-.sector-filter-btn {
+.sector-count {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   color: var(--cloudy);
-  background: transparent;
-  border: 1px solid var(--light-gray);
-  border-radius: 20px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.sector-filter-btn:hover {
-  background: var(--hover-subtle);
-  color: var(--text-primary);
-}
-
-.sector-filter-btn.active {
-  background: var(--terra-bg);
-  border-color: var(--terra);
-  color: var(--terra);
 }
 
 .stages {
@@ -313,4 +181,251 @@
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   color: var(--cloudy);
+}
+
+/* ─── Podcast status card ─── */
+
+.podcast-status-card {
+  margin-top: 20px;
+}
+
+.podcast-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 12px;
+}
+
+.podcast-stat-value {
+  font-family: 'Poppins', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.podcast-stat-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+}
+
+.podcast-meta {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-bottom: 12px;
+}
+
+.podcast-warnings {
+  margin-top: 8px;
+}
+
+.podcast-warnings-toggle {
+  background: none;
+  border: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--terra);
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+
+.podcast-warnings-toggle:hover {
+  opacity: 0.8;
+}
+
+.podcast-warnings-list {
+  list-style: none;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.podcast-warnings-list li {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--terra);
+  padding: 6px 10px;
+  background: var(--terra-bg);
+  border-radius: var(--radius);
+}
+
+/* ── Editorial cards row ─────────────────────────────── */
+
+.dashboard-editorial {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+  margin-top: var(--sp-6);
+}
+
+.card-link {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--terra);
+  text-decoration: none;
+}
+
+.card-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Editorial summary ───────────────────────────────── */
+
+.editorial-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.editorial-stat {
+  text-align: center;
+}
+
+.editorial-stat-value {
+  font-family: 'Poppins', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.editorial-stat-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-top: 2px;
+}
+
+.editorial-session {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-top: var(--sp-3);
+  text-align: center;
+}
+
+/* ── Post candidates ─────────────────────────────────── */
+
+.candidates-count {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--terra);
+  font-weight: 600;
+}
+
+.candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--sp-3);
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius);
+  background: var(--stage-bg);
+}
+
+.candidate-item .draft-link {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.candidate-priority {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+}
+
+.priority-immediate {
+  color: var(--danger);
+}
+
+.priority-high {
+  color: var(--terra);
+}
+
+.candidate-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.candidates-more {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--terra);
+  text-decoration: none;
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.candidates-more:hover {
+  text-decoration: underline;
+}
+
+/* ── Cost summary ────────────────────────────────────── */
+
+.cost-summary-display {
+  margin-top: var(--sp-3);
+  font-family: 'Poppins', sans-serif;
+}
+
+.cost-summary-value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.cost-ok { color: var(--sage); }
+.cost-warning { color: var(--warning); }
+.cost-danger { color: var(--danger); }
+
+.cost-summary-budget {
+  font-size: 14px;
+  color: var(--cloudy);
+}
+
+.cost-summary-pct {
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-left: 4px;
+}
+
+.cost-summary-bar {
+  margin-top: var(--sp-3);
+  height: 6px;
+  background: var(--light-gray);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cost-summary-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.cost-summary-fill.cost-ok { background: var(--sage); }
+.cost-summary-fill.cost-warning { background: var(--warning); }
+.cost-summary-fill.cost-danger { background: var(--danger); }
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-editorial { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-panels { grid-template-columns: 1fr; }
+  .dashboard-editorial { grid-template-columns: 1fr; }
 }

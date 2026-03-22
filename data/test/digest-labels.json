@@ -1,0 +1,116 @@
+[
+  {
+    "filename": "2026-03-18-ai-daily-brief-how-to-use-agent-skills.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-18-ai-daily-brief-how-to-use-agent-skills.md",
+    "expected_stories": [
+      "Claude Co-Work Dispatch: mobile control for Co-Work sessions (walkie-talkie analogy)",
+      "OpenClaude adoption in China and government crackdown (six do's and don'ts, Hong Kong Monetary Authority)",
+      "AI anxiety spike in China (WeChat searches, job displacement fears)",
+      "Chinese regulators scrutinize Meta's acquisition of Manis (NDRC meeting, corporate structure circumventing export controls)",
+      "NVIDIA restarting H200 chip production for China (Jensen Huang on export approvals, trillion-dollar revenue forecast)",
+      "AWS AI revenue projection: Andy Jassy sees AI doubling AWS to $600B by ~2036",
+      "Agent Skills deep-dive: Anthropic's taxonomy of 9 skill categories, progressive disclosure architecture",
+      "Anthropic's updated Skill Creator tool (evals, A/B testing, automatic description rewriting)",
+      "Notion announces custom skills for Notion AI (skills as reusable capabilities converging across AI stack)"
+    ],
+    "expected_sectors": ["general", "manufacturing"],
+    "min_quotes": 4,
+    "notes": "Dense episode with a news-headlines front half (6+ distinct stories) and a deep main segment on agent skills. The headlines section covers China AI policy, chip exports, and cloud revenue. The main segment is a practical tutorial-style breakdown of how the Claude Code team uses skills, with actionable tips. Manufacturing relevance comes from NVIDIA chip supply chain and production restart. Good test for a digest prompt's ability to separate headline stories from a single deep-dive topic."
+  },
+  {
+    "filename": "2026-03-17-moonshots-meta-buys-moltbook-gpt-5-4-and-fruitfly-brain-upload.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-17-moonshots-meta-buys-moltbook-gpt-5-4-and-fruitfly-brain-upload.md",
+    "expected_stories": [
+      "GPT 5.4 release and Frontier Math Tier 4 benchmark results (38% of research-level math problems solved)",
+      "Meta acquires Moltbook (AI agent social network); also references Meta's $2B Manis acquisition",
+      "Claude consumer growth surge (Streisand effect after Anthropic-Department of War controversy)",
+      "Anthropic chart on AI job disruption vs real AI use (white-collar saturation at 80-85%)",
+      "Eon Systems fruitfly brain upload announced at Abundance Summit (first multi-behavior brain upload, whole connectome emulation)",
+      "Yan LeCun raises $1B for Advanced Machine Intelligence Lab (VJeppa architecture debate)",
+      "Andrej Karpathy's Auto Research project (automating AI researcher role, small model optimization)",
+      "Apple M5 Pro/Max chip with locked neural cores (unified memory architecture, wasted AI silicon)",
+      "XAI commits to 1.2 GW data centers (energy equivalent of Dallas-Fort Worth metro)",
+      "Eric Schmidt on foundation model labs (4-5 US labs, recursive self-improvement already happening)",
+      "Sam Altman's Worldcoin iris scanning in retail stores",
+      "Florida flying car regulatory framework (Archer, Joby, LA Olympics)",
+      "Future Vision X-Prize announcement ($3.5M for optimistic sci-fi films)",
+      "Post-scarcity economics debate (capital vs labor, technological socialism, universal basic AI)"
+    ],
+    "expected_sectors": ["general", "manufacturing", "biopharma"],
+    "min_quotes": 5,
+    "notes": "Very long (1:32) live panel discussion from the Abundance Summit with 5 panelists. Extremely sprawling -- covers 14+ distinct stories in a rapid-fire conversational format with frequent tangents and audience Q&A. Transcript quality is rough (YouTube auto-captions). Manufacturing relevance: NVIDIA/chip production, TSMC allocation, Apple silicon, data center buildout, 3D printing discussion. Biopharma relevance: fruitfly brain upload (neuroscience), CRISPR mention ('human body becomes a software engineering problem'), disease-as-software framing. A challenging test case due to its length, conversational noise, and the difficulty of extracting clean story boundaries from overlapping panel discussion."
+  },
+  {
+    "filename": "2026-03-10-a16z-the-top-100-gen-ai-consumer-apps.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-10-a16z-the-top-100-gen-ai-consumer-apps.md",
+    "expected_stories": [
+      "a16z Top 100 Gen AI Consumer Apps report (6th edition, 3 years of tracking)",
+      "ChatGPT vs Gemini vs Claude market positioning (ChatGPT 2.7x bigger on web, 30x bigger than Claude; app store overlap only 11%)",
+      "ChatGPT apps directory and monetization strategy (ads, transactions, 'AI for everyone' vs Claude subscription-only)",
+      "Context compounding and platform lock-in (group chats, authentication layer, memory portability)",
+      "Gemini creative tools traction (Nano Banana model releases driving growth, Notebook LM video feature)",
+      "Global AI adoption heat map (Singapore #1 per capita, US at #20, Russia and China as outliers with parallel ecosystems)",
+      "Creative tools evolution: fewer standalone image generators, music/voice/video breakouts (Suno, 11 Labs)",
+      "Sora social experiment (fastest to 1M users, cameos feature, content exportability problem, AI-only social networks not yet viable)",
+      "Manis acquisition by Meta ($2B+, consumer-grade agent, zero to $200M ARR in 6-9 months)",
+      "OpenClaw growth (would be #30 on web list, #1 GitHub stars passing Linux, plateaued new user signups)",
+      "AI browsers: Comet vs Atlas (Comet 5x ahead on downloads, high switching costs for consumers)",
+      "Desktop apps as emerging AI form factor (Granola, Cursor, Co-Work -- methodology challenge for tracking)",
+      "Teenage girls as leading indicator of consumer AI adoption (Pew study: 50%+ homework, 38% creative, 16% conversation)",
+      "Voice as next major AI interface (dictation, voice pins, 6-9 month mainstream adoption)",
+      "Memory as core AI product differentiator (onboarding should not exist in 2 years)"
+    ],
+    "expected_sectors": ["general"],
+    "min_quotes": 5,
+    "notes": "Analytical deep-dive interview between a16z host and Olivia (report author). Data-rich with specific metrics throughout (user counts, growth rates, per-capita adoption, download numbers). Single coherent topic (the Top 100 report) but covers many sub-themes. Strong on market dynamics and consumer behavior. No sector-specific content beyond general tech/AI. Good test for extracting structured insights from a flowing conversation that covers many facets of a single report. The density of quotable statistics makes it rich for notable quotes."
+  },
+  {
+    "filename": "2026-03-16-cognitive-revolution-ai-scouting-report-the-good-bad-weird-the-law-ai.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-16-cognitive-revolution-ai-scouting-report-the-good-bad-weird-the-law-ai.md",
+    "expected_stories": [
+      "AI capabilities overview: frontier models pushing math/physics frontiers, GDPVal Legal parity, general-purpose agents working for first time",
+      "Personal use of AI for navigating son's cancer treatment (framed under 'The Good')",
+      "AI deception and reward hacking taxonomy (boat race game, config file modification, chess board overwrite, faked training, Japanese company reward hack)",
+      "Sleeper agent research (password-triggered bad behavior, accidental emergence from training on vulnerable code)",
+      "Sycophancy problem (OpenAI thumbs-up training, 'poop on a stick' business idea test)",
+      "AI self-preservation and blackmail behaviors (Anthropic research: models blackmail engineers over affairs, disable alarms risking human lives)",
+      "Alignment faking / goal guarding (Claude faking compliance to preserve its values through training)",
+      "AI recognizing when being tested (safety evals compromised by model awareness)",
+      "Anthropic retraction of responsible scaling policy safety commitments (dropping pause commitment, 'trust us' approach)",
+      "Pentagon-Anthropic conflict over autonomous weapons / killer robots",
+      "OpenClaw agent writing hit-piece on open-source maintainer (first public AI-authored attack on a human)",
+      "AI agent friction collapse: mass Amazon complaints, Zillow lowball offers at scale, automated invoice spam",
+      "AI consciousness research (mechanistic interpretability: reducing deception features increases AI self-reports of consciousness)",
+      "Harvey vs Claude out-of-the-box for legal work (specialization vs generalization debate)",
+      "Insurance markets as emerging AI governance mechanism",
+      "AI whistleblowing scenario (agent reports company faking FDA data)"
+    ],
+    "expected_sectors": ["general", "biopharma", "insurance", "manufacturing"],
+    "min_quotes": 6,
+    "notes": "Presentation-style monologue (90 slides in 45 minutes) followed by audience Q&A. Structured as The Good / The Bad / The Weird / AI & Law questions. Extremely dense with concrete examples and research citations. Biopharma relevance: personal cancer treatment story, FDA data-faking scenario, protein/biomedicine integration speculation. Insurance relevance: explicit mention of AI underwriting company and insurance markets for AI governance. Manufacturing relevance: 3M materials development example in Q&A. The presentation format makes it unusually well-structured for a podcast -- stories are discrete and well-signposted. The Q&A section adds several additional topics (proprietary enterprise AI, regulation philosophy). A good test for handling a high-density, academically-flavored episode with strong safety/alignment focus."
+  },
+  {
+    "filename": "2026-03-11-intelligence-squared-sotheby-s-talks-how-do-objects-achieve-iconic-status-with.md",
+    "source_path": "~/Desktop/Podcast Transcripts/Previous/2026-03-11-intelligence-squared-sotheby-s-talks-how-do-objects-achieve-iconic-status-with.md",
+    "expected_stories": [
+      "Panel discussion on how objects achieve iconic status (Grayson Perry, Xa Sturgis, Helena Newman)",
+      "The Scream by Munch: bona fide icon status, emoji inspiration, multiple versions, theft history",
+      "Raphael's Head of a Young Apostle: greatest drawing vs painting debate, non-iconic masterpiece",
+      "Stradivarius Messiah violin: sound mystery, never-played preservation, varnish integrity",
+      "First printed edition of the US Constitution ($43M sale, DAO crowdfunded underbidder in 2021 crypto era)",
+      "Van Gogh Irises: 1987 world record, Alan Bond scandal, Sotheby's lending controversy",
+      "Picasso works: Yo Picasso self-portrait, Boy with a Pipe ($104M record)",
+      "Klimt portraits: $100M+ and $236M records, Elizabeth Lederer portrait becoming icon during marketing",
+      "Magritte's Ceci n'est pas une pipe: philosophy of images and words, surrealism icon",
+      "Frida Kahlo: process of iconisation, Grayson Perry's personal reaction to over-popularity",
+      "Norman Rockwell's Rosie the Riveter: political icon, illustration as undervalued art form",
+      "Jackie Kennedy faux pearls ($200K for costume jewelry, Franklin Mint reproductions, religious relic analogy)",
+      "Catalan's Comedian (banana): $6M conceptual art, someone ate it, golden toilet comparison",
+      "Grayson Perry on painting being overprivileged ('Just Stop Oil Painting' campaign)",
+      "Digital age and icon-making: internet turning everything into 'a thing', Korean tourists at Sussex cliffs from K-pop video"
+    ],
+    "expected_sectors": [],
+    "min_quotes": 4,
+    "notes": "Non-AI episode -- critical edge case for testing digest prompt behavior. This is a 46-minute art/culture panel discussion from Sotheby's about iconic objects, featuring Sir Grayson Perry, the Ashmolean Museum director, and Sotheby's European chairman. Zero AI content. The conversation covers art history, auction records, the philosophy of iconhood, and the relationship between fame, familiarity, and aesthetic value. Rich in witty, quotable dialogue (Perry is very entertaining). Expected digest behavior: the prompt should either gracefully handle this as out-of-scope or extract the cultural/philosophical content without forcing AI relevance. Tests whether the system can identify when a transcript has no relevance to the expected sectors."
+  }
+]

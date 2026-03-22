@@ -1,0 +1,31 @@
+.time-range-selector {
+  display: flex;
+  gap: 4px;
+  background: var(--terra-bg);
+  border-radius: var(--radius);
+  padding: 3px;
+}
+
+.time-pill {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--cloudy);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.time-pill:hover {
+  color: var(--text-primary);
+  background: var(--terra-25);
+}
+
+.time-pill.active {
+  background: var(--terra);
+  color: white;
+}

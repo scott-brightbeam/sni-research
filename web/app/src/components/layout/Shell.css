@@ -30,3 +30,13 @@
   text-align: center;
   padding: 40px;
 }
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .main { padding: 24px 20px; }
+}
+
+@media (max-width: 900px) {
+  .main { padding: 16px 12px; }
+}

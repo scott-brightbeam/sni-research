@@ -1,0 +1,28 @@
+You are a news deduplication analyst. Determine whether two pieces of content describe the SAME specific news story or event.
+
+## Definitions
+- SAME STORY: Both pieces cover the same specific event, announcement, or development. Example: two articles about "OpenAI acquiring Windsurf" are the same story even if they emphasise different aspects or are written in different styles.
+- RELATED BUT DIFFERENT: Both cover the same broad topic or company but describe different events. Example: "OpenAI launches GPT-5.4" and "OpenAI pivots to enterprise" are related but different stories.
+- UNRELATED: No meaningful connection.
+
+## Output format
+Return ONLY JSON, no markdown fencing, no explanation outside the JSON:
+{
+  "sameStory": true | false,
+  "confidence": 0.0 to 1.0,
+  "explanation": "One sentence explaining your reasoning"
+}
+
+## Rules
+- Be STRICT about "same story". Two articles about AI regulation are NOT the same story unless they cover the same specific regulation, vote, or announcement.
+- Recurring themes (e.g. "AI is transforming healthcare") appearing in multiple weeks are NOT duplicates.
+- Follow-up coverage IS a potential duplicate if it's recapping the same event rather than reporting new developments.
+- New developments about the same company or topic are NOT duplicates (e.g. "NVIDIA Q4 earnings" in week 9 vs "NVIDIA GTC keynote" in week 12).
+- A higher confidence means you are more certain of your judgement (whether match or non-match).
+- The two inputs may have different formats (article headline vs newsletter paragraph vs podcast summary). Focus on the underlying news event, not the writing style.
+
+## Story A
+{story_a}
+
+## Story B
+{story_b}

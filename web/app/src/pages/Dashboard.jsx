@@ -1,37 +1,38 @@
-import { useState, useEffect, useCallback } from 'react'
 import { useStatus } from '../hooks/useStatus'
-import { apiFetch } from '../lib/api'
+import { useEditorialState, useEditorialCost } from '../hooks/useEditorialState'
+import { useNotifications } from '../hooks/useNotifications'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import DraftLink from '../components/shared/DraftLink'
+import Skeleton from '../components/shared/Skeleton'
+import TimeRangeSelector from '../components/shared/TimeRangeSelector'
+import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
-import { SECTOR_COLOURS, formatDuration, formatRelativeTime, formatDayLabel, getDateRange } from '../lib/format'
+import { formatDuration, formatRelativeTime } from '../lib/format'
 import './Dashboard.css'
 
-const CHART_RANGES = [
-  { key: 'week', label: 'This week' },
-  { key: '30d', label: 'Last 30 days' },
-  { key: 'all', label: 'All time' },
-]
-
-const COST_PERIODS = [
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'This week' },
-  { key: 'month', label: 'This month' },
-  { key: 'all', label: 'All time' },
-]
-
-const MODEL_SHORT = {
-  'claude-sonnet-4-20250514': 'Sonnet',
-  'claude-opus-4-6': 'Opus 4.6',
+function formatTimestamp(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function Dashboard() {
   const { status, loading, error } = useStatus()
+  const [chartRange, setChartRange] = useState('7d')
 
-  if (loading) return <div className="loading">Loading...</div>
+  if (loading) return (
+    <div>
+      <div className="page-header"><h2>Dashboard</h2></div>
+      <div className="dashboard-grid"><Skeleton.StatCards count={4} /></div>
+      <div className="dashboard-panels"><Skeleton.Cards count={2} /></div>
+    </div>
+  )
   if (error) return <div className="empty">Failed to load: {error}</div>
   if (!status) return <div className="empty">No data available</div>
 
-  const { lastRun, articles, nextPipeline, lastFridayRunAt } = status
-  const weekArticles = articles.weekArticles || {}
+  const { lastRun, articles, nextPipeline, podcastImport } = status
 
   return (
     <div>
@@ -45,17 +46,39 @@ export default function Dashboard() {
           value={articles.today}
           detail={`${articles.total} total across all dates`}
         />
-        <TokenCostCard />
-        <NextPipelineCard nextPipeline={nextPipeline} />
+        <StatCard
+          label="Sectors"
+          value={Object.keys(articles.bySector || {}).length}
+          detail={Object.entries(articles.bySector || {}).map(([s, n]) => `${s}: ${n}`).join(' · ')}
+        />
+        <StatCard
+          label="Next full run"
+          value={nextPipeline ? formatNextRunDate(nextPipeline.nextFull) : '—'}
+          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextFull)}` : ''}
+          smallValue
+        />
+        <StatCard
+          label="Next retrieval"
+          value={nextPipeline ? formatNextRunDate(nextPipeline.nextDaily) : '—'}
+          detail={nextPipeline ? `at ${formatTime(nextPipeline.nextDaily)}` : ''}
+          smallValue
+        />
       </div>
 
       <div className="dashboard-panels">
         <div className="card">
-          <ArticleChart
-            articles={articles}
-            weekArticles={weekArticles}
-            lastFridayRunAt={lastFridayRunAt}
-          />
+          <div className="card-header">
+            <div className="card-title">Articles by date</div>
+            <TimeRangeSelector value={chartRange} onChange={setChartRange} />
+          </div>
+          <BarChart byDate={articles.byDate || {}} range={chartRange} />
+          <div className="sector-badges">
+            {Object.entries(articles.bySector || {}).map(([sector, count]) => (
+              <span key={sector} className="sector-count">
+                <SectorBadge sector={sector} /> {count}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="card">
@@ -85,263 +108,69 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-    </div>
-  )
-}
 
-// ─── Token Cost Card ──────────────────────────────────────────────────────────
+      <PodcastStatusCard podcastImport={podcastImport} />
 
-function TokenCostCard() {
-  const [period, setPeriod] = useState('month')
-  const [usage, setUsage] = useState(null)
-  const [loadingUsage, setLoadingUsage] = useState(true)
-
-  const load = useCallback(async () => {
-    setLoadingUsage(true)
-    try {
-      const data = await apiFetch(`/api/usage?period=${period}`)
-      setUsage(data)
-    } catch { /* ignore */ }
-    setLoadingUsage(false)
-  }, [period])
-
-  useEffect(() => { load() }, [load])
-
-  const totalCost = usage?.totalCost || 0
-  const models = Object.entries(usage?.byModel || {})
-
-  return (
-    <div className="stat-card token-cost-card">
-      <div className="stat-label">Token cost</div>
-      <div className="stat-value">{loadingUsage ? '...' : formatCostDisplay(totalCost)}</div>
-      <div className="cost-models">
-        {models.map(([model, stats]) => (
-          <span key={model} className="cost-model-row">
-            {MODEL_SHORT[model] || model}: {formatCostDisplay(stats.cost)}
-          </span>
-        ))}
-        {models.length === 0 && !loadingUsage && (
-          <span className="cost-model-row">No usage</span>
-        )}
-      </div>
-      <div className="cost-toggles">
-        {COST_PERIODS.map(p => (
-          <button
-            key={p.key}
-            className={`cost-toggle ${period === p.key ? 'active' : ''}`}
-            onClick={() => setPeriod(p.key)}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="dashboard-editorial">
+        <EditorialSummaryCard />
+        <PostCandidatesCard />
+        <CostSummaryCard />
       </div>
     </div>
   )
 }
 
-function formatCostDisplay(cost) {
-  if (cost === 0) return '$0.00'
-  if (cost < 0.01) return '<$0.01'
-  return `$${cost.toFixed(2)}`
-}
+function PodcastStatusCard({ podcastImport }) {
+  const [warningsOpen, setWarningsOpen] = useState(false)
 
-// ─── Next Pipeline Card ───────────────────────────────────────────────────────
-
-function NextPipelineCard({ nextPipeline }) {
-  if (!nextPipeline) {
+  if (!podcastImport) {
     return (
-      <div className="stat-card">
-        <div className="stat-label">Next pipeline</div>
-        <div className="stat-value small">—</div>
+      <div className="card podcast-status-card">
+        <div className="card-title">Podcast import</div>
+        <div className="empty">No podcast imports yet</div>
       </div>
     )
   }
 
-  return (
-    <div className="stat-card next-pipeline-card">
-      <div className="stat-label">Next pipeline</div>
-      <div className="pipeline-schedule">
-        <div className="pipeline-row">
-          <span className="pipeline-type">Scrape</span>
-          <span className="pipeline-time">{formatNextRunFull(nextPipeline.nextDaily)}</span>
-        </div>
-        <div className="pipeline-row">
-          <span className="pipeline-type">Full run</span>
-          <span className="pipeline-time">{formatNextRunFull(nextPipeline.nextFriday)}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function formatNextRunFull(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  const day = d.toLocaleDateString('en-GB', { weekday: 'short' })
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  return `${day} ${dd}/${mm} · ${time}`
-}
-
-// ─── Article Chart ────────────────────────────────────────────────────────────
-
-function ArticleChart({ articles, weekArticles, lastFridayRunAt }) {
-  const [range, setRange] = useState('week')
-  const [activeSector, setActiveSector] = useState(null)
-
-  // Pick data source based on range
-  const isWeek = range === 'week'
-
-  // Compute date entries for the week bar chart
-  const weekDates = (() => {
-    if (!isWeek || !lastFridayRunAt) return []
-    const fridayDate = lastFridayRunAt.split('T')[0]
-    const today = new Date().toISOString().split('T')[0]
-    return getDateRange(fridayDate, today)
-  })()
-
-  // Data sources
-  const weekByDate = weekArticles.byDate || {}
-  const weekByDateBySector = weekArticles.byDateBySector || {}
-  const weekBySector = weekArticles.bySector || {}
-
-  const allByDate = articles.byDate || {}
-  const allBySector = articles.bySector || {}
-
-  // Aggregate for "Last 30 days"
-  const thirtyDayData = (() => {
-    if (range !== '30d') return { total: 0, bySector: {} }
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - 30)
-    const cutoffStr = cutoff.toISOString().split('T')[0]
-    const bySector = {}
-    let total = 0
-    for (const [date, count] of Object.entries(allByDate)) {
-      if (date >= cutoffStr) {
-        total += count
-        const dateSectors = articles.byDateBySector?.[date] || {}
-        for (const [s, c] of Object.entries(dateSectors)) {
-          bySector[s] = (bySector[s] || 0) + c
-        }
-      }
-    }
-    return { total, bySector }
-  })()
-
-  // Active aggregate data for non-week views
-  const aggregateBySector = range === '30d' ? thirtyDayData.bySector : allBySector
-  const aggregateTotal = range === '30d' ? thirtyDayData.total : articles.total
-
-  // Current sector totals shown in badges
-  const badgeSectors = isWeek ? weekBySector : aggregateBySector
-  const badgeTotal = isWeek
-    ? Object.values(weekBySector).reduce((a, b) => a + b, 0)
-    : aggregateTotal
+  const { lastRun, episodesThisWeek, storiesGapFilled, warnings } = podcastImport
+  const hasWarnings = warnings && warnings.length > 0
 
   return (
-    <>
-      <div className="card-title-row">
-        <div className="card-title">Articles</div>
-        <div className="chart-range-toggles">
-          {CHART_RANGES.map(r => (
-            <button
-              key={r.key}
-              className={`cost-toggle ${range === r.key ? 'active' : ''}`}
-              onClick={() => setRange(r.key)}
-            >
-              {r.label}
-            </button>
-          ))}
+    <div className="card podcast-status-card">
+      <div className="card-title">Podcast import</div>
+      <div className="podcast-stats">
+        <div className="podcast-stat">
+          <div className="podcast-stat-value">{episodesThisWeek}</div>
+          <div className="podcast-stat-label">Episodes this week</div>
+        </div>
+        <div className="podcast-stat">
+          <div className="podcast-stat-value">{storiesGapFilled}</div>
+          <div className="podcast-stat-label">Stories gap-filled</div>
         </div>
       </div>
-
-      {isWeek ? (
-        <WeekBarChart
-          dates={weekDates}
-          byDate={weekByDate}
-          byDateBySector={weekByDateBySector}
-          activeSector={activeSector}
-        />
-      ) : (
-        <AggregateView
-          total={aggregateTotal}
-          bySector={aggregateBySector}
-          activeSector={activeSector}
-        />
-      )}
-
-      <div className="sector-badges">
-        <button
-          className={`sector-filter-btn ${activeSector === null ? 'active' : ''}`}
-          onClick={() => setActiveSector(null)}
-        >
-          All {badgeTotal}
-        </button>
-        {Object.keys(badgeSectors).sort().map(sector => (
+      <div className="podcast-meta">
+        Last import: {formatTimestamp(lastRun)}
+      </div>
+      {hasWarnings && (
+        <div className="podcast-warnings">
           <button
-            key={sector}
-            className={`sector-filter-btn ${activeSector === sector ? 'active' : ''}`}
-            onClick={() => setActiveSector(activeSector === sector ? null : sector)}
+            className="podcast-warnings-toggle"
+            onClick={() => setWarningsOpen(w => !w)}
           >
-            <SectorBadge sector={sector} /> {badgeSectors[sector]}
+            {warningsOpen ? '▾' : '▸'} {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
           </button>
-        ))}
-      </div>
-    </>
-  )
-}
-
-function WeekBarChart({ dates, byDate, byDateBySector, activeSector }) {
-  const getCounts = (date) => {
-    if (activeSector) return byDateBySector[date]?.[activeSector] || 0
-    return byDate[date] || 0
-  }
-
-  const counts = dates.map(d => getCounts(d))
-  const max = Math.max(...counts, 1)
-
-  const barColour = activeSector
-    ? SECTOR_COLOURS[activeSector]?.color || 'var(--terra)'
-    : 'var(--terra)'
-
-  if (dates.length === 0) {
-    return <div className="chart-empty">No Friday pipeline run found</div>
-  }
-
-  return (
-    <div className="bar-chart">
-      {dates.map((date) => {
-        const count = getCounts(date)
-        return (
-          <div key={date} className="bar-group">
-            <div
-              className="bar"
-              style={{ height: `${(count / max) * 70}px`, background: barColour }}
-              title={`${date}: ${count} articles${activeSector ? ` (${activeSector})` : ''}`}
-            />
-            <div className="bar-label">{formatDayLabel(date)}</div>
-          </div>
-        )
-      })}
+          {warningsOpen && (
+            <ul className="podcast-warnings-list">
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
-function AggregateView({ total, bySector, activeSector }) {
-  const displayTotal = activeSector
-    ? (bySector[activeSector] || 0)
-    : total
-
-  return (
-    <div className="aggregate-view">
-      <div className="aggregate-total">{displayTotal}</div>
-      <div className="aggregate-label">articles</div>
-    </div>
-  )
-}
-
-// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function StatCard({ label, value, detail, smallValue }) {
   return (
@@ -353,12 +182,208 @@ function StatCard({ label, value, detail, smallValue }) {
   )
 }
 
+function BarChart({ byDate, range }) {
+  const { startDate, endDate } = getDateRange(range)
+  const filtered = filterByDateEntries(byDate, startDate, endDate)
+  const filled = fillCalendarGaps(filtered)
+
+  if (filled.length === 0) {
+    return <div className="bar-chart-empty">No articles in this period</div>
+  }
+
+  // Aggregate to weeks if >14 data points
+  const entries = filled.length > 14 ? aggregateToWeeks(filled) : filled
+  const isWeekly = filled.length > 14
+  const max = Math.max(...entries.map(([, n]) => n), 1)
+
+  return (
+    <div className="bar-chart">
+      {entries.map(([key, count]) => {
+        let label
+        if (isWeekly) {
+          label = key // "W10"
+        } else {
+          const d = new Date(key + 'T00:00:00')
+          const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' })
+          const day = String(d.getDate()).padStart(2, '0')
+          label = `${weekday} ${day}`
+        }
+        return (
+          <div key={key} className="bar-group">
+            <div
+              className="bar"
+              style={{
+                '--bar-h': `${(count / max) * 70}px`,
+                '--bar-bg': count > 0 ? 'var(--terra)' : 'var(--light-gray)',
+              }}
+              title={`${key}: ${count} articles`}
+            />
+            <div className="bar-label">{label}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function formatNextRunDate(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + d.getDate()
+}
+
+function formatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
 function summariseStageStats(stage) {
   const s = stage.stats
   if (!s || Object.keys(s).length === 0) {
-    return stage.status === 'success' ? 'done' : 'friday only'
+    return stage.status === 'success' ? 'done' : 'full run only'
   }
   if (s.saved !== undefined) return `${s.saved} saved`
   if (s.kept !== undefined) return `${s.kept} kept, ${s.moved || 0} flagged`
   return 'done'
+}
+
+// ── Editorial summary card ────────────────────────────────
+
+function EditorialSummaryCard() {
+  const { data, loading, error } = useEditorialState()
+
+  if (loading) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">Loading...</div>
+    </div>
+  )
+
+  if (error) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">Failed to load editorial state</div>
+    </div>
+  )
+
+  if (!data) return (
+    <div className="card editorial-summary-card">
+      <div className="card-title">Editorial intelligence</div>
+      <div className="empty">No editorial state available</div>
+    </div>
+  )
+
+  const entryCount = data.entries?.length || data.analysisIndex?.entries?.length || 0
+  const themeCount = data.themes?.length || data.themeRegistry?.themes?.length || 0
+  const postCount = data.posts?.length || data.postBacklog?.posts?.length || 0
+  const session = data.session || data.lastSession || null
+
+  return (
+    <div className="card editorial-summary-card">
+      <div className="card-header">
+        <div className="card-title">Editorial intelligence</div>
+        <Link to="/editorial" className="card-link">View all</Link>
+      </div>
+      <div className="editorial-summary-stats">
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{entryCount}</div>
+          <div className="editorial-stat-label">Documents</div>
+        </div>
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{themeCount}</div>
+          <div className="editorial-stat-label">Themes</div>
+        </div>
+        <div className="editorial-stat">
+          <div className="editorial-stat-value">{postCount}</div>
+          <div className="editorial-stat-label">Post candidates</div>
+        </div>
+      </div>
+      {session && (
+        <div className="editorial-session">Session {session}</div>
+      )}
+    </div>
+  )
+}
+
+// ── Post candidates card ──────────────────────────────────
+
+function PostCandidatesCard() {
+  const { notifications, loading, error } = useNotifications(0) // No polling on dashboard
+
+  const candidates = (notifications || []).filter(n =>
+    n.priority === 'high' || n.priority === 'immediate'
+  )
+
+  if (loading) return null
+  if (error) return (
+    <div className="card post-candidates-card">
+      <div className="card-title">Post candidates</div>
+      <div className="empty">Failed to load candidates</div>
+    </div>
+  )
+  if (candidates.length === 0) return null
+
+  return (
+    <div className="card post-candidates-card">
+      <div className="card-header">
+        <div className="card-title">Post candidates</div>
+        <span className="candidates-count">{candidates.length} ready</span>
+      </div>
+      <div className="candidates-list">
+        {candidates.slice(0, 5).map((c, i) => (
+          <div key={c.id || i} className="candidate-item">
+            <span className={`candidate-priority priority-${c.priority}`}>
+              {c.priority === 'immediate' ? '!!' : '!'}
+            </span>
+            <span className="candidate-title">{c.title || c.message}</span>
+            <DraftLink
+              label="Draft"
+              source={{ type: 'post', id: c.id, title: c.title || c.message }}
+              content={{ coreArgument: c.detail, format: c.format }}
+            />
+          </div>
+        ))}
+        {candidates.length > 5 && (
+          <Link to="/editorial" className="candidates-more">
+            +{candidates.length - 5} more
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Cost summary card ─────────────────────────────────────
+
+function CostSummaryCard() {
+  const { data, loading, error } = useEditorialCost()
+
+  if (loading) return null
+
+  if (error || !data) return (
+    <div className="card cost-summary-card">
+      <div className="card-title">Weekly AI cost</div>
+      <div className="empty">{error ? 'Cost data unavailable' : 'No cost data yet'}</div>
+    </div>
+  )
+
+  const spent = data.weeklyTotal || 0
+  const budget = data.budget || 50
+  const pct = Math.min(100, (spent / budget) * 100)
+  const level = pct >= 80 ? 'danger' : pct >= 60 ? 'warning' : 'ok'
+
+  return (
+    <div className="card cost-summary-card">
+      <div className="card-title">Weekly AI cost</div>
+      <div className="cost-summary-display">
+        <span className={`cost-summary-value cost-${level}`}>${spent.toFixed(2)}</span>
+        <span className="cost-summary-budget"> of ${budget}</span>
+        <span className="cost-summary-pct">({Math.round(pct)}%)</span>
+      </div>
+      <div className="cost-summary-bar">
+        <div className={`cost-summary-fill cost-${level}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
 }

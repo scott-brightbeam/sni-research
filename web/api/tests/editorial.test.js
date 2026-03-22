@@ -1,0 +1,684 @@
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs'
+import { join, resolve } from 'path'
+import { tmpdir } from 'os'
+
+// Use an isolated temp directory so tests never touch production data/editorial/
+const TEST_DIR = join(tmpdir(), `sni-editorial-test-${process.pid}`)
+process.env.SNI_EDITORIAL_DIR = TEST_DIR
+
+// Import AFTER setting env var so the module picks up the override
+const {
+  getEditorialState,
+  searchEditorial,
+  getEditorialBacklog,
+  getEditorialThemes,
+  getEditorialNotifications,
+  getEditorialStatus,
+  getEditorialCost,
+  getEditorialActivity,
+  renderEditorialSection,
+  getDiscoverProgress,
+  getEditorialDraft,
+} = await import('../routes/editorial.js')
+
+const testState = {
+  counters: {
+    nextSession: 16,
+    nextDocument: 126,
+    nextPost: 92,
+  },
+  analysisIndex: {
+    '120': {
+      title: 'What People Really Want From AI',
+      source: 'AI Daily Brief',
+      host: 'Nathaniel Whittemore',
+      date: '2026-03-19',
+      dateProcessed: '2026-03-20',
+      session: 15,
+      tier: 1,
+      status: 'active',
+      themes: ['T01', 'T10', 'T23'],
+      summary: 'Analysis of Anthropic qualitative survey.',
+      keyThemes: 'Anthropic survey, experiential benefits',
+      postPotential: 'high',
+      postPotentialReasoning: 'experiential-vs-hypothetical gap',
+    },
+    '122': {
+      title: 'Recursive Self-Improvement, Live Player',
+      source: 'Cognitive Revolution',
+      host: 'Zvi Mowshowitz',
+      date: '2026-03-19',
+      dateProcessed: '2026-03-20',
+      session: 15,
+      tier: 1,
+      status: 'active',
+      themes: ['T01', 'T03', 'T05'],
+      summary: '3+ hour conversation covering the full AI landscape.',
+      keyThemes: 'Lab competition, Google culture problem, model release fatigue',
+      postPotential: 'very-high',
+      postPotentialReasoning: 'multiple enterprise angles',
+    },
+    '123': {
+      title: 'Understanding Consumer Debt Collections',
+      source: 'Complex Systems',
+      host: null,
+      date: '2026-03-19',
+      dateProcessed: '2026-03-20',
+      session: 15,
+      tier: 2,
+      status: 'active',
+      themes: [],
+      summary: 'Debt collection episode.',
+      keyThemes: 'debt collection, structural analogy',
+      postPotential: 'low',
+      postPotentialReasoning: 'no direct AI content',
+    },
+  },
+  themeRegistry: {
+    'T01': {
+      name: 'Enterprise Diffusion Gap',
+      created: 'Session 1',
+      lastUpdated: 'Session 15',
+      documentCount: 34,
+      evidence: [
+        { session: 15, source: 'AI Daily Brief (19 March)', content: 'Anthropic survey finding.' },
+        { session: 14, source: 'Cognitive Revolution', content: 'Prior evidence.' },
+        { session: 10, source: 'Moonshots', content: 'Old evidence.' },
+      ],
+      crossConnections: [
+        { theme: 'T05', reasoning: 'model release fatigue illustrates capability without absorption' },
+      ],
+    },
+    'T03': {
+      name: 'Agentic Architecture',
+      created: 'Session 3',
+      lastUpdated: 'Session 15',
+      documentCount: 28,
+      evidence: [
+        { session: 15, source: 'Cognitive Revolution', content: 'Agent deployment patterns.' },
+      ],
+      crossConnections: [],
+    },
+    'T12': {
+      name: 'Enterprise Data Strategy',
+      created: 'Session 4',
+      lastUpdated: 'Session 9',
+      documentCount: 6,
+      evidence: [
+        { session: 9, source: 'Moonshots', content: 'Data strategy evidence.' },
+      ],
+      crossConnections: [],
+    },
+  },
+  postBacklog: {
+    '88': {
+      title: 'The Benefits Are Real, the Fears Are Imagined',
+      workingTitle: 'Your Employees AI Fears',
+      status: 'suggested',
+      dateAdded: '2026-03-20',
+      session: 15,
+      coreArgument: 'Anthropic survey found experiential benefits at double the rate of hypothetical harms.',
+      format: 'news-decoder',
+      sourceDocuments: [120],
+      freshness: 'timely-evergreen',
+      priority: 'high',
+      notes: 'Independent worker split is the sharpest enterprise hook.',
+    },
+    '91': {
+      title: 'The Contract Clause Nobody Is Talking About',
+      workingTitle: 'All-Lawful-Use AI Procurement',
+      status: 'suggested',
+      dateAdded: '2026-03-20',
+      session: 15,
+      coreArgument: 'All-lawful-use contract language in government AI procurement.',
+      format: 'quiet-observation',
+      sourceDocuments: [122],
+      freshness: 'very-timely',
+      priority: 'immediate',
+      notes: 'Governance analysis, not political commentary.',
+    },
+    '43': {
+      title: 'Multi-agent team dysfunction',
+      status: 'published',
+      dateAdded: '2026-02-15',
+      session: 10,
+      coreArgument: 'Multi-agent orchestration fails in predictable ways.',
+      format: 'practitioners-take',
+      sourceDocuments: [95],
+      freshness: 'evergreen',
+      priority: 'medium',
+    },
+  },
+  decisionLog: [
+    {
+      id: '15.1',
+      session: 15,
+      title: 'Tier classification of new documents',
+      decision: '4 Tier 1, 2 Tier 2, 1 STUB.',
+      reasoning: 'Complex Systems episode has no direct AI content.',
+    },
+    {
+      id: '15.2',
+      session: 15,
+      title: 'Contract clause post priority',
+      decision: 'IMMEDIATE priority for post #91.',
+      reasoning: 'Time-sensitive governance finding.',
+    },
+  ],
+  corpusStats: {
+    totalDocuments: 125,
+    activeTier1: 82,
+    activeTier2: 9,
+    retired: 27,
+    stubs: 5,
+    activeThemes: 26,
+    totalPosts: 91,
+    postsPublished: 2,
+  },
+  rotationCandidates: [
+    { docId: 112, reason: 'abstract, low info density', priority: 'low' },
+  ],
+}
+
+const testNotifications = [
+  { postId: 91, title: 'The Contract Clause Nobody Is Talking About', priority: 'immediate', date: '2026-03-20T14:00:00Z' },
+  { postId: 88, title: 'The Benefits Are Real, the Fears Are Imagined', priority: 'high', date: '2026-03-20T14:05:00Z' },
+]
+
+const testActivity = [
+  { type: 'analyse', title: 'ANALYSE Session 15', detail: '7 transcripts processed', timestamp: '2026-03-20T12:00:00Z' },
+  { type: 'discover', title: 'DISCOVER Session 15', detail: '43 stories found', timestamp: '2026-03-20T12:30:00Z' },
+  { type: 'draft', title: 'DRAFT Week 12', detail: 'v1 drafted, critique complete, revised', timestamp: '2026-03-20T18:00:00Z' },
+]
+
+// ── Setup / Teardown ─────────────────────────────────────
+
+beforeEach(() => {
+  mkdirSync(TEST_DIR, { recursive: true })
+  writeFileSync(join(TEST_DIR, 'state.json'), JSON.stringify(testState))
+  writeFileSync(join(TEST_DIR, 'notifications.json'), JSON.stringify(testNotifications))
+  writeFileSync(join(TEST_DIR, 'activity.json'), JSON.stringify(testActivity))
+})
+
+afterEach(() => {
+  // Remove the entire temp directory — isolated, so safe to nuke
+  if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true })
+})
+
+// ── Tests ────────────────────────────────────────────────
+
+describe('GET /api/editorial/state', () => {
+  it('returns counters and corpus stats when no section specified', async () => {
+    const result = await getEditorialState()
+    expect(result.counters.nextSession).toBe(16)
+    expect(result.corpusStats.totalDocuments).toBe(125)
+    expect(result.rotationCandidates).toHaveLength(1)
+  })
+
+  it('returns analysis index entries sorted by id descending', async () => {
+    const result = await getEditorialState({ section: 'analysisIndex' })
+    expect(result.entries).toHaveLength(3)
+    expect(result.entries[0].id).toBe(123)
+    expect(result.entries[1].id).toBe(122)
+    expect(result.entries[2].id).toBe(120)
+  })
+
+  it('returns theme registry sorted by code', async () => {
+    const result = await getEditorialState({ section: 'themeRegistry' })
+    expect(result.themes).toHaveLength(3)
+    expect(result.themes[0].code).toBe('T01')
+    expect(result.themes[1].code).toBe('T03')
+    expect(result.themes[2].code).toBe('T12')
+  })
+
+  it('returns post backlog sorted by id descending', async () => {
+    const result = await getEditorialState({ section: 'postBacklog' })
+    expect(result.posts).toHaveLength(3)
+    expect(result.posts[0].id).toBe(91)
+    expect(result.posts[1].id).toBe(88)
+    expect(result.posts[2].id).toBe(43)
+  })
+
+  it('returns decision log in reverse order', async () => {
+    const result = await getEditorialState({ section: 'decisionLog' })
+    expect(result.decisions).toHaveLength(2)
+    expect(result.decisions[0].id).toBe('15.2')
+    expect(result.decisions[1].id).toBe('15.1')
+  })
+
+  it('returns error for unknown section', async () => {
+    const result = await getEditorialState({ section: 'nonsense' })
+    expect(result.error).toContain('Unknown section')
+  })
+
+  it('handles missing state.json gracefully', async () => {
+    rmSync(join(TEST_DIR, 'state.json'))
+    const result = await getEditorialState()
+    expect(result.error).toBeTruthy()
+    expect(result.data).toBeNull()
+  })
+})
+
+describe('GET /api/editorial/search', () => {
+  it('searches across analysis index by title', async () => {
+    const result = await searchEditorial({ q: 'Recursive' })
+    expect(result.results).toHaveLength(1)
+    expect(result.results[0].type).toBe('analysisIndex')
+    expect(result.results[0].id).toBe(122)
+  })
+
+  it('searches across themes by name', async () => {
+    const result = await searchEditorial({ q: 'Diffusion' })
+    const themes = result.results.filter(r => r.type === 'theme')
+    expect(themes.length).toBeGreaterThanOrEqual(1)
+    expect(themes[0].code).toBe('T01')
+  })
+
+  it('searches across post backlog', async () => {
+    const result = await searchEditorial({ q: 'Contract Clause' })
+    const posts = result.results.filter(r => r.type === 'post')
+    expect(posts.length).toBeGreaterThanOrEqual(1)
+    expect(posts[0].id).toBe(91)
+  })
+
+  it('returns empty results for no match', async () => {
+    const result = await searchEditorial({ q: 'xyznonexistent' })
+    expect(result.results).toHaveLength(0)
+  })
+
+  it('returns empty results when no query', async () => {
+    const result = await searchEditorial({})
+    expect(result.results).toHaveLength(0)
+  })
+})
+
+describe('GET /api/editorial/backlog', () => {
+  it('returns all posts when no filters', async () => {
+    const result = await getEditorialBacklog()
+    expect(result.posts).toHaveLength(3)
+  })
+
+  it('filters by priority', async () => {
+    const result = await getEditorialBacklog({ priority: 'immediate' })
+    expect(result.posts).toHaveLength(1)
+    expect(result.posts[0].id).toBe(91)
+  })
+
+  it('filters by status', async () => {
+    const result = await getEditorialBacklog({ status: 'published' })
+    expect(result.posts).toHaveLength(1)
+    expect(result.posts[0].id).toBe(43)
+  })
+
+  it('filters by format', async () => {
+    const result = await getEditorialBacklog({ format: 'news-decoder' })
+    expect(result.posts).toHaveLength(1)
+    expect(result.posts[0].id).toBe(88)
+  })
+
+  it('returns empty when no state exists', async () => {
+    rmSync(join(TEST_DIR, 'state.json'))
+    const result = await getEditorialBacklog()
+    expect(result.posts).toHaveLength(0)
+  })
+})
+
+describe('GET /api/editorial/themes', () => {
+  it('returns all themes when no filters', async () => {
+    const result = await getEditorialThemes()
+    expect(result.themes).toHaveLength(3)
+  })
+
+  it('filters active themes (evidence in last 3 sessions)', async () => {
+    const result = await getEditorialThemes({ active: 'true' })
+    // T01 and T03 have session 15 evidence; T12 last updated session 9
+    expect(result.themes).toHaveLength(2)
+    expect(result.themes.map(t => t.code)).toContain('T01')
+    expect(result.themes.map(t => t.code)).toContain('T03')
+  })
+
+  it('filters stale themes', async () => {
+    const result = await getEditorialThemes({ stale: 'true' })
+    expect(result.themes).toHaveLength(1)
+    expect(result.themes[0].code).toBe('T12')
+  })
+})
+
+describe('GET /api/editorial/notifications', () => {
+  it('returns notifications array', async () => {
+    const result = await getEditorialNotifications()
+    expect(result.notifications).toHaveLength(2)
+    expect(result.notifications[0].postId).toBe(91)
+  })
+
+  it('returns empty array when file missing', async () => {
+    rmSync(join(TEST_DIR, 'notifications.json'))
+    const result = await getEditorialNotifications()
+    expect(result.notifications).toHaveLength(0)
+  })
+})
+
+describe('GET /api/editorial/status', () => {
+  it('returns all locks as false when no lock files', async () => {
+    const result = await getEditorialStatus()
+    expect(result.locks.analyse).toBe(false)
+    expect(result.locks.discover).toBe(false)
+    expect(result.locks.draft).toBe(false)
+  })
+
+  it('detects analyse lock', async () => {
+    writeFileSync(
+      join(TEST_DIR, '.analyse.lock'),
+      JSON.stringify({ pid: 12345, timestamp: new Date().toISOString(), current: 3, total: 18 })
+    )
+    const result = await getEditorialStatus()
+    expect(result.locks.analyse).toBe(true)
+    expect(result.progress.analyse.pid).toBe(12345)
+    expect(result.progress.analyse.current).toBe(3)
+    expect(result.progress.analyse.total).toBe(18)
+  })
+})
+
+describe('GET /api/editorial/cost', () => {
+  it('returns zero cost when no cost file', async () => {
+    const result = await getEditorialCost()
+    expect(result.weeklyTotal).toBe(0)
+    expect(result.budget).toBe(50)
+  })
+
+  it('returns weekly cost data when file exists', async () => {
+    writeFileSync(join(TEST_DIR, 'cost-log.json'), JSON.stringify({
+      weeks: {
+        '12': { weeklyTotal: 24, budget: 60, breakdown: { analyse: 18, discover: 1, draft: 3, critique: 2 } },
+      },
+    }))
+    const result = await getEditorialCost()
+    expect(result.weeklyTotal).toBe(24)
+    expect(result.breakdown.analyse).toBe(18)
+  })
+
+  it('returns specific week when requested', async () => {
+    writeFileSync(join(TEST_DIR, 'cost-log.json'), JSON.stringify({
+      weeks: {
+        '11': { weeklyTotal: 30, budget: 60, breakdown: {} },
+        '12': { weeklyTotal: 24, budget: 60, breakdown: {} },
+      },
+    }))
+    const result = await getEditorialCost({ week: '11' })
+    expect(result.weeklyTotal).toBe(30)
+  })
+})
+
+describe('GET /api/editorial/activity', () => {
+  it('returns activities in reverse chronological order', async () => {
+    const result = await getEditorialActivity()
+    expect(result.activities).toHaveLength(3)
+    expect(result.activities[0].type).toBe('draft')
+    expect(result.activities[2].type).toBe('analyse')
+  })
+
+  it('respects limit parameter', async () => {
+    const result = await getEditorialActivity({ limit: 2 })
+    expect(result.activities).toHaveLength(2)
+  })
+
+  it('returns empty when no activity file', async () => {
+    rmSync(join(TEST_DIR, 'activity.json'))
+    const result = await getEditorialActivity()
+    expect(result.activities).toHaveLength(0)
+  })
+})
+
+describe('GET /api/editorial/render', () => {
+  it('renders analysis index entry as markdown', async () => {
+    const result = await renderEditorialSection({ section: 'analysisIndex', id: '120' })
+    expect(result.markdown).toContain('What People Really Want From AI')
+    expect(result.markdown).toContain('AI Daily Brief')
+    expect(result.markdown).toContain('Tier')
+  })
+
+  it('renders theme with evidence and cross-connections', async () => {
+    const result = await renderEditorialSection({ section: 'themeRegistry', id: 'T01' })
+    expect(result.markdown).toContain('Enterprise Diffusion Gap')
+    expect(result.markdown).toContain('Evidence')
+    expect(result.markdown).toContain('Cross-connections')
+    expect(result.markdown).toContain('T05')
+  })
+
+  it('returns error for missing entry', async () => {
+    const result = await renderEditorialSection({ section: 'analysisIndex', id: '999' })
+    expect(result.markdown).toContain('not found')
+  })
+
+  it('returns empty when no state', async () => {
+    rmSync(join(TEST_DIR, 'state.json'))
+    const result = await renderEditorialSection({ section: 'analysisIndex' })
+    expect(result.markdown).toBe('')
+  })
+})
+
+describe('GET /api/editorial/discover', () => {
+  it('returns null when no progress file exists', async () => {
+    const result = await getDiscoverProgress({ session: '99' })
+    expect(result.progress).toBeNull()
+  })
+
+  it('returns progress data for specified session', async () => {
+    writeFileSync(join(TEST_DIR, 'discover-progress-session-16.json'), JSON.stringify({
+      processed: [
+        { headline: 'Story 1', status: 'found', url: 'https://example.com/1' },
+        { headline: 'Story 2', status: 'duplicate', reason: 'url' },
+        { headline: 'Story 3', status: 'paywall' },
+      ],
+      stats: { total: 3, found: 1, duplicate: 1, paywall: 1, noUrl: 0, error: 0 },
+    }))
+    const result = await getDiscoverProgress({ session: '16' })
+    expect(result.progress).not.toBeNull()
+    expect(result.progress.stats.total).toBe(3)
+    expect(result.progress.stats.found).toBe(1)
+    expect(result.progress.processed).toHaveLength(3)
+  })
+
+  it('returns latest session when no session specified', async () => {
+    // Write two session files
+    writeFileSync(join(TEST_DIR, 'discover-progress-session-15.json'), JSON.stringify({
+      processed: [{ headline: 'Old', status: 'found' }],
+      stats: { total: 1, found: 1, duplicate: 0, paywall: 0, noUrl: 0, error: 0 },
+    }))
+    writeFileSync(join(TEST_DIR, 'discover-progress-session-16.json'), JSON.stringify({
+      processed: [
+        { headline: 'Story 1', status: 'found' },
+        { headline: 'Story 2', status: 'error' },
+      ],
+      stats: { total: 2, found: 1, duplicate: 0, paywall: 0, noUrl: 0, error: 1 },
+    }))
+    const result = await getDiscoverProgress({})
+    expect(result.session).toBe(16)
+    expect(result.progress.stats.total).toBe(2)
+  })
+})
+
+describe('GET /api/editorial/draft', () => {
+  it('returns nulls when no drafts directory exists', async () => {
+    const result = await getEditorialDraft({})
+    expect(result.session).toBeNull()
+    expect(result.draft).toBeNull()
+    expect(result.critique).toBeNull()
+    expect(result.metrics).toBeNull()
+  })
+
+  it('returns nulls when drafts directory is empty', async () => {
+    mkdirSync(join(TEST_DIR, 'drafts'), { recursive: true })
+    const result = await getEditorialDraft({})
+    expect(result.session).toBeNull()
+    expect(result.draft).toBeNull()
+  })
+
+  it('returns draft for specified session', async () => {
+    const draftsDir = join(TEST_DIR, 'drafts')
+    mkdirSync(draftsDir, { recursive: true })
+    writeFileSync(join(draftsDir, 'draft-session-15-final.md'), '## TL;DR\n\nTest newsletter content.')
+    writeFileSync(join(draftsDir, 'critique-session-15.json'), JSON.stringify({
+      merged: '## Gemini critique\n\nLooks good.',
+      sources: [{ provider: 'gemini', available: true }],
+    }))
+    writeFileSync(join(draftsDir, 'metrics-session-15.json'), JSON.stringify({
+      wordCount: 120,
+      sectionCount: 1,
+      readingTimeMinutes: 0.5,
+    }))
+
+    const result = await getEditorialDraft({ session: '15' })
+    expect(result.session).toBe(15)
+    expect(result.draft).toContain('TL;DR')
+    expect(result.draft).toContain('Test newsletter content.')
+    expect(result.critique.merged).toContain('Gemini critique')
+    expect(result.metrics.wordCount).toBe(120)
+  })
+
+  it('returns latest session when none specified', async () => {
+    const draftsDir = join(TEST_DIR, 'drafts')
+    mkdirSync(draftsDir, { recursive: true })
+    writeFileSync(join(draftsDir, 'draft-session-14-final.md'), '## TL;DR\n\nOlder draft.')
+    writeFileSync(join(draftsDir, 'draft-session-16-final.md'), '## TL;DR\n\nLatest draft.')
+
+    const result = await getEditorialDraft({})
+    expect(result.session).toBe(16)
+    expect(result.draft).toContain('Latest draft.')
+  })
+
+  it('returns null critique and metrics when only draft exists', async () => {
+    const draftsDir = join(TEST_DIR, 'drafts')
+    mkdirSync(draftsDir, { recursive: true })
+    writeFileSync(join(draftsDir, 'draft-session-15-final.md'), '## TL;DR\n\nDraft only.')
+
+    const result = await getEditorialDraft({ session: '15' })
+    expect(result.session).toBe(15)
+    expect(result.draft).toContain('Draft only.')
+    expect(result.critique).toBeNull()
+    expect(result.metrics).toBeNull()
+  })
+
+  it('returns null draft when session specified but file missing', async () => {
+    const draftsDir = join(TEST_DIR, 'drafts')
+    mkdirSync(draftsDir, { recursive: true })
+    writeFileSync(join(draftsDir, 'draft-session-15-final.md'), '## TL;DR\n\nExists.')
+
+    const result = await getEditorialDraft({ session: '99' })
+    expect(result.session).toBe(99)
+    expect(result.draft).toBeNull()
+    expect(result.critique).toBeNull()
+    expect(result.metrics).toBeNull()
+  })
+})
+
+// ── Editorial chat context assembly ────────────────────────
+
+import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
+
+describe('buildEditorialContext', () => {
+  it('returns minimal context for empty state', () => {
+    const emptyState = { counters: null, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
+    const { context, tokenEstimate } = buildEditorialContext('state', emptyState)
+    expect(context).toContain('Analysis Index (0 entries)')
+    expect(tokenEstimate).toBeGreaterThan(0)
+  })
+
+  it('builds analysis context from state', () => {
+    const state = {
+      counters: { nextSession: 5 },
+      analysisIndex: {
+        '1': { title: 'Test Article', source: 'Podcast A', host: 'Host', tier: 1, session: 4, themes: ['T01'], summary: 'A summary' },
+        '2': { title: 'Another', source: 'Podcast B', tier: 2, session: 4 },
+      },
+      themeRegistry: { 'T01': { name: 'AI Safety', documentCount: 3 } },
+      postBacklog: { '10': { title: 'Post idea', status: 'suggested' } },
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('state', state)
+    expect(context).toContain('#1: Test Article')
+    expect(context).toContain('#2: Another')
+    expect(context).toContain('Analysis Index (2 entries)')
+  })
+
+  it('builds theme context from state', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: {},
+      themeRegistry: {
+        'T01': { name: 'AI Regulation', documentCount: 5, lastUpdated: '2026-03-20', evidence: [{ session: 2, source: 'Pod', content: 'Evidence text' }] },
+      },
+      postBacklog: {},
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('themes', state)
+    expect(context).toContain('T01: AI Regulation')
+    expect(context).toContain('Evidence text')
+  })
+
+  it('builds backlog context with theme summaries', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: {},
+      themeRegistry: { 'T01': { name: 'AI Regulation', documentCount: 2 } },
+      postBacklog: {
+        '10': { title: 'Post idea', status: 'suggested', priority: 'high', coreArgument: 'An argument' },
+      },
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('backlog', state)
+    expect(context).toContain('#10: Post idea')
+    expect(context).toContain('An argument')
+    expect(context).toContain('T01')
+  })
+
+  it('builds decision context with recent analysis', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: { '1': { title: 'Recent', source: 'X', tier: 1 } },
+      themeRegistry: {},
+      postBacklog: {},
+      decisionLog: [{ type: 'editorial', date: '2026-03-20', decision: 'Decided X', reasoning: 'Because Y' }],
+    }
+    const { context } = buildEditorialContext('decisions', state)
+    expect(context).toContain('Decided X')
+    expect(context).toContain('Because Y')
+    expect(context).toContain('#1: Recent')
+  })
+
+  it('builds activity context from state', () => {
+    const state = { counters: { nextSession: 2 }, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
+    const { context } = buildEditorialContext('activity', state)
+    expect(context).toContain('Recent Activity')
+  })
+})
+
+describe('trimEditorialHistory', () => {
+  it('returns empty for null input', () => {
+    expect(trimEditorialHistory(null)).toEqual([])
+    expect(trimEditorialHistory([])).toEqual([])
+  })
+
+  it('keeps recent messages within budget', () => {
+    const msgs = [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+      { role: 'user', content: 'Question' },
+    ]
+    const result = trimEditorialHistory(msgs, 1000)
+    expect(result.length).toBe(3)
+  })
+
+  it('drops oldest when budget exceeded', () => {
+    const msgs = [
+      { role: 'user', content: 'A'.repeat(10000) },
+      { role: 'assistant', content: 'B'.repeat(10000) },
+      { role: 'user', content: 'Recent short message' },
+    ]
+    // With a tight budget, oldest should be dropped
+    const result = trimEditorialHistory(msgs, 100)
+    expect(result.length).toBeLessThan(3)
+    expect(result[result.length - 1].content).toBe('Recent short message')
+  })
+})

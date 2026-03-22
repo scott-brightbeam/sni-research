@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { apiFetch, apiStream } from '../lib/api'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { apiFetch, apiStream, readSSEStream } from '../lib/api'
 
 export function useChatPanel(week) {
   const [messages, setMessages] = useState([])
@@ -8,6 +8,15 @@ export function useChatPanel(week) {
   const [model, setModel] = useState('claude-sonnet-4-20250514')
   const [articleRef, setArticleRef] = useState(null)
   const abortRef = useRef(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
 
   const sendMessage = useCallback(async (text, draftContent) => {
     if (sending || !text.trim()) return
@@ -32,44 +41,27 @@ export function useChatPanel(week) {
         articleRef,
       }, controller.signal)
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.type === 'delta') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + data.text } : m
-              ))
-            } else if (data.type === 'done') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
-              ))
-            } else if (data.type === 'error') {
-              setError(data.message)
-            }
-          } catch { /* skip malformed SSE */ }
+      await readSSEStream(res.body.getReader(), (data) => {
+        if (!mountedRef.current) return false
+        if (data.type === 'delta') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: m.content + data.text } : m
+          ))
+        } else if (data.type === 'done') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
+          ))
+        } else if (data.type === 'error') {
+          setError(data.message)
         }
-      }
+      })
 
-      setArticleRef(null)
+      if (mountedRef.current) setArticleRef(null)
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        setError(err.message)
-      }
+      if (err.name === 'AbortError') return
+      if (mountedRef.current) setError(err.message)
     } finally {
-      setSending(false)
+      if (mountedRef.current) setSending(false)
       abortRef.current = null
     }
   }, [sending, model, articleRef])

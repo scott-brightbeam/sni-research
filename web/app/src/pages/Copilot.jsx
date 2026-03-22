@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useChat } from '../hooks/useChat'
+import { usePodcasts } from '../hooks/usePodcasts'
 import { apiFetch } from '../lib/api'
 import './Copilot.css'
 
@@ -10,6 +11,7 @@ export default function Copilot() {
   const [input, setInput] = useState('')
   const [showArticlePicker, setShowArticlePicker] = useState(false)
   const [articles, setArticles] = useState([])
+  const [podcastRef, setPodcastRef] = useState(null)
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
 
@@ -23,6 +25,7 @@ export default function Copilot() {
   }, [])
 
   const chat = useChat(week)
+  const podcasts = usePodcasts(week)
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -56,8 +59,19 @@ export default function Copilot() {
 
   const handleArticleSelect = (article) => {
     chat.setArticleRef({ date: article.date, sector: article.sector, slug: article.slug })
+    chat.setPodcastRef(null)
+    setPodcastRef(null)
     setShowArticlePicker(false)
   }
+
+  const handlePodcastSelect = (podcast) => {
+    chat.setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
+    chat.setArticleRef(null)
+    setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
+    setShowArticlePicker(false)
+  }
+
+  const podcastList = podcasts.data?.episodes || []
 
   // Usage percentage
   const usagePct = chat.dailyUsage
@@ -158,27 +172,55 @@ export default function Copilot() {
                 <div className="chat-input-controls">
                   <div className="article-picker">
                     <button
-                      className={`btn-article-ref${chat.articleRef ? ' active' : ''}`}
+                      className={`btn-article-ref${chat.articleRef || chat.podcastRef ? ' active' : ''}`}
                       onClick={() => setShowArticlePicker(p => !p)}
-                      title={chat.articleRef ? `Attached: ${chat.articleRef.slug}` : 'Attach article'}
+                      title={chat.podcastRef ? `Attached podcast: ${chat.podcastRef.title}` : chat.articleRef ? `Attached: ${chat.articleRef.slug}` : 'Attach article or podcast'}
                     >
-                      {chat.articleRef ? chat.articleRef.slug.slice(0, 12) : '@'}
+                      {chat.podcastRef ? chat.podcastRef.title.slice(0, 12) : chat.articleRef ? chat.articleRef.slug.slice(0, 12) : '@'}
                     </button>
                     {showArticlePicker && (
                       <div className="article-picker-dropdown">
-                        {articles.map(a => (
-                          <button
-                            key={`${a.date}-${a.sector}-${a.slug}`}
-                            className="article-picker-item"
-                            onClick={() => handleArticleSelect(a)}
-                          >
-                            {a.title}
-                            <span className="article-picker-item-sector"> {a.sector}</span>
-                          </button>
-                        ))}
+                        {articles.map(a => {
+                          const isSelected = chat.articleRef
+                            && chat.articleRef.date === a.date
+                            && chat.articleRef.sector === a.sector
+                            && chat.articleRef.slug === a.slug
+                          return (
+                            <button
+                              key={`${a.date}-${a.sector}-${a.slug}`}
+                              className={`article-picker-item${isSelected ? ' selected' : ''}`}
+                              onClick={() => handleArticleSelect(a)}
+                            >
+                              {a.title}
+                              <span className="article-picker-item-sector"> {a.sector}</span>
+                            </button>
+                          )
+                        })}
                         {articles.length === 0 && (
                           <div className="picker-empty">
                             No articles this week
+                          </div>
+                        )}
+                        <div className="picker-divider">Podcasts</div>
+                        {podcastList.map(p => {
+                          const isSelected = chat.podcastRef
+                            && chat.podcastRef.date === p.date
+                            && chat.podcastRef.source === p.source
+                            && chat.podcastRef.title === p.title
+                          return (
+                            <button
+                              key={`${p.date}-${p.source}-${p.title}`}
+                              className={`article-picker-item podcast-picker-item${isSelected ? ' selected' : ''}`}
+                              onClick={() => handlePodcastSelect(p)}
+                            >
+                              {p.title}
+                              <span className="article-picker-item-sector"> {p.source}</span>
+                            </button>
+                          )
+                        })}
+                        {podcastList.length === 0 && (
+                          <div className="picker-empty">
+                            No podcasts this week
                           </div>
                         )}
                       </div>

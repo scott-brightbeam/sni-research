@@ -1,0 +1,32 @@
+.draft-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 11px;
+  color: var(--terra-light);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  padding: 2px 0;
+}
+
+button.draft-link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+}
+
+.draft-link:hover {
+  color: var(--terra);
+}
+
+.draft-link svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

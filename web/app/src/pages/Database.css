@@ -1,93 +1,7 @@
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--light-gray);
-}
+/* ── Database page ─────────────────────────────────────── */
+/* Extends Articles styling with podcast cards             */
 
-.tab {
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--cloudy);
-  padding: 10px 16px;
-  cursor: pointer;
-  border: none;
-  background: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: all 0.15s;
-}
-
-.tab:hover { color: var(--text-primary); }
-.tab.active { color: var(--terra); border-bottom-color: var(--terra); }
-.tab-count { color: var(--cloudy); }
-
-/* ─── Date Bar ───────────────────────────────────────────────────────────── */
-
-.date-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.date-presets {
-  display: flex;
-  gap: 4px;
-}
-
-.date-preset {
-  font-family: 'Poppins', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--light-gray);
-  background: transparent;
-  color: var(--cloudy);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.date-preset:hover {
-  background: var(--hover-subtle);
-  color: var(--text-primary);
-}
-
-.date-preset.active {
-  background: var(--terra-bg);
-  border-color: var(--terra);
-  color: var(--terra);
-}
-
-.date-custom {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.date-input {
-  font-family: 'Poppins', sans-serif;
-  font-size: 12px;
-  padding: 5px 10px;
-  border: 1px solid var(--light-gray);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.date-input:focus {
-  border-color: var(--terra);
-  box-shadow: var(--focus-ring);
-}
-
-.date-sep {
-  font-family: 'Poppins', sans-serif;
-  font-size: 12px;
-  color: var(--cloudy);
-}
+/* ── Filter bar ──────────────────────────────────────── */
 
 .filter-bar {
   display: flex;
@@ -114,8 +28,178 @@
   box-shadow: var(--focus-ring);
 }
 
+.filter-search { flex: 1; }
+.filter-count {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-left: auto;
+}
+
+/* ── Tier pills ──────────────────────────────────────── */
+
+.tier-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.tier-pill {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--light-gray);
+  background: transparent;
+  color: var(--cloudy);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tier-pill:hover {
+  background: var(--hover-subtle);
+  color: var(--text-primary);
+}
+
+.tier-pill.active {
+  background: var(--terra-bg);
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
+/* ── Podcast cards ───────────────────────────────────── */
+
+.podcast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.podcast-card {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1px solid transparent;
+}
+
+.podcast-card:hover {
+  background: var(--surface-hover);
+}
+
+.podcast-card.expanded {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.podcast-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.podcast-card-title {
+  flex: 1;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.podcast-card-meta {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-top: 2px;
+}
+
+.podcast-card-themes {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.theme-pill {
+  background: var(--terra-15);
+  color: var(--terra-light);
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+.podcast-card-stats {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-top: 4px;
+}
+
+.podcast-card-detail {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--light-gray);
+}
+
+.podcast-summary {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-3);
+}
+
+.podcast-stories {
+  font-size: 13px;
+}
+
+.podcast-stories strong {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: var(--cloudy);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.podcast-stories ul {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-2) 0 0;
+}
+
+.podcast-stories li {
+  padding: 4px 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--hover-subtle);
+}
+
+.podcast-stories li:last-child {
+  border-bottom: none;
+}
+
+.story-matched {
+  color: var(--sage);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.story-url {
+  color: var(--cloudy);
+  font-size: 11px;
+}
+
+/* ── Article table (carried forward from Articles.css) ── */
+
+.card-flush { padding: 0; }
+
 .table-wrapper { overflow-x: auto; }
 
+.database-page table,
 table {
   width: 100%;
   border-collapse: collapse;
@@ -163,8 +247,6 @@ tr:hover td { background: var(--surface-hover); }
   color: var(--cloudy);
 }
 
-.cell-confidence { font-size: 12px; }
-
 .score {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
@@ -175,25 +257,8 @@ tr:hover td { background: var(--surface-hover); }
 .score.medium { color: var(--terra-light); }
 .score.low { color: var(--cloudy); }
 
-.btn {
-  font-family: 'Poppins', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 18px;
-  border-radius: var(--radius);
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s;
-}
+/* ── Inline actions ──────────────────────────────────── */
 
-.btn-primary { background: var(--terra); color: white; }
-.btn-primary:hover { background: var(--terra-dark); }
-
-.filter-search { flex: 1; }
-.card-flush { padding: 0; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* --- Inline actions --- */
 .article-row { cursor: pointer; }
 .article-row.expanded td { background: var(--surface); }
 
@@ -246,7 +311,8 @@ tr:hover .row-actions { opacity: 1; }
 .flag-btn.flagged { color: var(--terra); }
 .delete-btn:hover { color: var(--danger); }
 
-/* --- Delete confirm --- */
+/* ── Delete confirm ──────────────────────────────────── */
+
 .delete-confirm-row td {
   background: var(--danger-bg-subtle);
   padding: 12px 16px;
@@ -254,12 +320,6 @@ tr:hover .row-actions { opacity: 1; }
   align-items: center;
   gap: 12px;
 }
-
-.btn-sm { padding: 4px 12px; font-size: 12px; }
-.btn-danger { background: var(--danger); color: white; }
-.btn-danger:hover { background: var(--danger-dark); }
-.btn-ghost { background: var(--surface); color: var(--text-primary); border: 1px solid var(--light-gray); }
-.btn-ghost:hover { background: var(--surface-hover); }
 
 .action-error {
   background: var(--danger-bg);
@@ -269,7 +329,8 @@ tr:hover .row-actions { opacity: 1; }
   border-bottom: 1px solid var(--danger-border);
 }
 
-/* --- Detail panel --- */
+/* ── Detail panel ────────────────────────────────────── */
+
 .detail-row td { padding: 0 !important; border-bottom: 2px solid var(--terra-15); }
 
 .detail-panel {
@@ -317,7 +378,8 @@ tr:hover .row-actions { opacity: 1; }
   color: var(--terra);
 }
 
-/* --- Ingest form --- */
+/* ── Ingest form ─────────────────────────────────────── */
+
 .ingest-form {
   display: flex;
   gap: 10px;
@@ -363,7 +425,8 @@ tr:hover .row-actions { opacity: 1; }
 .ingest-duplicate { background: var(--warning-bg); color: var(--warning); }
 .ingest-warning { background: var(--warning-bg); color: var(--warning); }
 
-/* --- Updated indicator --- */
+/* ── Updated indicator ───────────────────────────────── */
+
 .updated-indicator {
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
@@ -371,13 +434,21 @@ tr:hover .row-actions { opacity: 1; }
   margin-left: auto;
 }
 
-/* --- Score manual badge --- */
-.score-manual {
+/* ── Found-by badges ─────────────────────────────────── */
+
+.found-by-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.found-by-badge {
   font-family: 'Poppins', sans-serif;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 600;
   padding: 2px 8px;
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--cloudy);
-  border: 1px solid var(--light-gray);
+  border-radius: var(--radius-lg);
+  cursor: default;
 }
+.found-by-badge[data-layer="L1"] { background: var(--layer-l1-15); color: var(--layer-l1); }
+.found-by-badge[data-layer="L2"] { background: var(--layer-l2-15); color: var(--layer-l2); }
+.found-by-badge[data-layer="L3"] { background: var(--layer-l3-15); color: var(--layer-l3); }
+.found-by-badge[data-layer="L4"] { background: var(--layer-l4-15); color: var(--layer-l4); }
+.found-by-badge[data-layer="rss"] { background: var(--layer-rss-15); color: var(--layer-rss); }
+.found-by-badge[data-layer="headlines"] { background: var(--layer-hl-15); color: var(--layer-hl); }
+.found-by-badge[data-layer="unknown"] { background: var(--light-gray); color: var(--cloudy); }

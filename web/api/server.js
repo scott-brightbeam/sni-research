@@ -1,9 +1,13 @@
 import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
-import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
+import { getDraft, saveDraft, getDraftHistory, handleCheckOverlap } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
+import { getOverview, getRunDetail } from './routes/sources.js'
+import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
+import { handleGetPodcasts, handleGetTranscript } from './routes/podcasts.js'
+import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
 
 const PORT = 3900
 
@@ -100,6 +104,11 @@ const server = Bun.serve({
         return json(await getDraftHistory(query))
       }
 
+      if (path === '/api/draft/check-overlap' && req.method === 'POST') {
+        const query = parseQuery(req.url)
+        return json(await handleCheckOverlap(query))
+      }
+
       // --- Chat ---
       if (path === '/api/chat' && req.method === 'POST') {
         return handleChat(req)
@@ -161,6 +170,142 @@ const server = Bun.serve({
       if (configMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putConfig(configMatch[1], body))
+      }
+
+      // --- Sources ---
+      if (path === '/api/sources/overview' && req.method === 'GET') {
+        return json(await getOverview())
+      }
+
+      const sourceRunMatch = path.match(/^\/api\/sources\/runs\/(\d{4}-\d{2}-\d{2})$/)
+      if (sourceRunMatch && req.method === 'GET') {
+        const detail = await getRunDetail(sourceRunMatch[1])
+        if (!detail) return json({ error: 'Run not found' }, 404)
+        return json(detail)
+      }
+
+      // --- Published ---
+      if (path === '/api/published' && req.method === 'GET') {
+        return json(listPublished())
+      }
+
+      const pubMatch = path.match(/^\/api\/published\/(week-\d+)$/)
+      if (pubMatch) {
+        const week = pubMatch[1]
+        if (req.method === 'GET') {
+          const result = getPublished(week)
+          if (!result) return json({ error: 'Not found' }, 404)
+          return json(result)
+        }
+        if (req.method === 'PUT') {
+          const body = await req.json()
+          const meta = savePublished(week, body.content, body.meta || {})
+          return json({ ok: true, meta })
+        }
+      }
+
+      // --- Published: extract exclusions ---
+      const exclMatch = path.match(/^\/api\/published\/(week-\d+)\/exclusions$/)
+      if (exclMatch && req.method === 'POST') {
+        const result = await extractExclusions({ week: exclMatch[1] })
+        return json(result)
+      }
+
+      // --- Podcasts ---
+      if (path === '/api/podcasts' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetPodcasts(query))
+      }
+      if (path === '/api/podcasts/transcript' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetTranscript(query))
+      }
+
+      // --- Editorial ---
+      if (path === '/api/editorial/state' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialState(query))
+      }
+
+      if (path === '/api/editorial/search' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await searchEditorial(query))
+      }
+
+      if (path === '/api/editorial/backlog' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialBacklog(query))
+      }
+
+      if (path === '/api/editorial/themes' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialThemes(query))
+      }
+
+      if (path === '/api/editorial/notifications' && req.method === 'GET') {
+        return json(await getEditorialNotifications())
+      }
+
+      const notifDismissMatch = path.match(/^\/api\/editorial\/notifications\/([\w-]+)\/dismiss$/)
+      if (notifDismissMatch && req.method === 'PUT') {
+        return json(await dismissNotification(notifDismissMatch[1]))
+      }
+
+      if (path === '/api/editorial/status' && req.method === 'GET') {
+        return json(await getEditorialStatus())
+      }
+
+      if (path === '/api/editorial/cost' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialCost(query))
+      }
+
+      if (path === '/api/editorial/activity' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialActivity(query))
+      }
+
+      if (path === '/api/editorial/render' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await renderEditorialSection(query))
+      }
+
+      if (path === '/api/editorial/discover' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getDiscoverProgress(query))
+      }
+
+      if (path === '/api/editorial/draft' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialDraft(query))
+      }
+
+      if (path === '/api/editorial/chat' && req.method === 'POST') {
+        const body = await req.json()
+        return await postEditorialChat(body, req)
+      }
+
+      // --- Editorial Triggers ---
+      const triggerMatch = path.match(/^\/api\/editorial\/trigger\/(analyse|discover|draft|track)$/)
+      if (triggerMatch && req.method === 'POST') {
+        const stage = triggerMatch[1]
+        let result
+        if (stage === 'analyse') result = await postTriggerAnalyse()
+        else if (stage === 'discover') result = await postTriggerDiscover()
+        else if (stage === 'draft') result = await postTriggerDraft()
+        else if (stage === 'track') result = await postTriggerTrack()
+        if (result?._conflict) {
+          const { _conflict, ...body } = result
+          return json(body, 409)
+        }
+        return json(result)
+      }
+
+      // --- Editorial Backlog Status ---
+      const backlogMatch = path.match(/^\/api\/editorial\/backlog\/([\w-]+)\/status$/)
+      if (backlogMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putBacklogStatus(backlogMatch[1], body))
       }
 
       // --- Health ---

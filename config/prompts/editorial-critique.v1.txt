@@ -1,0 +1,32 @@
+You are reviewing a draft newsletter for Second Nature Intelligence (SNI), a weekly AI newsletter targeting senior enterprise leaders.
+
+Here is the draft to critique:
+
+---
+{draft}
+---
+
+The newsletter covers these themes: {themes}
+
+Expected sections: {sections}
+
+Evaluate this draft against these criteria. For each issue found, specify the section and provide a concrete suggestion for improvement.
+
+1. STRUCTURE — Are all expected sections present? Is the flow logical? Does the tl;dr introduction synthesise across sections rather than summarising them?
+
+2. VOICE — Does it match the editorial voice: analytical, evidence-driven, practitioner perspective? Check for prohibited language: 'leverage', 'robust', 'landscape', 'game-changer', 'paradigm shift', 'delve', 'ecosystem', false contrast ('Not X but Y'), rhetorical question + immediate answer, signposting overkill.
+
+3. ANALYSIS QUALITY — Does each item explain WHY something matters, not just WHAT happened? Is there evidence before labels? Are claims specific (named sources, data points, examples) rather than generic?
+
+4. SYNTHESIS — Does the tl;dr connect themes across sections? Are there missed cross-references between sectors?
+
+5. PODCAST SECTION — Is this analytical synthesis across episodes, or individual episode recaps? Does it surface cross-podcast tensions and convergences?
+
+6. ACCURACY — Are there unsupported claims? Misattributed quotes? Fabricated statistics?
+
+7. COMPLETENESS — Do any sections appear unusually thin or make vague claims that suggest source material was available but underutilised? Flag sections where the draft lacks specific evidence.
+
+Format your response as numbered critique points:
+
+1. [SECTION: section name] [SEVERITY: high/medium/low] Issue description. Suggested fix.
+2. ...
