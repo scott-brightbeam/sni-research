@@ -354,7 +354,11 @@ button.btn-secondary.has-overlap-results {
   gap: var(--sp-4);
 }
 
-.critique-model h4 {
+/* Shared section heading pattern for panel h4 elements */
+.critique-model h4,
+.critique-metrics h4,
+.review-issues-list h4,
+.review-eval-section h4 {
   font-family: 'Poppins', Arial, sans-serif;
   font-size: 12px;
   font-weight: 600;
@@ -407,16 +411,6 @@ button.btn-secondary.has-overlap-results {
   margin-top: var(--sp-6);
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border);
-}
-
-.critique-metrics h4 {
-  font-family: 'Poppins', Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--sp-3);
 }
 
 .metrics-grid {
@@ -482,16 +476,6 @@ button.btn-secondary.has-overlap-results {
   margin-bottom: var(--sp-4);
 }
 
-.review-issues-list h4 {
-  font-family: 'Poppins', Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--sp-3);
-}
-
 .review-issue-item {
   display: flex;
   align-items: flex-start;
@@ -524,16 +508,6 @@ button.btn-secondary.has-overlap-results {
   margin-top: var(--sp-4);
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border);
-}
-
-.review-eval-section h4 {
-  font-family: 'Poppins', Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--sp-3);
 }
 
 .eval-json {
