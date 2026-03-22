@@ -26,6 +26,7 @@ export function formatDuration(ms) {
 export function formatRelativeTime(isoString) {
   if (!isoString) return '—'
   const diff = Date.now() - new Date(isoString).getTime()
+  if (Number.isNaN(diff)) return '—'
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
@@ -38,6 +39,7 @@ export function formatRelativeTime(isoString) {
 export function formatDate(dateStr) {
   if (!dateStr) return '—'
   const d = new Date(dateStr + 'T00:00:00')
+  if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
@@ -45,6 +47,7 @@ export function formatDate(dateStr) {
 export function formatDayLabel(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
+  if (Number.isNaN(d.getTime())) return ''
   const day = d.toLocaleDateString('en-GB', { weekday: 'short' })
   return `${day} ${d.getDate()}`
 }
