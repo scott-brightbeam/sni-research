@@ -6,7 +6,7 @@ import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
-import { handleGetPodcasts, handleGetTranscript } from './routes/podcasts.js'
+import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
 
 const PORT = 3900
@@ -228,6 +228,12 @@ const server = Bun.serve({
       if (path === '/api/podcasts/transcript' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await handleGetTranscript(query))
+      }
+      const podcastPatchMatch = path.match(/^\/api\/podcasts\/(\d{4}-\d{2}-\d{2})\/([\w-]+)\/([\w-]+)$/)
+      if (podcastPatchMatch && req.method === 'PATCH') {
+        const [, date, source, slug] = podcastPatchMatch
+        const body = await req.json()
+        return json(await handlePatchPodcast(date, source, slug, body))
       }
 
       // --- Editorial ---

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, writeFileSync, existsSync, rmSync } from 'fs'
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'fs'
 import { join, resolve } from 'path'
-import { handleGetPodcasts, handleGetTranscript } from '../routes/podcasts.js'
+import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from '../routes/podcasts.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 const TEST_DATE = '2099-12-01'
@@ -214,5 +214,54 @@ describe('handleGetTranscript', () => {
     })
     expect(result.transcript).toBe('Just plain transcript text.')
     expect(Object.keys(result.metadata).length).toBe(0)
+  })
+})
+
+describe('PATCH /api/podcasts - archive', () => {
+  const TEST_DATE = '2026-01-15'
+  const TEST_SOURCE = 'test-archive-pod'
+  const TEST_SLUG = 'test-episode'
+  const digestDir = join(ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE)
+  const digestPath = join(digestDir, `${TEST_SLUG}.digest.json`)
+
+  beforeEach(() => {
+    mkdirSync(digestDir, { recursive: true })
+    writeFileSync(digestPath, JSON.stringify({
+      title: 'Test Episode', source: 'Test', date: TEST_DATE, summary: 'Test summary',
+    }))
+  })
+
+  afterEach(() => {
+    if (existsSync(digestPath)) rmSync(digestPath)
+    try { rmSync(digestDir, { recursive: true }) } catch {}
+    try { rmSync(join(ROOT, 'data/podcasts', TEST_DATE), { recursive: true }) } catch {}
+  })
+
+  it('sets archived flag on digest', async () => {
+    const resp = await fetch(`http://localhost:3900/api/podcasts/${TEST_DATE}/${TEST_SOURCE}/${TEST_SLUG}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: true }),
+    })
+    expect(resp.status).toBe(200)
+
+    const saved = JSON.parse(readFileSync(digestPath, 'utf-8'))
+    expect(saved.archived).toBe(true)
+  })
+
+  it('removes archived flag on restore', async () => {
+    writeFileSync(digestPath, JSON.stringify({
+      title: 'Test', source: 'Test', date: TEST_DATE, archived: true,
+    }))
+
+    const resp = await fetch(`http://localhost:3900/api/podcasts/${TEST_DATE}/${TEST_SOURCE}/${TEST_SLUG}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: false }),
+    })
+    expect(resp.status).toBe(200)
+
+    const saved = JSON.parse(readFileSync(digestPath, 'utf-8'))
+    expect(saved.archived).toBeUndefined()
   })
 })

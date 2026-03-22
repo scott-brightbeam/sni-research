@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { validateParam } from '../lib/walk.js'
 
@@ -167,4 +167,27 @@ export async function handleGetTranscript(query) {
   }
 
   return { transcript, metadata }
+}
+
+export async function handlePatchPodcast(date, source, slug, body) {
+  validateParam(date, 'date')
+  validateParam(source, 'source')
+
+  const digestPath = join(ROOT, 'data/podcasts', date, source, `${slug}.digest.json`)
+  if (!existsSync(digestPath)) {
+    const err = new Error('Podcast digest not found')
+    err.status = 404
+    throw err
+  }
+
+  const raw = JSON.parse(readFileSync(digestPath, 'utf-8'))
+
+  if (body.archived === true) {
+    raw.archived = true
+  } else if (body.archived === false) {
+    delete raw.archived
+  }
+
+  writeFileSync(digestPath, JSON.stringify(raw, null, 2))
+  return { digest: raw }
 }

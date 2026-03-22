@@ -138,6 +138,9 @@ function PodcastsTab({ episodes, loading, error }) {
   const [sourceFilter, setSourceFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [expandedIdx, setExpandedIdx] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
 
   if (loading) return <div className="placeholder-text">Loading podcast episodes...</div>
   if (error) return <div className="placeholder-text">Failed to load podcasts: {error}</div>
@@ -148,6 +151,17 @@ function PodcastsTab({ episodes, loading, error }) {
   let filtered = episodes
   if (sourceFilter) filtered = filtered.filter(e => e.source === sourceFilter)
   if (tierFilter) filtered = filtered.filter(e => String(e.tier) === tierFilter)
+  if (debouncedSearch) {
+    const q = debouncedSearch.toLowerCase()
+    filtered = filtered.filter(ep => {
+      const digest = ep.digest || {}
+      const haystack = [
+        ep.title, ep.source, digest.summary,
+        ...(digest.key_stories || digest.stories || []).map(s => typeof s === 'string' ? s : s.headline || s.title || ''),
+      ].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(q)
+    })
+  }
 
   return (
     <>
@@ -170,6 +184,13 @@ function PodcastsTab({ episodes, loading, error }) {
             onClick={() => setTierFilter('2')}
           >Tier 2</button>
         </div>
+        <input
+          type="text"
+          placeholder="Search podcasts..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="filter-search"
+        />
         <span className="filter-count">{filtered.length} episode{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
