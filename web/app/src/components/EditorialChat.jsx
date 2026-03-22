@@ -8,6 +8,7 @@ const TAB_LABELS = {
   backlog: 'Backlog',
   decisions: 'Decisions',
   activity: 'Activity',
+  newsletter: 'Newsletter',
 }
 
 const SUGGESTIONS = {
@@ -28,6 +29,10 @@ const SUGGESTIONS = {
   ],
   activity: [
     'How much has the pipeline cost this week?',
+  ],
+  newsletter: [
+    'Review the current draft for quality and consistency.',
+    'Suggest improvements to the opening section.',
   ],
 }
 

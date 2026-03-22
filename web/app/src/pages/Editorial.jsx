@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditorialCost } from '../hooks/useEditorialState'
 import { useEditorialStatus } from '../hooks/useEditorialStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -19,6 +20,7 @@ const TABS = [
   { key: 'backlog', label: 'Backlog' },
   { key: 'decisions', label: 'Decisions' },
   { key: 'activity', label: 'Activity' },
+  { key: 'newsletter', label: 'Newsletter' },
 ]
 
 const STATUS_CSS = {
@@ -33,12 +35,19 @@ const STATUS_CSS = {
 const PRIORITY_LABELS = { high: '🔴', medium: '🟡', low: '⚪' }
 
 export default function Editorial() {
-  const [tab, setTab] = useState('state')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') || 'state'
+  const [tab, setTab] = useState(TABS.find(t => t.key === initialTab) ? initialTab : 'state')
   const [search, setSearch] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
   const [backlogFilter, setBacklogFilter] = useState({ status: '', priority: '' })
 
   const debouncedSearch = useDebouncedValue(search, 300)
+
+  function handleTabChange(key) {
+    setTab(key)
+    setSearchParams(key === 'state' ? {} : { tab: key })
+  }
 
   async function handleExportState() {
     try {
@@ -81,7 +90,7 @@ export default function Editorial() {
           <button
             key={t.key}
             className={`tab ${tab === t.key ? 'active' : ''}`}
-            onClick={() => setTab(t.key)}
+            onClick={() => handleTabChange(t.key)}
           >
             {t.label}
           </button>
@@ -97,6 +106,7 @@ export default function Editorial() {
           {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} />}
           {tab === 'decisions' && <DecisionsTab />}
           {tab === 'activity' && <ActivityTab />}
+          {tab === 'newsletter' && <div className="tab-content"><p>Newsletter editor loading...</p></div>}
         </>
       )}
 

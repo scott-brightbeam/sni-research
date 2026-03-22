@@ -4,7 +4,6 @@ import './Sidebar.css'
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: 'grid' },
   { to: '/database', label: 'Database', icon: 'database' },
-  { to: '/draft', label: 'Draft', icon: 'edit' },
   { to: '/editorial', label: 'Editorial', icon: 'book', badge: true },
   { to: '/copilot', label: 'Co-pilot', icon: 'chat' },
   { to: '/sources', label: 'Sources', icon: 'layers' },

@@ -12,12 +12,11 @@ import './Shell.css'
 
 const NAV_ROUTES = [
   '/',           // 1 = Dashboard
-  '/database',   // 2 = Database (Articles)
-  '/draft',      // 3 = Draft
-  '/editorial',  // 4 = Editorial
-  '/copilot',    // 5 = Co-pilot
-  '/sources',    // 6 = Sources
-  '/config',     // 7 = Config
+  '/database',   // 2 = Database
+  '/editorial',  // 3 = Editorial
+  '/copilot',    // 4 = Co-pilot
+  '/sources',    // 5 = Sources
+  '/config',     // 6 = Config
 ]
 
 export default function Shell() {
