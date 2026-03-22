@@ -15,7 +15,7 @@ const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editoria
 const CONTEXT_BUDGET = 30_000 // tokens
 const HISTORY_BUDGET = 8_000  // tokens for conversation history
 
-const EDITORIAL_SYSTEM = `You are an editorial intelligence assistant for Sector News Intelligence (SNI), a weekly AI newsletter covering five sectors: general AI, biopharma, medtech, manufacturing and insurance.
+const EDITORIAL_SYSTEM_BASE = `You are an editorial intelligence assistant for Sector News Intelligence (SNI), a weekly AI newsletter covering five sectors: general AI, biopharma, medtech, manufacturing and insurance.
 
 You have access to the editorial state document — an evolving knowledge base of analysis entries, themes, post candidates and editorial decisions built by the pipeline.
 
@@ -26,6 +26,38 @@ Your role:
 - Provide concise, actionable editorial guidance
 
 Style: UK English, analytical but accessible, cite specific entries/themes by ID when referencing them. Be concise — the editor values density over length.`
+
+// ── Writing preferences (cached) ─────────────────────────
+
+let _writingPrefs = null
+
+function getWritingPreferences() {
+  if (_writingPrefs !== null) return _writingPrefs
+  const prefsPath = join(EDITORIAL_DIR, 'writing-preferences.md')
+  if (!existsSync(prefsPath)) {
+    _writingPrefs = ''
+    return _writingPrefs
+  }
+  try {
+    _writingPrefs = readFileSync(prefsPath, 'utf-8')
+  } catch {
+    _writingPrefs = ''
+  }
+  return _writingPrefs
+}
+
+export function getEditorialSystemPrompt() {
+  const prefs = getWritingPreferences()
+  if (!prefs) return EDITORIAL_SYSTEM_BASE
+  return `${EDITORIAL_SYSTEM_BASE}\n\n## Writing Preferences\n\nWhen drafting or editing content, follow these rules:\n\n${prefs}`
+}
+
+// ── JSON reader ──────────────────────────────────────────
+
+function readJSON(path) {
+  if (!existsSync(path)) return null
+  try { return JSON.parse(readFileSync(path, 'utf-8')) } catch { return null }
+}
 
 /**
  * Build context string for a given editorial tab.
@@ -159,6 +191,23 @@ export function buildEditorialContext(tab, state = null) {
           }
         } catch (err) {
           console.error('[editorial-chat] Failed to parse cost-log.json:', err.message)
+        }
+      }
+      break
+    }
+
+    case 'newsletter': {
+      // Published state + in-progress posts for newsletter editing context
+      const publishedMeta = readJSON(join(EDITORIAL_DIR, 'published.json')) || {}
+      sections.push('\n## Newsletter Context\n')
+      sections.push(`Published edition: ${publishedMeta.week ? 'Week ' + publishedMeta.week : 'None'}`)
+      if (publishedMeta.publishedAt) sections.push(`Last published: ${publishedMeta.publishedAt}`)
+      const inProgress = Object.entries(state.postBacklog || {})
+        .filter(([, p]) => p.status === 'in-progress' || p.status === 'approved')
+      if (inProgress.length > 0) {
+        sections.push('\n### Active Posts\n')
+        for (const [id, post] of inProgress) {
+          sections.push(formatPost(id, post))
         }
       }
       break

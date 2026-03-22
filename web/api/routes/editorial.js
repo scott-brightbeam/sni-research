@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
 import { getClient } from '../lib/claude.js'
-import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
+import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 function editorialDir() {
@@ -531,18 +531,6 @@ export async function putBacklogStatus(id, body) {
 
 // ── POST /api/editorial/chat ──────────────────────────────
 
-const EDITORIAL_SYSTEM = `You are an editorial intelligence assistant for Sector News Intelligence (SNI), a weekly AI newsletter covering five sectors: general AI, biopharma, medtech, manufacturing and insurance.
-
-You have access to the editorial state document — an evolving knowledge base of analysis entries, themes, post candidates and editorial decisions built by the pipeline.
-
-Your role:
-- Help the editor understand patterns, connections and gaps in the analysis
-- Suggest post angles and identify underexplored themes
-- Answer questions about specific entries, themes or backlog items
-- Provide concise, actionable editorial guidance
-
-Style: UK English, analytical but accessible, cite specific entries/themes by ID when referencing them. Be concise — the editor values density over length.`
-
 /**
  * Stream an editorial chat response via SSE.
  *
@@ -633,7 +621,7 @@ export async function postEditorialChat(body, req) {
         const response = await client.messages.create({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 2048,
-          system: EDITORIAL_SYSTEM,
+          system: getEditorialSystemPrompt(),
           messages: sdkMessages,
           stream: true,
         })
