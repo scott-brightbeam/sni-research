@@ -9,11 +9,24 @@ import { downloadFile } from '../lib/download'
 import { toast } from '../components/shared/Toast'
 import Draft from './Draft'
 import EditorialChat from '../components/EditorialChat'
-import DraftLink from '../components/shared/DraftLink'
 import DownloadIcon from '../components/shared/DownloadIcon'
 import Skeleton from '../components/shared/Skeleton'
 import EmptyState from '../components/shared/EmptyState'
+import '../components/shared/DraftLink.css'
 import './Editorial.css'
+
+function buildDraftPrompt(source, content) {
+  if (source?.type === 'post') {
+    return `Draft post #${source.id}: '${source.title}'\n\nCore argument: ${content?.coreArgument || 'Not specified'}\nFormat: ${content?.format || 'Not specified'}\nSource documents: ${content?.sources?.join(', ') || 'None'}\nNotes: ${content?.notes || 'None'}\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options as specified in the LinkedIn post guidelines.`
+  }
+  if (source?.type === 'theme') {
+    return `Draft an analysis post for theme ${source.code}: '${source.name}'\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options.`
+  }
+  if (source?.type === 'analysis') {
+    return `Draft a post based on analysis entry #${source.id}: '${source.title}'\n\nSummary: ${content?.summary || ''}\nThemes: ${content?.themes?.join(', ') || 'None'}\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options.`
+  }
+  return `Draft a post about: ${source?.title || 'untitled'}`
+}
 
 const TABS = [
   { key: 'state', label: 'Analysis' },
@@ -41,6 +54,7 @@ export default function Editorial() {
   const [tab, setTab] = useState(TABS.find(t => t.key === initialTab) ? initialTab : 'state')
   const [search, setSearch] = useState('')
   const [backlogFilter, setBacklogFilter] = useState({ status: '', priority: '' })
+  const [draftRequest, setDraftRequest] = useState(null)
 
   const debouncedSearch = useDebouncedValue(search, 300)
 
@@ -97,16 +111,20 @@ export default function Editorial() {
             <SearchResults query={debouncedSearch} />
           ) : (
             <>
-              {tab === 'state' && <AnalysisTab />}
-              {tab === 'themes' && <ThemesTab />}
-              {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} />}
+              {tab === 'state' && <AnalysisTab onDraftRequest={setDraftRequest} />}
+              {tab === 'themes' && <ThemesTab onDraftRequest={setDraftRequest} />}
+              {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} onDraftRequest={setDraftRequest} />}
               {tab === 'decisions' && <DecisionsTab />}
               {tab === 'activity' && <ActivityTab />}
               {tab === 'newsletter' && <Draft embedded />}
             </>
           )}
         </div>
-        <EditorialChat tab={tab} />
+        <EditorialChat
+          tab={tab}
+          draftRequest={draftRequest}
+          onDraftConsumed={() => setDraftRequest(null)}
+        />
       </div>
     </div>
   )
@@ -114,7 +132,7 @@ export default function Editorial() {
 
 // ── Analysis Tab ──────────────────────────────────────────
 
-function AnalysisTab() {
+function AnalysisTab({ onDraftRequest }) {
   const { data, loading, error } = useEditorialState('analysisIndex')
   const costData = useEditorialCost()
 
@@ -149,7 +167,7 @@ function AnalysisTab() {
       ) : (
         <div className="analysis-list">
           {entries.map(entry => (
-            <AnalysisEntry key={entry.id} entry={entry} />
+            <AnalysisEntry key={entry.id} entry={entry} onDraftRequest={onDraftRequest} />
           ))}
         </div>
       )}
@@ -157,7 +175,7 @@ function AnalysisTab() {
   )
 }
 
-function AnalysisEntry({ entry }) {
+function AnalysisEntry({ entry, onDraftRequest }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -184,11 +202,18 @@ function AnalysisEntry({ entry }) {
         <div className="entry-summary">{entry.summary}</div>
       )}
       {expanded && (
-        <DraftLink
-          label="Open in Draft"
-          source={{ type: 'analysis', id: entry.id, title: entry.title }}
-          content={{ summary: entry.summary, themes: entry.themes }}
-        />
+        <button
+          className="draft-link"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDraftRequest(buildDraftPrompt(
+              { type: 'analysis', id: entry.id, title: entry.title },
+              { summary: entry.summary, themes: entry.themes }
+            ))
+          }}
+        >
+          Draft in chat
+        </button>
       )}
     </div>
   )
@@ -196,7 +221,7 @@ function AnalysisEntry({ entry }) {
 
 // ── Themes Tab ───────────────────────────────────────────
 
-function ThemesTab() {
+function ThemesTab({ onDraftRequest }) {
   const [showStale, setShowStale] = useState(false)
   const filters = showStale ? { stale: 'true' } : { active: 'true' }
   const { data, loading, error } = useEditorialState('themeRegistry', filters)
@@ -222,7 +247,7 @@ function ThemesTab() {
       ) : (
         <div className="theme-list">
           {allThemes.map(theme => (
-            <ThemeCard key={theme.code} theme={theme} />
+            <ThemeCard key={theme.code} theme={theme} onDraftRequest={onDraftRequest} />
           ))}
         </div>
       )}
@@ -230,7 +255,7 @@ function ThemesTab() {
   )
 }
 
-function ThemeCard({ theme }) {
+function ThemeCard({ theme, onDraftRequest }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -259,11 +284,18 @@ function ThemeCard({ theme }) {
               ))}
             </div>
           )}
-          <DraftLink
-            label={`Draft ${theme.code} analysis`}
-            source={{ type: 'theme', code: theme.code, name: theme.name }}
-            content={{ evidence: theme.evidence, crossConnections: theme.crossConnections }}
-          />
+          <button
+            className="draft-link"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDraftRequest(buildDraftPrompt(
+                { type: 'theme', code: theme.code, name: theme.name },
+                { evidence: theme.evidence, crossConnections: theme.crossConnections }
+              ))
+            }}
+          >
+            Draft {theme.code} in chat
+          </button>
         </div>
       )}
     </div>
@@ -272,7 +304,7 @@ function ThemeCard({ theme }) {
 
 // ── Backlog Tab ──────────────────────────────────────────
 
-function BacklogTab({ filter, setFilter }) {
+function BacklogTab({ filter, setFilter, onDraftRequest }) {
   const { data, loading, error, refetch } = useEditorialState('postBacklog')
 
   async function handleExportBacklog() {
@@ -343,7 +375,7 @@ function BacklogTab({ filter, setFilter }) {
       ) : (
         <div className="backlog-list">
           {posts.map(post => (
-            <PostCard key={post.id} post={post} onStatusChange={refetch} />
+            <PostCard key={post.id} post={post} onStatusChange={refetch} onDraftRequest={onDraftRequest} />
           ))}
         </div>
       )}
@@ -351,7 +383,7 @@ function BacklogTab({ filter, setFilter }) {
   )
 }
 
-function PostCard({ post, onStatusChange }) {
+function PostCard({ post, onStatusChange, onDraftRequest }) {
   const [expanded, setExpanded] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [updateError, setUpdateError] = useState(null)
@@ -404,11 +436,18 @@ function PostCard({ post, onStatusChange }) {
             </div>
           )}
           <div className="post-actions" onClick={e => e.stopPropagation()}>
-            <DraftLink
-              label="Draft this post"
-              source={{ type: 'post', id: post.id, title: post.title || post.workingTitle }}
-              content={{ coreArgument: post.coreArgument, format: post.format, sources: post.sourceDocuments, notes: post.notes }}
-            />
+            <button
+              className="draft-link"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDraftRequest(buildDraftPrompt(
+                  { type: 'post', id: post.id, title: post.title || post.workingTitle },
+                  { coreArgument: post.coreArgument, format: post.format, sources: post.sourceDocuments, notes: post.notes }
+                ))
+              }}
+            >
+              Draft this post
+            </button>
             {post.status !== 'published' && (
               <button
                 className="btn btn-primary btn-sm"

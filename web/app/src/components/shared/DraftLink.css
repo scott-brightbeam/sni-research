@@ -11,6 +11,11 @@
   padding: 2px 0;
 }
 
+button.draft-link {
+  background: none;
+  border: none;
+}
+
 .draft-link:hover {
   color: var(--terra);
 }

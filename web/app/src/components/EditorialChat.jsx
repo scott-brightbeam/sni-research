@@ -40,12 +40,22 @@ const SUGGESTIONS = {
  * Editorial contextual chat panel — 380px sidebar with streaming AI responses.
  * Receives the current editorial tab to provide tab-specific context.
  */
-export default function EditorialChat({ tab }) {
+export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
   const { messages, loading, error, send, clear, model, setModel } = useEditorialChat(tab)
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Handle incoming draft requests
+  useEffect(() => {
+    if (draftRequest) {
+      setModel('opus')
+      setCollapsed(false)
+      send(draftRequest)
+      onDraftConsumed?.()
+    }
+  }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll on new messages
   useEffect(() => {
