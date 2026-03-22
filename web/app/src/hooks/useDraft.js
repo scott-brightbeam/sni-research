@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiFetch } from '../lib/api'
 
 export function useDraft(initialWeek = null) {
@@ -10,6 +10,12 @@ export function useDraft(initialWeek = null) {
   const [savedAt, setSavedAt] = useState(null)
   const [editorContent, setEditorContent] = useState('')
   const [week, setWeek] = useState(initialWeek)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const load = useCallback(async (w) => {
     setLoading(true)
@@ -17,13 +23,15 @@ export function useDraft(initialWeek = null) {
     try {
       const qs = w ? `?week=${w}` : ''
       const result = await apiFetch(`/api/draft${qs}`)
+      if (!mountedRef.current) return
       setData(result)
       setEditorContent(result.draft)
       setWeek(result.week)
-      setLoading(false)
     } catch (err) {
+      if (!mountedRef.current) return
       setError(err.message)
-      setLoading(false)
+    } finally {
+      if (mountedRef.current) setLoading(false)
     }
   }, [])
 
@@ -38,12 +46,14 @@ export function useDraft(initialWeek = null) {
         method: 'PUT',
         body: JSON.stringify({ draft: editorContent }),
       })
+      if (!mountedRef.current) return
       setData(result)
       setSavedAt(Date.now())
-      setSaving(false)
     } catch (err) {
+      if (!mountedRef.current) return
       setSaveError(err.message)
-      setSaving(false)
+    } finally {
+      if (mountedRef.current) setSaving(false)
     }
   }, [week, editorContent])
 

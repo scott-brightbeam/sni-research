@@ -12,6 +12,15 @@ export function useChat(week) {
   const [podcastRef, setPodcastRef] = useState(null)
   const [dailyUsage, setDailyUsage] = useState(null)
   const abortRef = useRef(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
 
   // Load threads for the week
   const loadThreads = useCallback(async () => {
@@ -104,6 +113,7 @@ export function useChat(week) {
       }, controller.signal)
 
       await readSSEStream(res.body.getReader(), (data) => {
+        if (!mountedRef.current) return false
         if (data.type === 'delta') {
           setMessages(prev => prev.map(m =>
             m.id === assistantId ? { ...m, content: m.content + data.text } : m
@@ -118,17 +128,18 @@ export function useChat(week) {
       })
 
       // Clear refs after sending
-      setArticleRef(null)
-      setPodcastRef(null)
+      if (mountedRef.current) {
+        setArticleRef(null)
+        setPodcastRef(null)
+      }
       // Reload threads (to get updated stats) and usage
       await loadThreads()
       await loadUsage()
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        setError(err.message)
-      }
+      if (err.name === 'AbortError') return
+      if (mountedRef.current) setError(err.message)
     } finally {
-      setSending(false)
+      if (mountedRef.current) setSending(false)
       abortRef.current = null
     }
   }, [sending, model, activeThread, week, articleRef, podcastRef, loadThreads, loadUsage])

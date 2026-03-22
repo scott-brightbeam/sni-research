@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiFetch, apiStream, readSSEStream } from '../lib/api'
 
 export function useChatPanel(week) {
@@ -8,6 +8,15 @@ export function useChatPanel(week) {
   const [model, setModel] = useState('claude-sonnet-4-20250514')
   const [articleRef, setArticleRef] = useState(null)
   const abortRef = useRef(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
 
   const sendMessage = useCallback(async (text, draftContent) => {
     if (sending || !text.trim()) return
@@ -33,6 +42,7 @@ export function useChatPanel(week) {
       }, controller.signal)
 
       await readSSEStream(res.body.getReader(), (data) => {
+        if (!mountedRef.current) return false
         if (data.type === 'delta') {
           setMessages(prev => prev.map(m =>
             m.id === assistantId ? { ...m, content: m.content + data.text } : m
@@ -46,13 +56,12 @@ export function useChatPanel(week) {
         }
       })
 
-      setArticleRef(null)
+      if (mountedRef.current) setArticleRef(null)
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        setError(err.message)
-      }
+      if (err.name === 'AbortError') return
+      if (mountedRef.current) setError(err.message)
     } finally {
-      setSending(false)
+      if (mountedRef.current) setSending(false)
       abortRef.current = null
     }
   }, [sending, model, articleRef])
