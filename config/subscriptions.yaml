@@ -1,0 +1,25 @@
+# Subscription sources for authenticated content fetching
+sources:
+  - name: Financial Times
+    type: ft
+    url: https://www.ft.com
+    schedule: wednesday
+    enabled: true
+
+  - name: Exponential View
+    type: substack
+    url: https://www.exponentialview.co
+    schedule: daily
+    enabled: true
+
+  - name: AI Realist
+    type: substack
+    url: https://www.airealist.com
+    schedule: daily
+    enabled: true
+
+  - name: David Oks
+    type: substack
+    url: https://davidoks.substack.com
+    schedule: daily
+    enabled: true
