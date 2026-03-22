@@ -39,16 +39,16 @@ describe('getStatus', () => {
 describe('podcastImport status', () => {
   const runsDir = join(ROOT, 'output/runs')
   const manifestDir = join(ROOT, 'data/podcasts')
-  const testRunFile = 'podcast-import-2026-03-20.json'
+  const testRunFile = 'podcast-import-2099-12-31.json'
   let cleanupRunFile = false
   let cleanupManifestDir = false
 
   beforeAll(() => {
-    // Create a test podcast-import run file
+    // Create a test podcast-import run file (use far-future date to ensure it sorts last)
     mkdirSync(runsDir, { recursive: true })
     writeFileSync(join(runsDir, testRunFile), JSON.stringify({
-      startedAt: '2026-03-20T07:00:00.000Z',
-      completedAt: '2026-03-20T07:02:32.000Z',
+      startedAt: '2099-12-31T07:00:00.000Z',
+      completedAt: '2099-12-31T07:02:32.000Z',
       storiesGapFilled: 5,
       warnings: ['Feed timeout: techcrunch-ai']
     }))
@@ -91,7 +91,7 @@ describe('podcastImport status', () => {
 
   it('returns correct values from the run file', async () => {
     const { podcastImport } = await getStatus()
-    expect(podcastImport.lastRun).toBe('2026-03-20T07:02:32.000Z')
+    expect(podcastImport.lastRun).toBe('2099-12-31T07:02:32.000Z')
     expect(podcastImport.storiesGapFilled).toBe(5)
     expect(Array.isArray(podcastImport.warnings)).toBe(true)
     expect(podcastImport.warnings).toContain('Feed timeout: techcrunch-ai')
