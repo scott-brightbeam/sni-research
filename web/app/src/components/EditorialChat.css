@@ -97,6 +97,34 @@
   border-color: var(--text-secondary);
 }
 
+.model-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.model-toggle:hover {
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
+.model-toggle.model-opus {
+  background: var(--terra-15);
+  border-color: var(--terra);
+  color: var(--terra);
+}
+
 /* ── Messages area ──────────────────────────────────────── */
 
 .chat-messages {

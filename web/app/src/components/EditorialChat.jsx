@@ -41,7 +41,7 @@ const SUGGESTIONS = {
  * Receives the current editorial tab to provide tab-specific context.
  */
 export default function EditorialChat({ tab }) {
-  const { messages, loading, error, send, clear } = useEditorialChat(tab)
+  const { messages, loading, error, send, clear, model, setModel } = useEditorialChat(tab)
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
@@ -99,6 +99,13 @@ export default function EditorialChat({ tab }) {
           <span className="chat-context-tag">{TAB_LABELS[tab] || tab}</span>
         </div>
         <div className="chat-header-actions">
+          <button
+            className={`model-toggle ${model === 'opus' ? 'model-opus' : 'model-sonnet'}`}
+            onClick={() => setModel(m => m === 'sonnet' ? 'opus' : 'sonnet')}
+            title={model === 'sonnet' ? 'Switch to Opus' : 'Switch to Sonnet'}
+          >
+            {model === 'sonnet' ? 'S' : 'O'}
+          </button>
           <button className="chat-btn" onClick={clear} title="Clear conversation">
             ↺
           </button>

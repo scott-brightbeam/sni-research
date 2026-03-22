@@ -14,6 +14,7 @@ let nextId = 1
 export function useEditorialChat(tab = 'state') {
   // Map of tab -> messages[]
   const [threads, setThreads] = useState({})
+  const [model, setModel] = useState('sonnet')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const abortRef = useRef(null)
@@ -69,6 +70,7 @@ export function useEditorialChat(tab = 'state') {
       const res = await apiStream('/api/editorial/chat', {
         message: trimmed,
         tab,
+        model,
         injectContext: isFirstMessage,
         history: currentHistory,
       }, controller.signal)
@@ -114,7 +116,7 @@ export function useEditorialChat(tab = 'state') {
       }
       abortRef.current = null
     }
-  }, [tab])
+  }, [tab, model])
 
   const clear = useCallback(() => {
     if (abortRef.current) abortRef.current.abort()
@@ -123,5 +125,5 @@ export function useEditorialChat(tab = 'state') {
     setLoading(false)
   }, [tab])
 
-  return { messages, loading, error, send, clear }
+  return { messages, loading, error, send, clear, model, setModel }
 }

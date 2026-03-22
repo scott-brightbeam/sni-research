@@ -539,7 +539,7 @@ export async function putBacklogStatus(id, body) {
  * @returns {Response} — SSE stream
  */
 export async function postEditorialChat(body, req) {
-  const { message, tab, history, injectContext } = body
+  const { message, tab, history, injectContext, model } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
@@ -618,9 +618,13 @@ export async function postEditorialChat(body, req) {
       let fullText = ''
 
       try {
+        const modelId = model === 'opus'
+          ? 'claude-opus-4-0725'
+          : 'claude-sonnet-4-20250514'
+
         const response = await client.messages.create({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
+          model: modelId,
+          max_tokens: model === 'opus' ? 4096 : 2048,
           system: getEditorialSystemPrompt(),
           messages: sdkMessages,
           stream: true,
