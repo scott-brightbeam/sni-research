@@ -1,0 +1,34 @@
+# EV Newsletter Link Extraction Config
+source_name_pattern: "Exponential View Newsletter"
+
+url_exclusions:
+  # EV's own domains
+  - exponentialview.co
+  - azeemazhar.substack.com
+
+  # Social media
+  - twitter.com
+  - x.com
+  - linkedin.com
+  - facebook.com
+  - instagram.com
+  - threads.net
+  - bsky.app
+  - mastodon.social
+
+  # Podcast players
+  - apple.com/podcasts
+  - podcasts.apple.com
+  - spotify.com
+  - overcast.fm
+  - pocketcasts.com
+
+  # Video platforms
+  - youtube.com
+  - youtu.be
+  - vimeo.com
+
+  # Other non-article
+  - github.com
+  - docs.google.com
+  - drive.google.com
