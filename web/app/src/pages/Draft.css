@@ -1120,9 +1120,13 @@ button.btn-secondary.has-overlap-results {
   overflow-y: auto;
 }
 
-.draft-embedded .draft-header {
+.draft-embedded .draft-toolbar {
   position: sticky;
   top: 0;
   z-index: 10;
   background: var(--pampas);
+}
+
+.draft-embedded .draft-panes {
+  min-height: 0;
 }
