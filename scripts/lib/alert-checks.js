@@ -307,7 +307,9 @@ export function formatConsolidatedMessage(alerts) {
   const bullets = alerts.map(a => {
     const plain = a.message
       .replace(/<[^>]+>/g, '')
-      .replace(/^[🚨⚠️🔄]\s*/, '')
+      .replace(/^🚨\s*/, '')
+      .replace(/^⚠️\s*/, '')
+      .replace(/^🔄\s*/, '')
       .replace(/^ONGOING:\s*/, 'ONGOING: ');
     return `• ${plain.trim()}`;
   });
