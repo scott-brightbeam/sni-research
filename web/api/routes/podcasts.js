@@ -19,7 +19,10 @@ export async function handleGetPodcasts(query) {
     return { week: week || null, episodes: [], lastRun: null }
   }
 
-  let entries = Array.isArray(manifest) ? manifest : []
+  // Manifest is an object keyed by filename (per PRD §5.1)
+  let entries = Array.isArray(manifest)
+    ? manifest
+    : Object.entries(manifest).map(([filename, entry]) => ({ filename, ...entry }))
 
   if (week) {
     const weekNum = parseInt(week, 10)

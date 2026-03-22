@@ -59,16 +59,19 @@ export default function Copilot() {
 
   const handleArticleSelect = (article) => {
     chat.setArticleRef({ date: article.date, sector: article.sector, slug: article.slug })
+    chat.setPodcastRef(null)
+    setPodcastRef(null)
     setShowArticlePicker(false)
   }
 
   const handlePodcastSelect = (podcast) => {
     chat.setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
+    chat.setArticleRef(null)
     setPodcastRef({ date: podcast.date, source: podcast.source, title: podcast.title })
     setShowArticlePicker(false)
   }
 
-  const podcastList = podcasts.data || []
+  const podcastList = podcasts.data?.episodes || []
 
   // Usage percentage
   const usagePct = chat.dailyUsage
@@ -177,32 +180,44 @@ export default function Copilot() {
                     </button>
                     {showArticlePicker && (
                       <div className="article-picker-dropdown">
-                        {articles.map(a => (
-                          <button
-                            key={`${a.date}-${a.sector}-${a.slug}`}
-                            className="article-picker-item"
-                            onClick={() => handleArticleSelect(a)}
-                          >
-                            {a.title}
-                            <span className="article-picker-item-sector"> {a.sector}</span>
-                          </button>
-                        ))}
+                        {articles.map(a => {
+                          const isSelected = chat.articleRef
+                            && chat.articleRef.date === a.date
+                            && chat.articleRef.sector === a.sector
+                            && chat.articleRef.slug === a.slug
+                          return (
+                            <button
+                              key={`${a.date}-${a.sector}-${a.slug}`}
+                              className={`article-picker-item${isSelected ? ' selected' : ''}`}
+                              onClick={() => handleArticleSelect(a)}
+                            >
+                              {a.title}
+                              <span className="article-picker-item-sector"> {a.sector}</span>
+                            </button>
+                          )
+                        })}
                         {articles.length === 0 && (
                           <div className="picker-empty">
                             No articles this week
                           </div>
                         )}
                         <div className="picker-divider">Podcasts</div>
-                        {podcastList.map(p => (
-                          <button
-                            key={`${p.date}-${p.source}-${p.title}`}
-                            className="article-picker-item podcast-picker-item"
-                            onClick={() => handlePodcastSelect(p)}
-                          >
-                            {p.title}
-                            <span className="article-picker-item-sector"> {p.source}</span>
-                          </button>
-                        ))}
+                        {podcastList.map(p => {
+                          const isSelected = chat.podcastRef
+                            && chat.podcastRef.date === p.date
+                            && chat.podcastRef.source === p.source
+                            && chat.podcastRef.title === p.title
+                          return (
+                            <button
+                              key={`${p.date}-${p.source}-${p.title}`}
+                              className={`article-picker-item podcast-picker-item${isSelected ? ' selected' : ''}`}
+                              onClick={() => handlePodcastSelect(p)}
+                            >
+                              {p.title}
+                              <span className="article-picker-item-sector"> {p.source}</span>
+                            </button>
+                          )
+                        })}
                         {podcastList.length === 0 && (
                           <div className="picker-empty">
                             No podcasts this week

@@ -3,6 +3,7 @@ import { useEditorialState, useEditorialCost } from '../hooks/useEditorialState'
 import { useNotifications } from '../hooks/useNotifications'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import DraftLink from '../components/shared/DraftLink'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
 import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
@@ -316,6 +317,11 @@ function PostCandidatesCard() {
               {c.priority === 'immediate' ? '!!' : '!'}
             </span>
             <span className="candidate-title">{c.title || c.message}</span>
+            <DraftLink
+              label="Draft"
+              source={{ type: 'post', id: c.id, title: c.title || c.message }}
+              content={{ coreArgument: c.detail, format: c.format }}
+            />
           </div>
         ))}
         {candidates.length > 5 && (

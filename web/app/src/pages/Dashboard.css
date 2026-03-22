@@ -325,11 +325,16 @@
 
 .candidate-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-2);
   border-radius: var(--radius);
   background: var(--stage-bg);
+}
+
+.candidate-item .draft-link {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .candidate-priority {

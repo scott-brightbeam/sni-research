@@ -2,17 +2,17 @@
   width: 260px;
   min-width: 260px;
   background: var(--sidebar-bg);
-  border-right: 1px solid var(--light-gray);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 24px 0;
+  padding: var(--sp-6) 0;
   height: 100vh;
 }
 
 .sidebar-logo {
-  padding: 0 24px 24px;
-  border-bottom: 1px solid var(--light-gray);
-  margin-bottom: 16px;
+  padding: 0 var(--sp-6) var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-4);
 }
 
 .sidebar-logo h1 {
@@ -25,7 +25,7 @@
 .sidebar-logo span {
   font-family: 'Lora', serif;
   font-size: 12px;
-  color: var(--cloudy);
+  color: var(--text-secondary);
   display: block;
   margin-top: 2px;
 }
@@ -35,14 +35,14 @@
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  font-family: 'Poppins', sans-serif;
+  gap: var(--sp-3);
+  padding: 10px var(--sp-6);
+  font-family: 'Poppins', Arial, sans-serif;
   font-size: 14px;
   font-weight: 500;
-  color: var(--cloudy);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
   border-left: 3px solid transparent;
   text-decoration: none;
 }
@@ -70,25 +70,58 @@
   stroke-linejoin: round;
 }
 
-.sidebar-status {
+/* Notification badge on nav items */
+.nav-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: white;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Footer with status indicators */
+.sidebar-footer {
   margin-top: auto;
-  padding: 16px 24px;
-  border-top: 1px solid var(--light-gray);
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sidebar-status-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--sage);
   flex-shrink: 0;
 }
 
+.status-ok { background: var(--sage); }
+.status-running {
+  background: var(--terra);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .status-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', Arial, sans-serif;
   font-size: 12px;
-  color: var(--cloudy);
+  color: var(--text-secondary);
+}
+
+.status-text-active {
+  color: var(--terra);
 }

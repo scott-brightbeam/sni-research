@@ -7,7 +7,7 @@ import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 import { handleGetPodcasts, handleGetTranscript } from './routes/podcasts.js'
-import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat } from './routes/editorial.js'
+import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
 
 const PORT = 3900
 
@@ -283,6 +283,29 @@ const server = Bun.serve({
       if (path === '/api/editorial/chat' && req.method === 'POST') {
         const body = await req.json()
         return await postEditorialChat(body, req)
+      }
+
+      // --- Editorial Triggers ---
+      const triggerMatch = path.match(/^\/api\/editorial\/trigger\/(analyse|discover|draft|track)$/)
+      if (triggerMatch && req.method === 'POST') {
+        const stage = triggerMatch[1]
+        let result
+        if (stage === 'analyse') result = await postTriggerAnalyse()
+        else if (stage === 'discover') result = await postTriggerDiscover()
+        else if (stage === 'draft') result = await postTriggerDraft()
+        else if (stage === 'track') result = await postTriggerTrack()
+        if (result?._conflict) {
+          const { _conflict, ...body } = result
+          return json(body, 409)
+        }
+        return json(result)
+      }
+
+      // --- Editorial Backlog Status ---
+      const backlogMatch = path.match(/^\/api\/editorial\/backlog\/([\w-]+)\/status$/)
+      if (backlogMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putBacklogStatus(backlogMatch[1], body))
       }
 
       // --- Health ---

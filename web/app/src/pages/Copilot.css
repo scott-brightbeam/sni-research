@@ -476,6 +476,11 @@
   border-top: 1px solid var(--light-gray);
 }
 
+.article-picker-item.selected {
+  background: var(--terra-bg);
+  color: var(--terra);
+}
+
 .podcast-picker-item {
   position: relative;
 }

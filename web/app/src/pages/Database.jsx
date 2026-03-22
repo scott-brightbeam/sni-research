@@ -5,6 +5,7 @@ import { usePodcasts } from '../hooks/usePodcasts'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useStatus } from '../hooks/useStatus'
 import SectorBadge from '../components/shared/SectorBadge'
+import DraftLink from '../components/shared/DraftLink'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
 import TimeRangeSelector from '../components/shared/TimeRangeSelector'
@@ -239,6 +240,11 @@ function PodcastCard({ episode, expanded, onToggle }) {
               </ul>
             </div>
           )}
+          <DraftLink
+            label="Open in Draft"
+            source={{ type: 'podcast', source: ep.source, title: ep.title }}
+            content={{ digest: ep.digest }}
+          />
         </div>
       )}
     </div>

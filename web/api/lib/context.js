@@ -224,21 +224,18 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
     podcastBlock = text
   }
 
-  // 4. Article injection
+  // 4. Full-text injection (article OR podcast — only one at a time, podcast takes precedence)
   let injectedArticle = ''
-  if (articleRef) {
-    const fullText = loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
-    if (fullText) {
-      injectedArticle = `\n## Full Article: ${articleRef.slug}\n\n${fullText.slice(0, 8000)}\n`
-    }
-  }
-
-  // 5. Podcast transcript injection
   let injectedPodcast = ''
   if (podcastRef) {
     const transcript = loadPodcastFullText(podcastRef.date, podcastRef.source, podcastRef.title)
     if (transcript) {
       injectedPodcast = `\n## Full Podcast Transcript: ${podcastRef.title}\n\n${transcript}\n`
+    }
+  } else if (articleRef) {
+    const fullText = loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
+    if (fullText) {
+      injectedArticle = `\n## Full Article: ${articleRef.slug}\n\n${fullText.slice(0, 8000)}\n`
     }
   }
 

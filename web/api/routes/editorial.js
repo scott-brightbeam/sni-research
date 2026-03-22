@@ -1,10 +1,12 @@
-import { readFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
 import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
-const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
+function editorialDir() {
+  return process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
+}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -19,15 +21,71 @@ function readJSON(path) {
 }
 
 function getState() {
-  return readJSON(join(EDITORIAL_DIR, 'state.json'))
+  return readJSON(join(editorialDir(), 'state.json'))
 }
 
 function getPublished() {
-  return readJSON(join(EDITORIAL_DIR, 'published.json'))
+  return readJSON(join(editorialDir(), 'published.json'))
 }
 
 function getNotifications() {
-  return readJSON(join(EDITORIAL_DIR, 'notifications.json')) || []
+  return readJSON(join(editorialDir(), 'notifications.json')) || []
+}
+
+function writeState(state) {
+  const statePath = join(editorialDir(), 'state.json')
+  const tmpPath = statePath + '.tmp'
+  const bakPath = statePath + '.bak'
+
+  // Write to tmp
+  writeFileSync(tmpPath, JSON.stringify(state, null, 2))
+
+  // Validate by parsing back
+  JSON.parse(readFileSync(tmpPath, 'utf-8'))
+
+  // Swap: original → .bak, then .tmp → original
+  if (existsSync(statePath)) renameSync(statePath, bakPath)
+  renameSync(tmpPath, statePath)
+}
+
+const STALE_LOCK_MS = 30 * 60 * 1000 // 30 minutes
+
+function checkLock(stage) {
+  const lockPath = join(editorialDir(), `.${stage}.lock`)
+  if (!existsSync(lockPath)) return null
+  const lockData = readJSON(lockPath)
+  if (!lockData) return null
+
+  const age = Date.now() - new Date(lockData.timestamp).getTime()
+  if (age > STALE_LOCK_MS) {
+    // Stale lock — clean it up
+    try {
+      unlinkSync(lockPath)
+    } catch (err) {
+      console.error(`[editorial] Failed to clean up stale lock ${lockPath}: ${err.message}`)
+      return lockData // Lock file still exists on disk
+    }
+    return null
+  }
+
+  return lockData
+}
+
+function spawnStage(script) {
+  const scriptPath = join(ROOT, script)
+  if (!existsSync(scriptPath)) {
+    throw Object.assign(new Error(`Script not found: ${script}`), { status: 500 })
+  }
+  const proc = Bun.spawn(['bun', scriptPath], {
+    cwd: ROOT,
+    env: { ...process.env },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  proc.exited.then(code => {
+    if (code !== 0) console.error(`[editorial] ${script} exited with code ${code}`)
+  })
+  return proc
 }
 
 function matchesSearch(entry, query) {
@@ -209,24 +267,19 @@ export async function dismissNotification(id) {
 // ── GET /api/editorial/status ────────────────────────────
 
 export async function getEditorialStatus() {
-  const locks = {
-    analyse: existsSync(join(EDITORIAL_DIR, '.analyse.lock')),
-    discover: existsSync(join(EDITORIAL_DIR, '.discover.lock')),
-    draft: existsSync(join(EDITORIAL_DIR, '.draft.lock')),
-  }
-
-  // Read lock files for progress info
+  const stages = ['analyse', 'discover', 'draft']
+  const locks = {}
   const progress = {}
-  for (const [stage, locked] of Object.entries(locks)) {
-    if (locked) {
-      const lockData = readJSON(join(EDITORIAL_DIR, `.${stage}.lock`))
-      if (lockData) {
-        progress[stage] = {
-          pid: lockData.pid,
-          startedAt: lockData.timestamp,
-          current: lockData.current,
-          total: lockData.total,
-        }
+
+  for (const stage of stages) {
+    const lockData = checkLock(stage) // handles stale lock cleanup
+    locks[stage] = !!lockData
+    if (lockData) {
+      progress[stage] = {
+        pid: lockData.pid,
+        startedAt: lockData.timestamp,
+        current: lockData.current,
+        total: lockData.total,
       }
     }
   }
@@ -239,7 +292,7 @@ export async function getEditorialStatus() {
 export async function getEditorialCost({ week } = {}) {
   // Cost data will be written by pipeline scripts as they run.
   // Read from cost-log files when they exist.
-  const costFile = join(EDITORIAL_DIR, 'cost-log.json')
+  const costFile = join(editorialDir(), 'cost-log.json')
   const costData = readJSON(costFile)
   if (!costData) {
     return {
@@ -263,7 +316,7 @@ export async function getEditorialCost({ week } = {}) {
 // ── GET /api/editorial/activity ──────────────────────────
 
 export async function getEditorialActivity({ limit = 20 } = {}) {
-  const activityFile = join(EDITORIAL_DIR, 'activity.json')
+  const activityFile = join(editorialDir(), 'activity.json')
   const activities = readJSON(activityFile) || []
 
   // Return most recent N entries
@@ -337,8 +390,8 @@ export async function getDiscoverProgress({ session } = {}) {
 
   // Find latest session if not specified
   if (sessionNum == null) {
-    const files = existsSync(EDITORIAL_DIR)
-      ? readdirSync(EDITORIAL_DIR)
+    const files = existsSync(editorialDir())
+      ? readdirSync(editorialDir())
           .filter(f => /^discover-progress-session-\d+\.json$/.test(f))
           .sort((a, b) => {
             const numA = parseInt(a.match(/\d+/)[0], 10)
@@ -351,7 +404,7 @@ export async function getDiscoverProgress({ session } = {}) {
     sessionNum = parseInt(latest.match(/\d+/)[0], 10)
   }
 
-  const progressFile = join(EDITORIAL_DIR, `discover-progress-session-${sessionNum}.json`)
+  const progressFile = join(editorialDir(), `discover-progress-session-${sessionNum}.json`)
   const progress = readJSON(progressFile)
   return { session: sessionNum, progress }
 }
@@ -359,7 +412,7 @@ export async function getDiscoverProgress({ session } = {}) {
 // ── GET /api/editorial/draft ────────────────────────────
 
 export async function getEditorialDraft({ session } = {}) {
-  const draftsDir = join(EDITORIAL_DIR, 'drafts')
+  const draftsDir = join(editorialDir(), 'drafts')
   if (!existsSync(draftsDir)) return { session: null, draft: null, critique: null, metrics: null }
 
   let sessionNum = session ? parseInt(session, 10) : null
@@ -390,6 +443,71 @@ export async function getEditorialDraft({ session } = {}) {
   const metrics = readJSON(metricsPath)
 
   return { session: sessionNum, draft, critique, metrics }
+}
+
+// ── POST /api/editorial/trigger/:stage ────────────────────
+
+export async function postTriggerAnalyse() {
+  const lock = checkLock('analyse')
+  if (lock) {
+    return { _conflict: true, error: 'Stage already running', stage: 'analyse', progress: lock }
+  }
+  const proc = spawnStage('scripts/editorial-analyse.js')
+  return { ok: true, stage: 'analyse', pid: proc.pid }
+}
+
+export async function postTriggerDiscover() {
+  const lock = checkLock('discover')
+  if (lock) {
+    return { _conflict: true, error: 'Stage already running', stage: 'discover', progress: lock }
+  }
+  const proc = spawnStage('scripts/editorial-discover.js')
+  return { ok: true, stage: 'discover', pid: proc.pid }
+}
+
+export async function postTriggerDraft() {
+  const lock = checkLock('draft')
+  if (lock) {
+    return { _conflict: true, error: 'Stage already running', stage: 'draft', progress: lock }
+  }
+  const proc = spawnStage('scripts/editorial-draft.js')
+  return { ok: true, stage: 'draft', pid: proc.pid }
+}
+
+export async function postTriggerTrack() {
+  const proc = spawnStage('scripts/editorial-track.js')
+  return { ok: true, stage: 'track', pid: proc.pid }
+}
+
+// ── PUT /api/editorial/backlog/:id/status ─────────────────
+
+const VALID_STATUSES = ['suggested', 'approved', 'in-progress', 'published', 'rejected', 'archived']
+
+export async function putBacklogStatus(id, body) {
+  if (!body || !body.status) {
+    throw Object.assign(new Error('status is required'), { status: 400 })
+  }
+  if (!VALID_STATUSES.includes(body.status)) {
+    throw Object.assign(new Error(`Invalid status: ${body.status}. Must be one of: ${VALID_STATUSES.join(', ')}`), { status: 400 })
+  }
+
+  const state = getState()
+  if (!state) {
+    throw Object.assign(new Error('No editorial state found'), { status: 404 })
+  }
+
+  const post = state.postBacklog?.[id]
+  if (!post) {
+    throw Object.assign(new Error(`Post ${id} not found in backlog`), { status: 404 })
+  }
+
+  post.status = body.status
+  if (body.status === 'published') {
+    post.publishedDate = new Date().toISOString().split('T')[0]
+  }
+
+  writeState(state)
+  return { ok: true, id, status: body.status }
 }
 
 // ── POST /api/editorial/chat ──────────────────────────────

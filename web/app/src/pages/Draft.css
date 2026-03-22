@@ -102,6 +102,16 @@
   white-space: nowrap;
 }
 
+.draft-source-tag {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--terra);
+  background: var(--terra-15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 .save-error {
   color: var(--danger);
   font-size: 12px;

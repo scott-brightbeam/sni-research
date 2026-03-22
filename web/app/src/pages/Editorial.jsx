@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditorialCost } from '../hooks/useEditorialState'
+import { useEditorialStatus } from '../hooks/useEditorialStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatRelativeTime } from '../lib/format'
+import { apiPut } from '../lib/api'
 import EditorialChat from '../components/EditorialChat'
+import DraftLink from '../components/shared/DraftLink'
 import './Editorial.css'
 
 const TABS = [
@@ -153,6 +156,13 @@ function AnalysisEntry({ entry }) {
       {expanded && entry.summary && (
         <div className="entry-summary">{entry.summary}</div>
       )}
+      {expanded && (
+        <DraftLink
+          label="Open in Draft"
+          source={{ type: 'analysis', id: entry.id, title: entry.title }}
+          content={{ summary: entry.summary, themes: entry.themes }}
+        />
+      )}
     </div>
   )
 }
@@ -222,6 +232,11 @@ function ThemeCard({ theme }) {
               ))}
             </div>
           )}
+          <DraftLink
+            label={`Draft ${theme.code} analysis`}
+            source={{ type: 'theme', code: theme.code, name: theme.name }}
+            content={{ evidence: theme.evidence, crossConnections: theme.crossConnections }}
+          />
         </div>
       )}
     </div>
@@ -231,7 +246,7 @@ function ThemeCard({ theme }) {
 // ── Backlog Tab ──────────────────────────────────────────
 
 function BacklogTab({ filter, setFilter }) {
-  const { data, loading, error } = useEditorialState('postBacklog')
+  const { data, loading, error, refetch } = useEditorialState('postBacklog')
 
   if (loading) return <div className="loading-state">Loading backlog...</div>
   if (error) return <div className="error-state">{error}</div>
@@ -272,7 +287,7 @@ function BacklogTab({ filter, setFilter }) {
       ) : (
         <div className="backlog-list">
           {posts.map(post => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} onStatusChange={refetch} />
           ))}
         </div>
       )}
@@ -280,8 +295,23 @@ function BacklogTab({ filter, setFilter }) {
   )
 }
 
-function PostCard({ post }) {
+function PostCard({ post, onStatusChange }) {
   const [expanded, setExpanded] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState(null)
+
+  async function handleStatusChange(newStatus) {
+    setUpdating(true)
+    setUpdateError(null)
+    try {
+      await apiPut(`/api/editorial/backlog/${post.id}/status`, { status: newStatus })
+      onStatusChange?.()
+    } catch (err) {
+      setUpdateError(err.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   return (
     <div className="post-card" onClick={() => setExpanded(!expanded)}>
@@ -317,6 +347,32 @@ function PostCard({ post }) {
               <strong>Sources:</strong> {post.sourceDocuments.join(', ')}
             </div>
           )}
+          <div className="post-actions" onClick={e => e.stopPropagation()}>
+            <DraftLink
+              label="Draft this post"
+              source={{ type: 'post', id: post.id, title: post.title || post.workingTitle }}
+              content={{ coreArgument: post.coreArgument, format: post.format, sources: post.sourceDocuments, notes: post.notes }}
+            />
+            {post.status !== 'published' && (
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={updating}
+                onClick={() => handleStatusChange('published')}
+              >
+                Mark Published
+              </button>
+            )}
+            {post.status !== 'archived' && (
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={updating}
+                onClick={() => handleStatusChange('archived')}
+              >
+                Archive
+              </button>
+            )}
+            {updateError && <span className="trigger-error">{updateError}</span>}
+          </div>
         </div>
       )}
     </div>
@@ -364,16 +420,58 @@ function DecisionsTab() {
 
 function ActivityTab() {
   const { data: activities, loading, error, refetch } = useEditorialActivity(50)
+  const { status, trigger } = useEditorialStatus()
+  const [triggerError, setTriggerError] = useState(null)
+
+  async function handleTrigger(stage) {
+    setTriggerError(null)
+    const res = await trigger(stage)
+    if (!res.ok) {
+      setTriggerError(res.error || `Failed to start ${stage}`)
+    }
+    refetch()
+  }
 
   if (loading) return <div className="loading-state">Loading activity...</div>
   if (error) return <div className="error-state">{error}</div>
 
   return (
     <div className="tab-content">
+      <div className="trigger-bar">
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={status.locks?.analyse}
+          onClick={() => handleTrigger('analyse')}
+        >
+          {status.locks?.analyse ? 'ANALYSE running...' : 'Run ANALYSE'}
+        </button>
+        <button
+          className="btn btn-secondary btn-sm"
+          disabled={status.locks?.discover}
+          onClick={() => handleTrigger('discover')}
+        >
+          {status.locks?.discover ? 'DISCOVER running...' : 'Run DISCOVER'}
+        </button>
+        <button
+          className="btn btn-secondary btn-sm"
+          disabled={status.locks?.draft}
+          onClick={() => handleTrigger('draft')}
+        >
+          {status.locks?.draft ? 'DRAFT running...' : 'Run DRAFT'}
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => handleTrigger('track')}
+        >
+          Run TRACK
+        </button>
+        {triggerError && <span className="trigger-error">{triggerError}</span>}
+      </div>
+
       <div className="section-header">
         <h3>Activity Log</h3>
         <span className="count-badge">{activities.length} entries</span>
-        <button className="btn-sm" onClick={refetch}>Refresh</button>
+        <button className="btn btn-ghost btn-sm" onClick={refetch}>Refresh</button>
       </div>
 
       {activities.length === 0 ? (

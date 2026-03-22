@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import Markdown from 'react-markdown'
 import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -28,10 +29,28 @@ export default function Draft() {
   const editorialDraft = useEditorialDraft()
   const chat = useChatPanel(week)
 
+  const location = useLocation()
+  const [draftSource, setDraftSource] = useState(null)
+
   const [rightTab, setRightTab] = useState('critique')
   const [showFlags, setShowFlags] = useState(true)
   const [showPublished, setShowPublished] = useState(false)
   const [showOverlap, setShowOverlap] = useState(false)
+
+  useEffect(() => {
+    if (!location.state) return
+    const { source, content } = location.state
+    if (!source) return
+    setDraftSource(source)
+
+    // Auto-switch to chat tab when navigating from editorial elements
+    if (source.type === 'post' || source.type === 'theme') {
+      setRightTab('chat')
+    }
+
+    // Clear the state so refresh doesn't replay
+    window.history.replaceState({}, '')
+  }, [location.key]) // Re-fire on each navigation (React Router generates a new key)
 
   const debouncedDraft = useDebouncedValue(draft, 300)
   const pub = usePublished(week)
@@ -116,6 +135,14 @@ export default function Draft() {
             <span>Week {week}</span>
             <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])} aria-label="Next week">▶</button>
           </div>
+          {draftSource && (
+            <span className="draft-source-tag">
+              {draftSource.type === 'post' ? `Post #${draftSource.id}` :
+               draftSource.type === 'theme' ? draftSource.code :
+               draftSource.type === 'analysis' ? `#${draftSource.id}` :
+               'External'}
+            </span>
+          )}
         </div>
 
         <div className="toolbar-centre">

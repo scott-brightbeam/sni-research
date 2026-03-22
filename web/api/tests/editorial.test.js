@@ -370,7 +370,7 @@ describe('GET /api/editorial/status', () => {
   it('detects analyse lock', async () => {
     writeFileSync(
       join(TEST_DIR, '.analyse.lock'),
-      JSON.stringify({ pid: 12345, timestamp: '2026-03-20T14:00:00Z', current: 3, total: 18 })
+      JSON.stringify({ pid: 12345, timestamp: new Date().toISOString(), current: 3, total: 18 })
     )
     const result = await getEditorialStatus()
     expect(result.locks.analyse).toBe(true)
