@@ -120,6 +120,7 @@ export function useEditorialSearch(query) {
       })
       .catch(err => {
         if (!mountedRef.current) return
+        setResults([])
         setError(err.message)
         setLoading(false)
       })

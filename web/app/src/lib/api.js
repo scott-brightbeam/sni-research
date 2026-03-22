@@ -43,22 +43,26 @@ export async function readSSEStream(reader, onEvent) {
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      let data
-      try {
-        data = JSON.parse(line.slice(6))
-      } catch { continue } // skip unparseable SSE lines
-      if (onEvent(data) === false) return
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        let data
+        try {
+          data = JSON.parse(line.slice(6))
+        } catch { continue } // skip unparseable SSE lines
+        if (onEvent(data) === false) return
+      }
     }
+  } finally {
+    reader.cancel().catch(() => {}) // ensure stream is released
   }
 }
 
