@@ -417,6 +417,13 @@
   font-family: 'Poppins', Arial, sans-serif;
 }
 
+.post-status.status-suggested { color: var(--text-secondary); }
+.post-status.status-approved { color: var(--terra); }
+.post-status.status-in-progress { color: var(--warning); }
+.post-status.status-published { color: var(--sage); }
+.post-status.status-rejected { color: var(--danger); }
+.post-status.status-archived { color: var(--text-muted); }
+
 .post-meta {
   font-size: 12px;
   color: var(--text-secondary);

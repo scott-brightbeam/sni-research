@@ -62,12 +62,19 @@ export function useEditorialStatus(interval = 3000) {
   }, [fetchStatus, interval])
 
   const trigger = useCallback(async (stage) => {
+    // Optimistic lock update — prevents double-click spawning duplicate processes
+    setStatus(prev => ({
+      ...prev,
+      locks: { ...prev.locks, [stage]: true },
+    }))
     try {
       const res = await apiPost(`/api/editorial/trigger/${stage}`)
-      // Immediately refetch status to show the lock
+      // Refetch to get real lock state from server
       fetchStatus()
       return res
     } catch (err) {
+      // Revert optimistic update on failure
+      fetchStatus()
       return { ok: false, error: err.message, status: err.status }
     }
   }, [fetchStatus])

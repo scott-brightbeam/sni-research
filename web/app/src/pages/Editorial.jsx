@@ -21,13 +21,13 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
 ]
 
-const STATUS_COLOURS = {
-  suggested: 'var(--text-secondary)',
-  approved: 'var(--terra)',
-  'in-progress': 'var(--warning)',
-  published: 'var(--sage)',
-  rejected: 'var(--danger)',
-  archived: 'var(--text-muted)',
+const STATUS_CSS = {
+  suggested: 'status-suggested',
+  approved: 'status-approved',
+  'in-progress': 'status-in-progress',
+  published: 'status-published',
+  rejected: 'status-rejected',
+  archived: 'status-archived',
 }
 
 const PRIORITY_LABELS = { high: '🔴', medium: '🟡', low: '⚪' }
@@ -368,7 +368,7 @@ function PostCard({ post, onStatusChange }) {
         <span className="post-id">#{post.id}</span>
         <span className="post-priority">{PRIORITY_LABELS[post.priority] || ''}</span>
         <span className="post-title">{post.title || post.workingTitle || '(untitled)'}</span>
-        <span className="post-status" style={{ color: STATUS_COLOURS[post.status] || 'inherit' }}>
+        <span className={`post-status ${STATUS_CSS[post.status] || ''}`}>
           {post.status}
         </span>
       </div>
