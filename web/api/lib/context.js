@@ -246,9 +246,13 @@ export function buildEditorialContext() {
     lines.push('')
   }
 
-  // Check budget
+  // Check budget — slice to last newline to avoid breaking mid-entry
   let text = lines.join('\n')
-  if (text.length > charBudget) return text.slice(0, charBudget)
+  if (text.length > charBudget) {
+    const sliced = text.slice(0, charBudget)
+    const lastNewline = sliced.lastIndexOf('\n')
+    return lastNewline > 0 ? sliced.slice(0, lastNewline) : sliced
+  }
 
   // --- Active Themes (cap ~20) ---
   const themeRegistry = state.themeRegistry || {}
@@ -344,7 +348,7 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
   }
 
   // 5. Editorial intelligence (if available)
-  const editorialBlock = !ephemeral ? buildEditorialContext() : ''
+  let editorialBlock = !ephemeral ? buildEditorialContext() : ''
 
   // 6. Pins
   const pins = loadPins(week)
@@ -362,14 +366,23 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
   let preamble = preambleParts.join('\n')
   used += estimateTokens(preamble)
 
-  // If over budget, truncate podcast digests first, then trim preamble
+  // If over budget, truncate in priority order: podcast → editorial → article
   if (used > TOKEN_BUDGET * 0.85) {
-    // Trim podcast block
+    // 1. Trim podcast block first
     const podcastTokens = estimateTokens(podcastBlock)
     if (podcastTokens > 5000) {
       podcastBlock = podcastBlock.slice(0, 20000) // ~5000 tokens
       preamble = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
       used = estimateTokens(systemPrompt) + estimateTokens(preamble)
+    }
+    // 2. Trim editorial block if still over budget
+    if (used > TOKEN_BUDGET * 0.85) {
+      const editorialTokens = estimateTokens(editorialBlock)
+      if (editorialTokens > 3000) {
+        editorialBlock = editorialBlock.slice(0, 12000) // ~3000 tokens
+        preamble = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
+        used = estimateTokens(systemPrompt) + estimateTokens(preamble)
+      }
     }
   }
 
