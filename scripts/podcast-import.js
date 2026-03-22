@@ -70,17 +70,14 @@ function scanSourceDirectory(sourcePath) {
   const resolved = sourcePath.replace('~', process.env.HOME)
   const files = []
 
-  function scan(dir) {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory() && entry.name !== '.') {
-        scan(join(dir, entry.name))
-      } else if (entry.name.endsWith('.md') && !entry.name.startsWith('_')) {
-        files.push(join(dir, entry.name))
-      }
+  // Top-level only — do NOT recurse into Previous/ or other subdirectories (PRD §5.1)
+  for (const entry of readdirSync(resolved, { withFileTypes: true })) {
+    if (entry.isDirectory()) continue
+    if (entry.name.endsWith('.md') && !entry.name.startsWith('_')) {
+      files.push(join(resolved, entry.name))
     }
   }
 
-  scan(resolved)
   return files
 }
 
@@ -112,15 +109,18 @@ async function generateDigest(transcript, metadata, client, model) {
 }
 
 async function extractStories(transcript, client, model) {
-  const prompt = loadAndRenderPrompt('story-extract.v1', { transcript })
+  const prompt = loadAndRenderPrompt('story-extract.v2', { transcript })
   return await callLLM(client, model, prompt)
 }
 
+const corpusCache = new Map()
 function loadCorpusForWeek(weekNum, year) {
+  const key = `${year}-${weekNum}`
+  if (corpusCache.has(key)) return corpusCache.get(key)
+
   const articles = []
   const window = getWeekWindow(weekNum, year)
 
-  // Load from data/verified/
   for (const dir of ['data/verified', 'data/podcast-articles']) {
     const dirPath = join(ROOT, dir)
     if (!existsSync(dirPath)) continue
@@ -145,6 +145,7 @@ function loadCorpusForWeek(weekNum, year) {
     }
   }
 
+  corpusCache.set(key, articles)
   return articles
 }
 
@@ -185,19 +186,32 @@ async function fetchAndExtractArticle(url) {
   }
 }
 
-async function gapFill(stories, metadata, weekNum, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats) {
+async function gapFill(stories, metadata, weekNum, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats, manifest, filename) {
   const corpus = loadCorpusForWeek(weekNum, year)
 
+  // Resume support: skip stories already processed in a previous partial run
+  const entry = manifest[filename]
+  const processedStories = entry?.processedStories || []
+  const alreadyProcessed = new Set(processedStories.map(s => s.headline.toLowerCase()))
+
   for (const story of stories) {
+    // Skip if already processed in a previous run (crash recovery)
+    if (alreadyProcessed.has(story.headline.toLowerCase())) {
+      log(`    "${story.headline}" — skipped (already processed)`)
+      continue
+    }
+
     // Skip if already processed this run
     if (story.url && inRunUrls.has(story.url)) {
       log(`    "${story.headline}" — skipped (already processed this run)`)
       stats.storiesMatched++
+      processedStories.push({ headline: story.headline, status: 'matched' })
       continue
     }
     if (inRunHeadlines.has(story.headline.toLowerCase())) {
       log(`    "${story.headline}" — skipped (duplicate headline this run)`)
       stats.storiesMatched++
+      processedStories.push({ headline: story.headline, status: 'matched' })
       continue
     }
 
@@ -209,37 +223,48 @@ async function gapFill(stories, metadata, weekNum, year, config, client, model, 
         stats.storiesMatched++
         inRunUrls.add(story.url)
         inRunHeadlines.add(story.headline.toLowerCase())
+        processedStories.push({ headline: story.headline, status: 'matched' })
         continue
       }
     }
 
-    // Tier 1 headline match
-    let tier1Match = false
+    // Tier 1: collect candidates, sort by similarity, cap at 5
+    const tier1Candidates = []
     for (const article of corpus) {
       const sim = textSimilarity(story.headline, article.title || '')
       if (sim >= thresholds.tier1) {
-        // Tier 2 LLM match
-        try {
-          const prompt = loadAndRenderPrompt('content-match.v1', {
-            story_a: `${story.headline}\n${story.detail || ''}`,
-            story_b: `${article.title || ''}\n${article.snippet || article.full_text || ''}`
-          })
-          const result = await callLLM(client, model, prompt, 512)
-          if (result.sameStory && result.confidence >= thresholds.tier2) {
-            log(`    "${story.headline}" — MATCH (existing: ${article.title})`)
-            stats.storiesMatched++
-            tier1Match = true
-            break
-          }
-        } catch (err) {
-          log(`    WARN: Tier 2 match failed for "${story.headline}": ${err.message}`)
+        tier1Candidates.push({ article, sim })
+      }
+    }
+    tier1Candidates.sort((a, b) => b.sim - a.sim)
+    const topCandidates = tier1Candidates.slice(0, 5)
+
+    // Tier 2: LLM match on top candidates only
+    let tier1Match = false
+    for (const { article } of topCandidates) {
+      try {
+        const prompt = loadAndRenderPrompt('content-match.v1', {
+          story_a: `${story.headline}\n${story.detail || ''}`,
+          story_b: `${article.title || ''}\n${article.snippet || article.full_text || ''}`
+        })
+        const result = await callLLM(client, model, prompt, 512)
+        if (result.sameStory && result.confidence >= thresholds.tier2) {
+          log(`    "${story.headline}" — MATCH (existing: ${article.title})`)
+          stats.storiesMatched++
+          tier1Match = true
+          break
         }
+      } catch (err) {
+        log(`    WARN: Tier 2 match failed for "${story.headline}": ${err.message}`)
       }
     }
 
     if (tier1Match) {
       if (story.url) inRunUrls.add(story.url)
       inRunHeadlines.add(story.headline.toLowerCase())
+      processedStories.push({ headline: story.headline, status: 'matched' })
+      entry.processedStories = processedStories
+      saveManifest(MANIFEST_PATH, manifest)
       continue
     }
 
@@ -248,6 +273,9 @@ async function gapFill(stories, metadata, weekNum, year, config, client, model, 
       log(`    "${story.headline}" — NO URL (podcast-mentioned, unfetched)`)
       stats.storiesNoUrl++
       inRunHeadlines.add(story.headline.toLowerCase())
+      processedStories.push({ headline: story.headline, status: 'no-url' })
+      entry.processedStories = processedStories
+      saveManifest(MANIFEST_PATH, manifest)
       continue
     }
 
@@ -259,6 +287,9 @@ async function gapFill(stories, metadata, weekNum, year, config, client, model, 
       stats.fetchFailed++
       inRunUrls.add(story.url)
       inRunHeadlines.add(story.headline.toLowerCase())
+      processedStories.push({ headline: story.headline, status: 'failed' })
+      entry.processedStories = processedStories
+      saveManifest(MANIFEST_PATH, manifest)
       continue
     }
 
@@ -289,6 +320,9 @@ async function gapFill(stories, metadata, weekNum, year, config, client, model, 
     stats.storiesFetched++
     inRunUrls.add(story.url)
     inRunHeadlines.add(story.headline.toLowerCase())
+    processedStories.push({ headline: story.headline, status: 'fetched' })
+    entry.processedStories = processedStories
+    saveManifest(MANIFEST_PATH, manifest)
   }
 }
 
@@ -496,7 +530,8 @@ async function main() {
           log(`  Stories extracted: ${stories.length} identified`)
 
           // Gap-fill
-          await gapFill(stories, parsed, week, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats)
+          manifest[filename] = entry
+          await gapFill(stories, parsed, week, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats, manifest, filename)
           entry.storiesFetched = stats.storiesFetched
           entry.storiesExtracted = true
         } catch (err) {
@@ -556,7 +591,8 @@ async function main() {
           entry.storiesCount = stories.length
           stats.storiesExtracted += stories.length
           const { week, year } = getEditorialWeek(parsed.date)
-          await gapFill(stories, parsed, week, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats)
+          manifest[filename] = entry
+          await gapFill(stories, parsed, week, year, config, client, model, thresholds, inRunUrls, inRunHeadlines, stats, manifest, filename)
           entry.storiesFetched = stats.storiesFetched
           entry.storiesExtracted = true
         } catch (err) {
