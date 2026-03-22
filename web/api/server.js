@@ -7,6 +7,7 @@ import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 import { handleGetPodcasts, handleGetTranscript } from './routes/podcasts.js'
+import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat } from './routes/editorial.js'
 
 const PORT = 3900
 
@@ -218,6 +219,70 @@ const server = Bun.serve({
       if (path === '/api/podcasts/transcript' && req.method === 'GET') {
         const query = parseQuery(req.url)
         return json(await handleGetTranscript(query))
+      }
+
+      // --- Editorial ---
+      if (path === '/api/editorial/state' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialState(query))
+      }
+
+      if (path === '/api/editorial/search' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await searchEditorial(query))
+      }
+
+      if (path === '/api/editorial/backlog' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialBacklog(query))
+      }
+
+      if (path === '/api/editorial/themes' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialThemes(query))
+      }
+
+      if (path === '/api/editorial/notifications' && req.method === 'GET') {
+        return json(await getEditorialNotifications())
+      }
+
+      const notifDismissMatch = path.match(/^\/api\/editorial\/notifications\/([\w-]+)\/dismiss$/)
+      if (notifDismissMatch && req.method === 'PUT') {
+        return json(await dismissNotification(notifDismissMatch[1]))
+      }
+
+      if (path === '/api/editorial/status' && req.method === 'GET') {
+        return json(await getEditorialStatus())
+      }
+
+      if (path === '/api/editorial/cost' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialCost(query))
+      }
+
+      if (path === '/api/editorial/activity' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialActivity(query))
+      }
+
+      if (path === '/api/editorial/render' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await renderEditorialSection(query))
+      }
+
+      if (path === '/api/editorial/discover' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getDiscoverProgress(query))
+      }
+
+      if (path === '/api/editorial/draft' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await getEditorialDraft(query))
+      }
+
+      if (path === '/api/editorial/chat' && req.method === 'POST') {
+        const body = await req.json()
+        return await postEditorialChat(body, req)
       }
 
       // --- Health ---

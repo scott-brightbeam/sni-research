@@ -1,5 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
+import { getClient } from '../lib/claude.js'
+import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
@@ -388,4 +390,138 @@ export async function getEditorialDraft({ session } = {}) {
   const metrics = readJSON(metricsPath)
 
   return { session: sessionNum, draft, critique, metrics }
+}
+
+// ── POST /api/editorial/chat ──────────────────────────────
+
+const EDITORIAL_SYSTEM = `You are an editorial intelligence assistant for Sector News Intelligence (SNI), a weekly AI newsletter covering five sectors: general AI, biopharma, medtech, manufacturing and insurance.
+
+You have access to the editorial state document — an evolving knowledge base of analysis entries, themes, post candidates and editorial decisions built by the pipeline.
+
+Your role:
+- Help the editor understand patterns, connections and gaps in the analysis
+- Suggest post angles and identify underexplored themes
+- Answer questions about specific entries, themes or backlog items
+- Provide concise, actionable editorial guidance
+
+Style: UK English, analytical but accessible, cite specific entries/themes by ID when referencing them. Be concise — the editor values density over length.`
+
+/**
+ * Stream an editorial chat response via SSE.
+ *
+ * @param {{ message: string, tab: string, history: Array, model?: string }} body
+ * @param {Request} req — for abort signal
+ * @returns {Response} — SSE stream
+ */
+export async function postEditorialChat(body, req) {
+  const { message, tab, history } = body
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    throw Object.assign(new Error('message is required'), { status: 400 })
+  }
+
+  const activeTab = tab || 'state'
+
+  // Build tab-specific context
+  const { context, tokenEstimate } = buildEditorialContext(activeTab)
+
+  // Trim history to budget
+  const trimmedHistory = trimEditorialHistory(history || [])
+
+  // Build messages array
+  const sdkMessages = []
+
+  // First message: context preamble
+  if (context && trimmedHistory.length === 0) {
+    sdkMessages.push({
+      role: 'user',
+      content: `Here is the current editorial state for context:\n\n${context}\n\n---\n\n${message.trim()}`
+    })
+  } else if (context) {
+    sdkMessages.push({
+      role: 'user',
+      content: `Here is the current editorial state for context:\n\n${context}`
+    })
+    sdkMessages.push({
+      role: 'assistant',
+      content: 'I\'ve reviewed the editorial state. What would you like to discuss?'
+    })
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message.trim() })
+  } else {
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message.trim() })
+  }
+
+  // Create abort controller
+  const abort = new AbortController()
+  if (req.signal) {
+    req.signal.addEventListener('abort', () => abort.abort())
+  }
+
+  const client = getClient()
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder()
+      const send = (data) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch { /* stream closed */ }
+      }
+
+      let fullText = ''
+
+      try {
+        const response = await client.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2048,
+          system: EDITORIAL_SYSTEM,
+          messages: sdkMessages,
+          stream: true,
+        })
+
+        for await (const event of response) {
+          if (abort.signal.aborted) break
+
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            fullText += event.delta.text
+            send({ type: 'delta', text: event.delta.text })
+          }
+
+          if (event.type === 'message_stop') {
+            send({
+              type: 'done',
+              text: fullText,
+              contextTokens: tokenEstimate,
+              tab: activeTab,
+            })
+          }
+        }
+      } catch (err) {
+        send({ type: 'error', error: err.message })
+      }
+
+      controller.close()
+    }
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    }
+  })
 }

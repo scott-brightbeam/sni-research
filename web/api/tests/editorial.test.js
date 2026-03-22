@@ -572,3 +572,113 @@ describe('GET /api/editorial/draft', () => {
     expect(result.metrics).toBeNull()
   })
 })
+
+// ── Editorial chat context assembly ────────────────────────
+
+import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
+
+describe('buildEditorialContext', () => {
+  it('returns minimal context for empty state', () => {
+    const emptyState = { counters: null, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
+    const { context, tokenEstimate } = buildEditorialContext('state', emptyState)
+    expect(context).toContain('Analysis Index (0 entries)')
+    expect(tokenEstimate).toBeGreaterThan(0)
+  })
+
+  it('builds analysis context from state', () => {
+    const state = {
+      counters: { nextSession: 5 },
+      analysisIndex: {
+        '1': { title: 'Test Article', source: 'Podcast A', host: 'Host', tier: 1, session: 4, themes: ['T01'], summary: 'A summary' },
+        '2': { title: 'Another', source: 'Podcast B', tier: 2, session: 4 },
+      },
+      themeRegistry: { 'T01': { name: 'AI Safety', documentCount: 3 } },
+      postBacklog: { '10': { title: 'Post idea', status: 'suggested' } },
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('state', state)
+    expect(context).toContain('#1: Test Article')
+    expect(context).toContain('#2: Another')
+    expect(context).toContain('Analysis Index (2 entries)')
+  })
+
+  it('builds theme context from state', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: {},
+      themeRegistry: {
+        'T01': { name: 'AI Regulation', documentCount: 5, lastUpdated: '2026-03-20', evidence: [{ session: 2, source: 'Pod', content: 'Evidence text' }] },
+      },
+      postBacklog: {},
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('themes', state)
+    expect(context).toContain('T01: AI Regulation')
+    expect(context).toContain('Evidence text')
+  })
+
+  it('builds backlog context with theme summaries', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: {},
+      themeRegistry: { 'T01': { name: 'AI Regulation', documentCount: 2 } },
+      postBacklog: {
+        '10': { title: 'Post idea', status: 'suggested', priority: 'high', coreArgument: 'An argument' },
+      },
+      decisionLog: [],
+    }
+    const { context } = buildEditorialContext('backlog', state)
+    expect(context).toContain('#10: Post idea')
+    expect(context).toContain('An argument')
+    expect(context).toContain('T01')
+  })
+
+  it('builds decision context with recent analysis', () => {
+    const state = {
+      counters: { nextSession: 3 },
+      analysisIndex: { '1': { title: 'Recent', source: 'X', tier: 1 } },
+      themeRegistry: {},
+      postBacklog: {},
+      decisionLog: [{ type: 'editorial', date: '2026-03-20', decision: 'Decided X', reasoning: 'Because Y' }],
+    }
+    const { context } = buildEditorialContext('decisions', state)
+    expect(context).toContain('Decided X')
+    expect(context).toContain('Because Y')
+    expect(context).toContain('#1: Recent')
+  })
+
+  it('builds activity context from state', () => {
+    const state = { counters: { nextSession: 2 }, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
+    const { context } = buildEditorialContext('activity', state)
+    expect(context).toContain('Recent Activity')
+  })
+})
+
+describe('trimEditorialHistory', () => {
+  it('returns empty for null input', () => {
+    expect(trimEditorialHistory(null)).toEqual([])
+    expect(trimEditorialHistory([])).toEqual([])
+  })
+
+  it('keeps recent messages within budget', () => {
+    const msgs = [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+      { role: 'user', content: 'Question' },
+    ]
+    const result = trimEditorialHistory(msgs, 1000)
+    expect(result.length).toBe(3)
+  })
+
+  it('drops oldest when budget exceeded', () => {
+    const msgs = [
+      { role: 'user', content: 'A'.repeat(10000) },
+      { role: 'assistant', content: 'B'.repeat(10000) },
+      { role: 'user', content: 'Recent short message' },
+    ]
+    // With a tight budget, oldest should be dropped
+    const result = trimEditorialHistory(msgs, 100)
+    expect(result.length).toBeLessThan(3)
+    expect(result[result.length - 1].content).toBe('Recent short message')
+  })
+})
