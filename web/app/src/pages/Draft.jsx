@@ -21,7 +21,7 @@ const RIGHT_TABS = [
   { key: 'chat', label: 'Chat' },
 ]
 
-export default function Draft() {
+export default function Draft({ embedded = false }) {
   const {
     draft, review, links, evaluate,
     week, availableWeeks,
@@ -139,7 +139,7 @@ export default function Draft() {
   if (error) return <div className="empty">Failed to load: {error}</div>
 
   return (
-    <div>
+    <div className={embedded ? 'draft-embedded' : 'draft-page'}>
       {/* ── Three-zone toolbar ─────────────────────────── */}
       <div className="draft-toolbar">
         <div className="toolbar-left">

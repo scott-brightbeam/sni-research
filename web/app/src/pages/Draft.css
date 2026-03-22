@@ -1111,3 +1111,18 @@ button.btn-secondary.has-overlap-results {
   .draft-toolbar { flex-wrap: wrap; }
   .toolbar-centre { order: 3; width: 100%; justify-content: center; }
 }
+
+/* ── Embedded mode (Newsletter tab within Editorial) ────── */
+
+.draft-embedded {
+  padding: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.draft-embedded .draft-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--pampas);
+}

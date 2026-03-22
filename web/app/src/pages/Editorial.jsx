@@ -7,6 +7,7 @@ import { formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPut } from '../lib/api'
 import { downloadFile } from '../lib/download'
 import { toast } from '../components/shared/Toast'
+import Draft from './Draft'
 import EditorialChat from '../components/EditorialChat'
 import DraftLink from '../components/shared/DraftLink'
 import DownloadIcon from '../components/shared/DownloadIcon'
@@ -106,7 +107,7 @@ export default function Editorial() {
           {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} />}
           {tab === 'decisions' && <DecisionsTab />}
           {tab === 'activity' && <ActivityTab />}
-          {tab === 'newsletter' && <div className="tab-content"><p>Newsletter editor loading...</p></div>}
+          {tab === 'newsletter' && <Draft embedded />}
         </>
       )}
 
