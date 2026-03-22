@@ -218,21 +218,28 @@ function getPodcastImport() {
     // Count episodes for current week from manifest
     let episodesThisWeek = 0
     const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-    if (existsSync(manifestPath)) {
+    const manifestBakPath = join(ROOT, 'data/podcasts/manifest.json.bak')
+
+    // Try manifest.json, then .bak fallback
+    let manifestFile = null
+    if (existsSync(manifestPath)) manifestFile = manifestPath
+    else if (existsSync(manifestBakPath)) manifestFile = manifestBakPath
+
+    if (manifestFile) {
       try {
-        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+        const manifest = JSON.parse(readFileSync(manifestFile, 'utf-8'))
         const now = new Date()
         const currentWeek = getISOWeek(now)
         const currentYear = now.getFullYear()
 
-        const episodes = manifest.episodes || manifest || []
-        if (Array.isArray(episodes)) {
-          episodesThisWeek = episodes.filter(ep => {
-            if (!ep.date_published) return false
-            const d = new Date(ep.date_published + 'T12:00:00Z')
-            return getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
-          }).length
-        }
+        // Manifest is a dict keyed by filename — extract values
+        const episodes = Array.isArray(manifest) ? manifest : Object.values(manifest)
+        episodesThisWeek = episodes.filter(ep => {
+          const dateStr = ep.date || ep.date_published
+          if (!dateStr) return false
+          const d = new Date(dateStr + 'T12:00:00Z')
+          return getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
+        }).length
       } catch { /* ignore manifest parse errors */ }
     }
 
