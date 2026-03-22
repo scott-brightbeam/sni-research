@@ -258,6 +258,13 @@ describe('GET /api/editorial/state', () => {
     expect(result.error).toBeTruthy()
     expect(result.data).toBeNull()
   })
+
+  it('returns computed counts in no-section response', async () => {
+    const result = await getEditorialState({})
+    expect(result.entryCount).toBe(Object.keys(testState.analysisIndex).length)
+    expect(result.themeCount).toBe(Object.keys(testState.themeRegistry).length)
+    expect(result.postCount).toBe(Object.keys(testState.postBacklog).length)
+  })
 })
 
 describe('GET /api/editorial/search', () => {

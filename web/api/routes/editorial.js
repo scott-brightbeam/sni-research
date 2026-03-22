@@ -125,6 +125,9 @@ export async function getEditorialState({ section, week } = {}) {
       counters: state.counters,
       corpusStats: state.corpusStats,
       rotationCandidates: state.rotationCandidates || [],
+      entryCount: Object.keys(state.analysisIndex || {}).length,
+      themeCount: Object.keys(state.themeRegistry || {}).length,
+      postCount: Object.keys(state.postBacklog || {}).length,
     }
   }
 

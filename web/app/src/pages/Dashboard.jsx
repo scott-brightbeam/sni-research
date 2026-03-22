@@ -274,10 +274,10 @@ function EditorialSummaryCard() {
     </div>
   )
 
-  const entryCount = data.entries?.length || data.analysisIndex?.entries?.length || 0
-  const themeCount = data.themes?.length || data.themeRegistry?.themes?.length || 0
-  const postCount = data.posts?.length || data.postBacklog?.posts?.length || 0
-  const session = data.session || data.lastSession || null
+  const entryCount = data.entryCount || 0
+  const themeCount = data.themeCount || 0
+  const postCount = data.postCount || 0
+  const session = data.counters?.nextSession ? data.counters.nextSession - 1 : null
 
   return (
     <div className="card editorial-summary-card">
