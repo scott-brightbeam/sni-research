@@ -239,7 +239,17 @@ button.btn-secondary.has-overlap-results {
 
 .panel-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-content .placeholder-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ── Panel placeholder (empty states) ────────────────────── */

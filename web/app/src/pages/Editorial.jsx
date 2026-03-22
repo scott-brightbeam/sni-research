@@ -32,9 +32,9 @@ const TABS = [
   { key: 'state', label: 'Analysis' },
   { key: 'themes', label: 'Themes' },
   { key: 'backlog', label: 'Backlog' },
+  { key: 'newsletter', label: 'Newsletter' },
   { key: 'decisions', label: 'Decisions' },
   { key: 'activity', label: 'Activity' },
-  { key: 'newsletter', label: 'Newsletter' },
 ]
 
 const STATUS_CSS = {

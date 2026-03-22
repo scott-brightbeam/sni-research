@@ -14,8 +14,8 @@ import DownloadIcon from '../components/shared/DownloadIcon'
 import './Draft.css'
 
 const RIGHT_TABS = [
-  { key: 'critique', label: 'AI Critique' },
   { key: 'preview', label: 'Preview' },
+  { key: 'critique', label: 'AI Critique' },
   { key: 'review', label: 'Review' },
   { key: 'links', label: 'Links' },
   { key: 'chat', label: 'Chat' },
@@ -35,7 +35,7 @@ export default function Draft({ embedded = false }) {
   const location = useLocation()
   const [draftSource, setDraftSource] = useState(null)
 
-  const [rightTab, setRightTab] = useState('critique')
+  const [rightTab, setRightTab] = useState('preview')
   const [showFlags, setShowFlags] = useState(true)
   const [showPublished, setShowPublished] = useState(false)
   const [showOverlap, setShowOverlap] = useState(false)
