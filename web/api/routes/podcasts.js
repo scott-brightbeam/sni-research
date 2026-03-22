@@ -4,43 +4,96 @@ import { validateParam } from '../lib/walk.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
+/**
+ * Scan data/podcasts/ directories for .digest.json files.
+ * Used as fallback when manifest.json does not exist.
+ */
+function scanDigestFiles() {
+  const podcastsDir = join(ROOT, 'data/podcasts')
+  if (!existsSync(podcastsDir)) return []
+
+  const episodes = []
+  const dateDirs = readdirSync(podcastsDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()
+
+  for (const dateDir of dateDirs) {
+    const datePath = join(podcastsDir, dateDir)
+    let sourceDirs
+    try { sourceDirs = readdirSync(datePath) } catch { continue }
+
+    for (const sourceDir of sourceDirs) {
+      const sourcePath = join(datePath, sourceDir)
+      let files
+      try { files = readdirSync(sourcePath) } catch { continue }
+
+      for (const file of files) {
+        if (!file.endsWith('.digest.json')) continue
+        try {
+          const digest = JSON.parse(readFileSync(join(sourcePath, file), 'utf-8'))
+          const slug = file.replace('.digest.json', '')
+          episodes.push({
+            filename: digest.filename || `${dateDir}-${sourceDir}-${slug}.md`,
+            title: digest.title,
+            source: digest.source,
+            date: digest.date || dateDir,
+            week: digest.week,
+            duration: digest.duration,
+            episodeUrl: digest.episodeUrl || null,
+            type: 'podcast',
+            digestPath: `data/podcasts/${dateDir}/${sourceDir}/${file}`,
+            digest,
+          })
+        } catch { /* skip malformed digest */ }
+      }
+    }
+  }
+
+  return episodes
+}
+
 export async function handleGetPodcasts(query) {
   const { week } = query
   const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
 
-  if (!existsSync(manifestPath)) {
-    return { week: week || null, episodes: [], lastRun: null }
-  }
+  let episodes
 
-  let manifest
-  try {
-    manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-  } catch {
-    return { week: week || null, episodes: [], lastRun: null }
-  }
-
-  // Manifest is an object keyed by filename (per PRD §5.1)
-  let entries = Array.isArray(manifest)
-    ? manifest
-    : Object.entries(manifest).map(([filename, entry]) => ({ filename, ...entry }))
-
-  if (week) {
-    const weekNum = parseInt(week, 10)
-    entries = entries.filter(e => e.week === weekNum)
-  }
-
-  const episodes = entries.map(entry => {
-    let digest = null
-    if (entry.digestPath) {
-      const digestFullPath = join(ROOT, entry.digestPath)
-      if (existsSync(digestFullPath)) {
-        try {
-          digest = JSON.parse(readFileSync(digestFullPath, 'utf-8'))
-        } catch { /* skip malformed */ }
-      }
+  if (existsSync(manifestPath)) {
+    // Use manifest when available (keyed by filename per PRD §5.1)
+    let manifest
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    } catch {
+      return { week: week || null, episodes: [], lastRun: null }
     }
-    return { ...entry, digest }
-  })
+
+    let entries = Array.isArray(manifest)
+      ? manifest
+      : Object.entries(manifest).map(([filename, entry]) => ({ filename, ...entry }))
+
+    if (week) {
+      const weekNum = parseInt(week, 10)
+      entries = entries.filter(e => e.week === weekNum)
+    }
+
+    episodes = entries.map(entry => {
+      let digest = null
+      if (entry.digestPath) {
+        const digestFullPath = join(ROOT, entry.digestPath)
+        if (existsSync(digestFullPath)) {
+          try {
+            digest = JSON.parse(readFileSync(digestFullPath, 'utf-8'))
+          } catch { /* skip malformed */ }
+        }
+      }
+      return { ...entry, digest }
+    })
+  } else {
+    // Fallback: scan digest files directly
+    episodes = scanDigestFiles()
+    if (week) {
+      const weekNum = parseInt(week, 10)
+      episodes = episodes.filter(e => e.week === weekNum)
+    }
+  }
 
   // Find the latest podcast-import run summary
   const runsDir = join(ROOT, 'output/runs')
