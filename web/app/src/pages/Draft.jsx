@@ -1,12 +1,21 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Markdown from 'react-markdown'
 import { useDraft } from '../hooks/useDraft'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useOverlapCheck } from '../hooks/useOverlapCheck'
-import DraftChatPanel from '../components/DraftChatPanel'
+import { useEditorialDraft } from '../hooks/useEditorialDraft'
+import { useChatPanel } from '../hooks/useChatPanel'
 import { usePublished } from '../hooks/usePublished'
 import { useExclusions } from '../hooks/useExclusions'
 import './Draft.css'
+
+const RIGHT_TABS = [
+  { key: 'critique', label: 'AI Critique' },
+  { key: 'preview', label: 'Preview' },
+  { key: 'review', label: 'Review' },
+  { key: 'links', label: 'Links' },
+  { key: 'chat', label: 'Chat' },
+]
 
 export default function Draft() {
   const {
@@ -16,11 +25,15 @@ export default function Draft() {
     setDraft, save, goToWeek,
   } = useDraft()
 
+  const editorialDraft = useEditorialDraft()
+  const chat = useChatPanel(week)
+
+  const [rightTab, setRightTab] = useState('critique')
   const [showFlags, setShowFlags] = useState(true)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const debouncedDraft = useDebouncedValue(draft, 300)
   const [showPublished, setShowPublished] = useState(false)
   const [showOverlap, setShowOverlap] = useState(false)
+
+  const debouncedDraft = useDebouncedValue(draft, 300)
   const pub = usePublished(week)
   const excl = useExclusions(week)
   const overlap = useOverlapCheck(week)
@@ -30,7 +43,6 @@ export default function Draft() {
     return draft.trim().split(/\s+/).filter(Boolean).length
   }, [draft])
 
-  // Build link status map: url -> { status, httpStatus, responseTimeMs }
   const linkMap = useMemo(() => {
     if (!links?.results) return {}
     const map = {}
@@ -40,7 +52,6 @@ export default function Draft() {
     return map
   }, [links])
 
-  // Build prohibited terms list
   const prohibitedTerms = useMemo(() => {
     if (!review?.prohibited_found) return []
     return review.prohibited_found.map(p => p.term)
@@ -49,8 +60,7 @@ export default function Draft() {
   const reviewIssueCount = review?.prohibited_found?.length ?? 0
   const reviewPass = review?.overall_pass ?? true
 
-  // Unsaved changes guard for week nav
-  const handleWeekNav = (w) => {
+  function handleWeekNav(w) {
     if (dirty && !confirm('You have unsaved changes. Discard and navigate?')) return
     goToWeek(w)
   }
@@ -59,17 +69,13 @@ export default function Draft() {
   const hasPrev = weekIdx > 0
   const hasNext = weekIdx < availableWeeks.length - 1
 
-  // Save button label
-  const saveLabel = saving ? 'Saving...' : (savedAt && Date.now() - savedAt < 2000) ? 'Saved' : 'Save'
-  const saveClass = `btn-save${(savedAt && Date.now() - savedAt < 2000) ? ' saved' : ''}`
-
+  const recentlySaved = savedAt && Date.now() - savedAt < 2000
+  const saveLabel = saving ? 'Saving...' : recentlySaved ? 'Saved' : 'Save'
   const hasDraft = draft !== null && draft !== undefined
 
-  if (loading) return <div className="loading">Loading...</div>
-  if (error) return <div className="empty">Failed to load: {error}</div>
-
-  // Custom renderers for react-markdown
-  const components = {
+  // Custom renderers for react-markdown (preview tab)
+  // Must be before early returns to satisfy Rules of Hooks
+  const components = useMemo(() => ({
     a: ({ href, children }) => {
       const info = linkMap[href]
       return (
@@ -94,112 +100,410 @@ export default function Draft() {
       if (!showFlags || prohibitedTerms.length === 0) return <li>{children}</li>
       return <li>{highlightTerms(children, prohibitedTerms)}</li>
     },
-  }
+  }), [linkMap, showFlags, prohibitedTerms])
+
+  if (loading) return <div className="loading">Loading...</div>
+  if (error) return <div className="empty">Failed to load: {error}</div>
 
   return (
     <div>
+      {/* ── Three-zone toolbar ─────────────────────────── */}
       <div className="draft-toolbar">
-        <h2>Draft</h2>
-        <div className="week-nav">
-          <button disabled={!hasPrev} onClick={() => handleWeekNav(availableWeeks[weekIdx - 1])}>◀</button>
-          <span>Week {week}</span>
-          <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])}>▶</button>
+        <div className="toolbar-left">
+          <h2>Draft</h2>
+          <div className="week-nav">
+            <button disabled={!hasPrev} onClick={() => handleWeekNav(availableWeeks[weekIdx - 1])} aria-label="Previous week">◀</button>
+            <span>Week {week}</span>
+            <button disabled={!hasNext} onClick={() => handleWeekNav(availableWeeks[weekIdx + 1])} aria-label="Next week">▶</button>
+          </div>
         </div>
-        <button className={saveClass} disabled={!hasDraft || !dirty || saving} onClick={save}>
-          {saveLabel}
-        </button>
-        {saveError && <span className="save-error">{saveError}</span>}
-        {review && (
+
+        <div className="toolbar-centre">
+          {review && (
+            <button
+              className={`review-pill ${reviewPass ? 'pass' : 'fail'}`}
+              onClick={() => setShowFlags(f => !f)}
+              title={showFlags ? 'Hide review flags' : 'Show review flags'}
+            >
+              {reviewPass ? 'Pass' : `${reviewIssueCount} issue${reviewIssueCount !== 1 ? 's' : ''}`}
+            </button>
+          )}
+          <span className="word-count-badge">{wordCount.toLocaleString()} words</span>
+        </div>
+
+        <div className="toolbar-right">
           <button
-            className={`review-pill ${reviewPass ? 'pass' : 'fail'}`}
-            onClick={() => setShowFlags(f => !f)}
-            title={showFlags ? 'Click to hide review flags' : 'Click to show review flags'}
+            className={`btn btn-secondary btn-md${overlap.results ? ' has-overlap-results' : ''}`}
+            disabled={!hasDraft || overlap.loading}
+            onClick={() => {
+              if (overlap.results) {
+                setShowOverlap(o => !o)
+              } else {
+                overlap.check().then(() => setShowOverlap(true))
+              }
+            }}
           >
-            {reviewPass ? 'Pass' : `${reviewIssueCount} issue${reviewIssueCount !== 1 ? 's' : ''}`}
+            {overlap.loading ? 'Checking...' : overlap.results ? `Overlap (${overlap.results.length})` : 'Compare pipeline'}
           </button>
-        )}
-        <button
-          className={`btn-overlap${overlap.results ? ' has-results' : ''}`}
-          disabled={!hasDraft || overlap.loading}
-          onClick={() => {
-            if (overlap.results) {
-              setShowOverlap(o => !o)
-            } else {
-              overlap.check().then(() => setShowOverlap(true))
-            }
-          }}
-          title="Check for content overlap with previous weeks"
-        >
-          {overlap.loading ? 'Checking...' : overlap.results ? `Overlap (${overlap.results.length})` : 'Check Overlap'}
-        </button>
-        <button
-          className={`draft-published-toggle ${showPublished ? 'active' : ''}`}
-          onClick={() => setShowPublished(!showPublished)}
-        >
-          {pub.published ? 'Published ✓' : 'Published'}
-        </button>
-        <button
-          className={`draft-chat-toggle${panelOpen ? ' active' : ''}`}
-          disabled={!hasDraft}
-          onClick={() => setPanelOpen(p => !p)}
-          title="Toggle draft assistant"
-        >
-          Chat
-        </button>
+          <button
+            className={`btn btn-ghost btn-md draft-publish-btn${showPublished ? ' active' : ''}`}
+            onClick={() => setShowPublished(!showPublished)}
+          >
+            {pub.published ? 'Published ✓' : 'Publish'}
+          </button>
+          <button
+            className={`btn btn-primary btn-md${recentlySaved ? ' saved' : ''}`}
+            disabled={!hasDraft || !dirty || saving}
+            onClick={save}
+          >
+            {saveLabel}
+          </button>
+          {saveError && <span className="save-error">{saveError}</span>}
+        </div>
       </div>
 
+      {/* ── Main content: editor + tabbed panel ────────── */}
       {hasDraft ? (
-        <>
-          <div className="draft-panes">
-            <div className="draft-editor">
-              <textarea
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                spellCheck={false}
-              />
-            </div>
-            <div className="draft-preview">
-              <Markdown components={components}>{debouncedDraft}</Markdown>
-            </div>
+        <div className="draft-panes">
+          <div className="draft-editor">
+            <textarea
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              spellCheck={false}
+              aria-label="Draft editor"
+            />
           </div>
 
-          <div className="draft-footer">
-            <span>
-              {evaluate
-                ? `Eval: ${JSON.stringify(evaluate).slice(0, 80)}`
-                : 'Evaluation: No data available'
-              }
-            </span>
-            <span>{wordCount.toLocaleString()} words</span>
+          <div className="draft-right-panel">
+            <div className="panel-tabs">
+              {RIGHT_TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  className={`panel-tab${rightTab === key ? ' active' : ''}`}
+                  onClick={() => setRightTab(key)}
+                >
+                  {label}
+                  {key === 'review' && !reviewPass && <span className="tab-dot" />}
+                  {key === 'links' && links?.results?.length > 0 && (
+                    <span className="tab-count">{links.results.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="panel-content">
+              {rightTab === 'critique' && (
+                <CritiquePanel data={editorialDraft.data} loading={editorialDraft.loading} error={editorialDraft.error} />
+              )}
+              {rightTab === 'preview' && (
+                <div className="draft-preview">
+                  <Markdown components={components}>{debouncedDraft}</Markdown>
+                </div>
+              )}
+              {rightTab === 'review' && (
+                <ReviewPanel review={review} evaluate={evaluate} />
+              )}
+              {rightTab === 'links' && (
+                <LinksPanel links={links} />
+              )}
+              {rightTab === 'chat' && (
+                <InlineDraftChat chat={chat} draft={draft} />
+              )}
+            </div>
           </div>
-        </>
+        </div>
       ) : (
         <div className="draft-panes">
           <div className="draft-empty-state">No draft found for week {week}</div>
         </div>
       )}
 
+      {/* ── Below-content panels ───────────────────────── */}
       {showPublished && (
         <PublishedPanel week={week} pub={pub} draft={draft} excl={excl} />
       )}
 
-      {showOverlap && overlap.results && (
-        <OverlapPanel
-          results={overlap.results}
-          error={overlap.error}
-          onDismiss={() => setShowOverlap(false)}
-        />
-      )}
-
-      <DraftChatPanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        draftContent={draft}
-        week={week}
+      <OverlapPanel
+        open={showOverlap && !!(overlap.results || overlap.error)}
+        results={overlap.results}
+        stats={overlap.stats}
+        error={overlap.error}
+        onClose={() => setShowOverlap(false)}
       />
     </div>
   )
 }
+
+// ── AI Critique Panel ──────────────────────────────────────
+
+function CritiquePanel({ data, loading, error }) {
+  if (loading) return <div className="panel-placeholder">Loading editorial draft...</div>
+
+  if (error) {
+    return (
+      <div className="panel-placeholder">
+        <div className="placeholder-icon">⚠</div>
+        <p>Failed to load critique</p>
+        <p className="placeholder-detail">{error}</p>
+      </div>
+    )
+  }
+
+  if (!data?.critique) {
+    return (
+      <div className="panel-placeholder">
+        <div className="placeholder-icon">✎</div>
+        <p>No AI critique available</p>
+        <p className="placeholder-detail">
+          Critique data will appear here after the editorial DRAFT pipeline stage runs.
+        </p>
+      </div>
+    )
+  }
+
+  const { critique, metrics } = data
+  const models = critique.models || []
+  const summary = critique.summary || {}
+
+  return (
+    <div className="critique-panel">
+      <div className="critique-summary">
+        <span className="critique-stats">
+          {summary.accepted || 0} accepted · {summary.rejected || 0} rejected
+        </span>
+        <span className={`critique-verdict ${(summary.verdict || '').toLowerCase()}`}>
+          {summary.verdict || 'PENDING'}
+        </span>
+      </div>
+
+      <div className="critique-models">
+        {models.map((model, mi) => (
+          <div key={mi} className="critique-model">
+            <h4>{model.name}</h4>
+            {(model.points || []).map((point, pi) => (
+              <div key={pi} className={`critique-point ${point.status || 'pending'}`}>
+                {point.passage && (
+                  <blockquote className="critique-passage">{point.passage}</blockquote>
+                )}
+                <p className="critique-text">{point.critique}</p>
+                <span className={`critique-status-badge ${point.status}`}>
+                  {point.status === 'accepted' ? '✓ Accepted' : point.status === 'rejected' ? '✗ Rejected' : '· Pending'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {metrics && (
+        <div className="critique-metrics">
+          <h4>Quality metrics</h4>
+          <div className="metrics-grid">
+            {Object.entries(metrics).map(([key, value]) => (
+              <div key={key} className="metric-item">
+                <span className="metric-label">{key.replace(/_/g, ' ')}</span>
+                <span className="metric-value">
+                  {typeof value === 'number' ? value.toFixed(1) : String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Review Panel ───────────────────────────────────────────
+
+function ReviewPanel({ review, evaluate }) {
+  if (!review && !evaluate) {
+    return (
+      <div className="panel-placeholder">
+        <div className="placeholder-icon">◉</div>
+        <p>No review data available</p>
+        <p className="placeholder-detail">
+          Review results appear after the pipeline review stage completes.
+        </p>
+      </div>
+    )
+  }
+
+  const issues = review?.prohibited_found || []
+  const pass = review?.overall_pass ?? true
+
+  return (
+    <div className="review-panel">
+      <div className="review-summary-bar">
+        <span className={`review-verdict-badge ${pass ? 'pass' : 'fail'}`}>
+          {pass ? '✓ Pass' : `✗ ${issues.length} issue${issues.length !== 1 ? 's' : ''}`}
+        </span>
+      </div>
+
+      {issues.length > 0 && (
+        <div className="review-issues-list">
+          <h4>Prohibited terms</h4>
+          {issues.map((issue, i) => (
+            <div key={i} className="review-issue-item">
+              <span className="review-term-badge">{issue.term}</span>
+              {issue.context && <span className="review-context">{issue.context}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {evaluate && (
+        <div className="review-eval-section">
+          <h4>Evaluation</h4>
+          <pre className="eval-json">{JSON.stringify(evaluate, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Links Panel ────────────────────────────────────────────
+
+function LinksPanel({ links }) {
+  if (!links?.results || links.results.length === 0) {
+    return (
+      <div className="panel-placeholder">
+        <div className="placeholder-icon">⊘</div>
+        <p>No link data available</p>
+        <p className="placeholder-detail">
+          Link verification results appear after the pipeline link-check stage.
+        </p>
+      </div>
+    )
+  }
+
+  const okCount = links.results.filter(l => l.status === 'ok').length
+  const deadCount = links.results.length - okCount
+
+  return (
+    <div className="links-panel">
+      <div className="links-summary-bar">
+        <span className="links-ok-count">{okCount} OK</span>
+        {deadCount > 0 && <span className="links-dead-count">{deadCount} broken</span>}
+      </div>
+
+      <div className="links-list">
+        {links.results.map((link, i) => (
+          <div key={i} className={`link-item ${link.status === 'ok' ? 'ok' : 'dead'}`}>
+            <span className="link-status-dot">{link.status === 'ok' ? '✓' : '✗'}</span>
+            <div className="link-detail">
+              <a href={link.url} target="_blank" rel="noopener noreferrer" className="link-url-text">
+                {truncateUrl(link.url)}
+              </a>
+              <span className="link-response-meta">
+                {link.httpStatus} · {link.responseTimeMs}ms
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function truncateUrl(url) {
+  if (!url || url.length <= 55) return url
+  return url.slice(0, 55) + '\u2026'
+}
+
+// ── Inline Draft Chat ──────────────────────────────────────
+
+function InlineDraftChat({ chat, draft }) {
+  const [input, setInput] = useState('')
+  const messagesEndRef = useRef(null)
+  const textareaRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chat.messages])
+
+  const handleSend = () => {
+    if (!input.trim() || chat.sending) return
+    chat.sendMessage(input, draft)
+    setInput('')
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  return (
+    <div className="inline-chat">
+      {chat.error && <div className="inline-chat-error">{chat.error}</div>}
+
+      <div className="inline-chat-messages">
+        {chat.messages.length === 0 && (
+          <div className="inline-chat-empty">
+            Ask about the current draft. The assistant can see your markdown.
+          </div>
+        )}
+        {chat.messages.map(msg => (
+          <div key={msg.id} className={`inline-chat-msg ${msg.role}`}>
+            {msg.role === 'assistant' ? (
+              <Markdown>{msg.content || '\u200B'}</Markdown>
+            ) : (
+              <p>{msg.content}</p>
+            )}
+            {msg.role === 'assistant' && msg.content && (
+              <div className="inline-chat-msg-footer">
+                <span className="model-badge">
+                  {msg.model?.includes('opus') ? 'O' : 'S'}
+                </span>
+                {msg.usage && (
+                  <span className="token-count">
+                    {msg.usage.input_tokens + msg.usage.output_tokens} tok
+                  </span>
+                )}
+                <button className="btn-pin" onClick={() => chat.pinMessage(msg.id)}>Pin</button>
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="inline-chat-input-bar">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask about the draft..."
+          aria-label="Chat message"
+          rows={1}
+        />
+        <div className="inline-chat-controls">
+          <div className="inline-model-toggle">
+            <button
+              className={chat.model.includes('sonnet') ? 'active' : ''}
+              onClick={() => chat.setModel('claude-sonnet-4-20250514')}
+            >S</button>
+            <button
+              className={chat.model.includes('opus') ? 'active' : ''}
+              onClick={() => chat.setModel('claude-opus-4-6')}
+            >O</button>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={chat.clearMessages}>Clear</button>
+          {chat.sending ? (
+            <button className="btn btn-danger btn-sm" onClick={chat.cancelStream}>Stop</button>
+          ) : (
+            <button className="btn btn-primary btn-sm" disabled={!input.trim()} onClick={handleSend}>Send</button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Published Panel ────────────────────────────────────────
 
 function PublishedPanel({ week, pub, draft, excl }) {
   const [publishError, setPublishError] = useState(null)
@@ -214,17 +518,16 @@ function PublishedPanel({ week, pub, draft, excl }) {
     const ok = await pub.save(draft)
     if (ok) {
       setJustPublished(true)
-      setTimeout(() => setJustPublished(null), 3000)
+      setTimeout(() => setJustPublished(false), 3000)
     } else {
       setPublishError(pub.error || 'Failed to publish')
     }
   }
 
-  if (pub.loading) return <div className="published-panel"><div className="placeholder-text">Loading...</div></div>
+  if (pub.loading) return <div className="published-panel"><div className="panel-placeholder">Loading...</div></div>
 
   return (
     <div className="published-panel">
-      {/* Step 1: Publish */}
       <div className="publish-step">
         <div className="publish-step-header">
           <h3>Step 1: Publish draft</h3>
@@ -243,7 +546,7 @@ function PublishedPanel({ week, pub, draft, excl }) {
         {draft?.trim() && (
           <div className="publish-actions">
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-md"
               onClick={handlePublish}
               disabled={pub.saving}
             >
@@ -255,7 +558,6 @@ function PublishedPanel({ week, pub, draft, excl }) {
         )}
       </div>
 
-      {/* Step 2: Extract exclusions — only shown after publishing */}
       {isPublished && (
         <div className="exclusions-step">
           <div className="exclusions-step-header">
@@ -265,7 +567,7 @@ function PublishedPanel({ week, pub, draft, excl }) {
 
           <div className="exclusions-actions">
             <button
-              className="btn-secondary"
+              className="btn btn-secondary btn-md"
               onClick={excl.extract}
               disabled={excl.extracting}
             >
@@ -316,12 +618,12 @@ function PublishedPanel({ week, pub, draft, excl }) {
               </table>
 
               <div className="exclusions-table-actions">
-                <button className="btn-sm btn-ghost" onClick={excl.addEntry}>+ Add entry</button>
+                <button className="btn btn-ghost btn-sm" onClick={excl.addEntry}>+ Add entry</button>
               </div>
 
               <div className="exclusions-save-row">
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-md"
                   onClick={excl.saveToOffLimits}
                   disabled={excl.saving || excl.entries.length === 0}
                 >
@@ -342,67 +644,68 @@ function PublishedPanel({ week, pub, draft, excl }) {
   )
 }
 
-function OverlapPanel({ results, error, onDismiss }) {
-  if (error) {
-    return (
-      <div className="overlap-panel">
-        <div className="overlap-panel-header">
-          <h3>Overlap check</h3>
-          <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
-        </div>
-        <div className="overlap-error">{error}</div>
-      </div>
-    )
-  }
+// ── Overlap Panel ──────────────────────────────────────────
 
-  if (!results || results.length === 0) {
-    return (
-      <div className="overlap-panel">
-        <div className="overlap-panel-header">
-          <h3>Overlap check</h3>
-          <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
-        </div>
-        <div className="overlap-empty">No overlapping content detected.</div>
-      </div>
-    )
-  }
+function OverlapPanel({ open, results, stats, error, onClose }) {
+  const durationLabel = stats?.durationMs != null
+    ? ` · Checked in ${(stats.durationMs / 1000).toFixed(1)}s`
+    : ''
+  const editionCount = stats?.archivedWeeks?.length ?? 0
 
   return (
-    <div className="overlap-panel">
+    <div className={`overlap-panel${open ? ' open' : ''}`}>
       <div className="overlap-panel-header">
         <h3>Overlap check</h3>
-        <span className="overlap-count">{results.length} match{results.length !== 1 ? 'es' : ''}</span>
-        <button className="btn-icon" onClick={onDismiss} title="Dismiss">×</button>
+        {results && results.length > 0 && (
+          <span className="overlap-count">
+            {results.length} overlap{results.length !== 1 ? 's' : ''} across {editionCount} edition{editionCount !== 1 ? 's' : ''}{durationLabel}
+          </span>
+        )}
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
       </div>
-      <div className="overlap-results">
-        {results.map((r, i) => (
-          <div key={i} className="overlap-result">
-            <div className="overlap-result-header">
-              <span className="overlap-current-heading">{r.currentHeading}</span>
-              <span className={`overlap-confidence ${confidenceClass(r.confidence)}`}>
-                {r.confidence}
-              </span>
-            </div>
-            <div className="overlap-matched">
-              Matches: <strong>{r.matchedHeading}</strong> (week {r.matchedWeek})
-            </div>
-            {r.explanation && (
-              <div className="overlap-explanation">{r.explanation}</div>
-            )}
+
+      <div className="overlap-body">
+        {error && (
+          <div className="overlap-error">{error}</div>
+        )}
+
+        {!error && (!results || results.length === 0) && (
+          <div className="overlap-empty">No overlapping content detected across {editionCount} edition{editionCount !== 1 ? 's' : ''}{durationLabel}.</div>
+        )}
+
+        {!error && results && results.length > 0 && (
+          <div className="overlap-results">
+            {results.map((r, i) => (
+              <div key={i} className="overlap-result">
+                <div className="overlap-result-header">
+                  <span className="overlap-current-heading">{r.currentHeading}</span>
+                  <span className={`overlap-confidence ${confidenceLevel(r.tier2Confidence)}`}>
+                    {Math.round(r.tier2Confidence * 100)}%
+                  </span>
+                </div>
+                <div className="overlap-matched">
+                  Matches: <strong>{r.archivedHeading}</strong> (week {r.archivedWeek})
+                </div>
+                {r.explanation && (
+                  <div className="overlap-explanation">{r.explanation}</div>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
 }
 
-function confidenceClass(confidence) {
+function confidenceLevel(confidence) {
   if (!confidence) return ''
-  const c = confidence.toLowerCase()
-  if (c === 'high') return 'high'
-  if (c === 'medium') return 'medium'
+  if (confidence >= 0.85) return 'high'
+  if (confidence >= 0.7) return 'medium'
   return 'low'
 }
+
+// ── Highlight utilities ────────────────────────────────────
 
 /**
  * Walk React children and highlight any text that contains prohibited terms.

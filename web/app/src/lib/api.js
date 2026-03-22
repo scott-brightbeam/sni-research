@@ -4,8 +4,10 @@ export async function apiFetch(path, opts = {}) {
     ...opts
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || `API ${res.status}`)
+    const body = await res.json().catch(() => ({ error: res.statusText }))
+    const err = new Error(body.error || `API ${res.status}`)
+    err.status = res.status
+    throw err
   }
   return res.json()
 }
@@ -18,8 +20,10 @@ export async function apiStream(path, body, signal) {
     signal,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || `API ${res.status}`)
+    const errBody = await res.json().catch(() => ({ error: res.statusText }))
+    const err = new Error(errBody.error || `API ${res.status}`)
+    err.status = res.status
+    throw err
   }
   return res
 }
