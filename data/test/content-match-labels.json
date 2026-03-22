@@ -251,8 +251,8 @@
       "source": "verified/2026-03-09/general/anthropic-sues-defense-department-over-supply-chain-risk-des.json",
       "heading": "Anthropic sues Defense Department over supply-chain risk designation"
     },
-    "label": "related_but_different",
-    "notes": "Same company and conflict but different events: draft covers initial refusal, article covers later lawsuit filing."
+    "label": "same_story",
+    "notes": "Same ongoing story arc: draft covers initial refusal, article covers later lawsuit filing. Should be flagged for newsletter dedup."
   },
   {
     "id": "pair-018",
@@ -446,8 +446,8 @@
       "source": "draft-week-9",
       "heading": "OpenAI announces $110bn funding round with backing from Amazon, Nvidia and SoftBank"
     },
-    "label": "related_but_different",
-    "notes": "Both involve Nvidia-OpenAI investment but Week 8 covers early talks, Week 9 covers the completed $110bn round."
+    "label": "same_story",
+    "notes": "Same investment deal at different stages: early talks vs completed round. Should be flagged for newsletter dedup."
   },
   {
     "id": "pair-031",
@@ -461,8 +461,8 @@
       "source": "draft-week-9",
       "heading": "Anthropic rejects Pentagon demand for unrestricted military use of Claude"
     },
-    "label": "related_but_different",
-    "notes": "Same parties and topic but different stages: Week 9 covers initial refusal, Week 10 covers resumed negotiations."
+    "label": "same_story",
+    "notes": "Same story arc: Week 9 covers initial refusal, Week 10 covers resumed negotiations. Should be flagged for newsletter dedup."
   },
   {
     "id": "pair-032",

@@ -335,6 +335,13 @@
         "sector": "economics",
         "url": null,
         "confidence": "medium"
+      },
+      {
+        "headline": "David Sinclair begins human trials for ER100 epigenetic reprogramming therapy",
+        "entities": ["David Sinclair"],
+        "sector": "biotech",
+        "url": null,
+        "confidence": "medium"
       }
     ]
   },
@@ -389,6 +396,41 @@
         "entities": ["Peter Diamandis", "Alex Wissner-Gross"],
         "sector": "research",
         "url": "https://solveeverything.org",
+        "confidence": "high"
+      },
+      {
+        "headline": "Anthropic AI safety lead resigns citing concerns about interconnected crises",
+        "entities": ["Anthropic"],
+        "sector": "ai-safety",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "New York introduces legislation to halt data center development over energy concerns",
+        "entities": [],
+        "sector": "policy",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "Tesla FSD autonomously drives heart attack patient to hospital, saving his life",
+        "entities": ["Tesla"],
+        "sector": "autonomous-vehicles",
+        "url": null,
+        "confidence": "high"
+      },
+      {
+        "headline": "China installed more robots than all developed countries combined",
+        "entities": [],
+        "sector": "robotics",
+        "url": null,
+        "confidence": "medium"
+      },
+      {
+        "headline": "Research achieves protection of brain synapses at cryogenic temperatures",
+        "entities": ["21st Century Medicine", "Alcor Foundation"],
+        "sector": "biotech",
+        "url": null,
         "confidence": "high"
       }
     ]
