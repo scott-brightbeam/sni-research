@@ -498,7 +498,7 @@ function InlineDraftChat({ chat, draft }) {
             )}
             {msg.role === 'assistant' && msg.content && (
               <div className="inline-chat-msg-footer">
-                <span className="model-badge">
+                <span className="inline-chat-model-badge">
                   {msg.model?.includes('opus') ? 'O' : 'S'}
                 </span>
                 {msg.usage && (
@@ -506,7 +506,7 @@ function InlineDraftChat({ chat, draft }) {
                     {msg.usage.input_tokens + msg.usage.output_tokens} tok
                   </span>
                 )}
-                <button className="btn-pin" onClick={() => chat.pinMessage(msg.id)}>Pin</button>
+                <button className="inline-chat-btn-pin" onClick={() => chat.pinMessage(msg.id)}>Pin</button>
               </div>
             )}
           </div>
@@ -743,7 +743,7 @@ function OverlapPanel({ open, results, stats, error, onClose }) {
 }
 
 function confidenceLevel(confidence) {
-  if (!confidence) return ''
+  if (confidence == null) return ''
   if (confidence >= 0.85) return 'high'
   if (confidence >= 0.7) return 'medium'
   return 'low'

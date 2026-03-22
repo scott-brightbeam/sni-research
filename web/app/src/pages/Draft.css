@@ -683,7 +683,7 @@ button.btn-secondary.has-overlap-results {
   color: var(--cloudy);
 }
 
-.model-badge {
+.inline-chat-model-badge {
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -701,7 +701,7 @@ button.btn-secondary.has-overlap-results {
   color: var(--text-muted);
 }
 
-.btn-pin {
+.inline-chat-btn-pin {
   background: none;
   border: none;
   color: var(--cloudy);
@@ -711,7 +711,7 @@ button.btn-secondary.has-overlap-results {
   font-family: 'Poppins', Arial, sans-serif;
 }
 
-.btn-pin:hover { color: var(--terra); }
+.inline-chat-btn-pin:hover { color: var(--terra); }
 
 .inline-chat-input-bar {
   display: flex;
@@ -968,10 +968,12 @@ button.btn-secondary.has-overlap-results {
   z-index: 20;
   transform: translateX(100%);
   transition: transform var(--transition-normal);
+  pointer-events: none;
 }
 
 .overlap-panel.open {
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 .overlap-panel-header {
