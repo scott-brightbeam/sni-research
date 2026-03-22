@@ -59,10 +59,16 @@ The `PodcastStatusCard` receives data from `useStatus()` which calls `GET /api/s
 4. Returns: `{ lastRun, episodesThisWeek, storiesGapFilled, warnings }`
 5. `PodcastStatusCard` destructures `{ lastRun, episodesThisWeek, storiesGapFilled, warnings }`
 
-**Diagnosis approach:** The manifest was recently restored (30 entries). Check whether `getPodcastImport()` in status.js correctly reads the manifest, whether the ISO week filter matches the week numbers stored in manifest entries, and whether the run summary JSON has the expected field names (`storiesGapFilled` vs `stories_gap_filled`).
+**Three concrete bugs in `getPodcastImport()` (`web/api/routes/status.js`):**
+
+1. **Missing manifest file:** `manifest.json` does not exist — only `manifest.json.bak` exists. The function checks `existsSync(manifestPath)` for `manifest.json`, which returns false, so `episodesThisWeek` is always 0. **Fix:** Try `manifest.json` first, fall back to `manifest.json.bak`, then fall back to digest file scanner (same pattern as `web/api/routes/podcasts.js`).
+
+2. **Dict, not array:** The manifest is an object keyed by filename (`{ "filename.md": { ... }, ... }`), not an array. The function does `manifest.episodes || manifest || []` then `Array.isArray(episodes)`. Since the manifest is a dict (no `episodes` property), it assigns the dict to `episodes`, the `Array.isArray()` check fails, and `episodesThisWeek` stays 0. **Fix:** Extract entries with `Object.values(manifest)` (matching the pattern in `handleGetPodcasts()` at podcasts.js line 68–70).
+
+3. **Wrong field name:** The week filter uses `ep.date_published` but manifest entries use the field `date` (e.g., `"date": "2026-03-20"`). The filter always returns false. **Fix:** Change filter to use `ep.date`.
 
 **Files:**
-- Modify: `web/api/routes/status.js` — fix `getPodcastImport()` week filtering and field name mapping
+- Modify: `web/api/routes/status.js` — fix all three bugs in `getPodcastImport()`: manifest file fallback, Object.values() extraction, correct field name for date filter
 
 ### Editorial Intelligence card shows zeros
 
@@ -204,7 +210,7 @@ Add `archived: true` flag to article and podcast JSON. Reversible. Uses the exis
 - **Note on file naming:** Podcast digest files use `.digest.json` suffix and some slugs start with a hyphen (e.g., `-jensens-openclaw-thesis.digest.json`). The route handler must append `.digest.json` to the slug when constructing the file path, and the regex must allow leading hyphens.
 
 **Route wiring:** Add to `web/api/server.js`:
-- Podcast PATCH: regex match on `/api/podcasts/(\d{4}-\d{2}-\d{2})/([\w-]+)/([\w][\w-]*)` with method `PATCH`. The handler appends `.digest.json` to the captured slug to find the file.
+- Podcast PATCH: regex match on `/api/podcasts/(\d{4}-\d{2}-\d{2})/([\w-]+)/([\w-]+)` with method `PATCH`. The handler appends `.digest.json` to the captured slug to find the file. The `([\w-]+)` pattern allows leading hyphens which occur in real digest filenames (e.g., `-jensens-openclaw-thesis`).
 
 **Files:**
 - Modify: `web/api/routes/articles.js` — extend `handlePatchArticle()` to accept `archived` field
@@ -276,9 +282,9 @@ Exponential View newsletters are a curated link feed. After the podcast import p
 
 **Approach:** New launchd job `com.sni.ev-extract.plist` runs `scripts/ev-link-extract.js` daily at 07:30 (30 minutes after podcast import's 07:00 schedule). The script:
 1. Scans for EV digests using two strategies (in order of preference):
-   - Read `data/podcasts/manifest.json` (if it exists) for entries where `source` matches "exponential-view". Note: manifest may not exist — only `.bak` may be present. If neither exists, fall through.
-   - Scan `data/podcasts/` directories for `.digest.json` files whose source field matches "exponential-view" or "Exponential View" (same fallback scanner pattern used by `web/api/routes/podcasts.js`).
-2. Identifies EV entries by source name (not `isTrustSource` flag, which may be `false` in manifest despite config having `trust: true`). Match on source name containing "exponential" (case-insensitive).
+   - Read `data/podcasts/manifest.json` (if it exists) for entries where `source` matches "Exponential View Newsletter" (exact name, case-insensitive). Note: manifest may not exist — only `.bak` may be present. Try `.bak` as fallback. If neither exists, fall through.
+   - Scan `data/podcasts/` directories for `.digest.json` files whose source field matches "Exponential View Newsletter" (same fallback scanner pattern used by `web/api/routes/podcasts.js`).
+2. Identifies EV **newsletter** entries specifically (not the "Exponential View Podcast" which is a regular audio episode). Uses source name matching, not `isTrustSource` flag (which may be `false` in manifest despite config `trust: true`). The exact source name pattern is configurable in `config/ev-extraction.yaml`.
 3. Tracks which EV digests have been processed in `data/editorial/ev-processed.json` (list of digest file paths)
 4. Skips already-processed digests
 5. For new EV digests, reads the transcript/digest and runs the link extraction pipeline
@@ -328,7 +334,7 @@ This approach requires **no modifications** to the existing podcast import scrip
 ### API changes
 
 - New endpoint: `GET /api/editorial/ev-recommendations` — returns pending domain recommendations from `data/editorial/ev-recommendations.json`. Response: `{ domains: [{ domain, linkCount, firstSeen, articles: [{title, url}] }] }`
-- New endpoint: `PUT /api/editorial/ev-recommendations/:domain` — accepts `{ action: 'accept' | 'dismiss' }`. Accept writes domain to `config/sources-pending.yaml` (new file, read by Wednesday fetch). Dismiss removes from recommendations.
+- New endpoint: `PUT /api/editorial/ev-recommendations/:domain` — accepts `{ action: 'accept' | 'dismiss' }`. Accept writes domain to `data/editorial/sources-pending.json` (staging file — Scott reviews and manually merges approved domains into `config/sources.yaml`). Dismiss removes from recommendations. The pending file is **not** read by any existing pipeline script — it's a human-review queue only.
 
 **Route wiring:** Add to `web/api/server.js`:
 - `path === '/api/editorial/ev-recommendations' && method === 'GET'`
@@ -395,7 +401,7 @@ The UI never displays stored passwords. On load, it shows masked placeholder tex
 ### Config changes
 
 - New: `config/subscriptions.yaml` — list of subscription sources with URLs, types, and schedule
-- Add `.credentials.enc` and `data/.browser-state/` to `.gitignore`
+- Add `.credentials.enc` to `.gitignore` (note: `data/` is already gitignored, so `data/.browser-state/` needs no explicit entry)
 
 ### API changes
 
