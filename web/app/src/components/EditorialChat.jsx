@@ -52,9 +52,13 @@ export default function EditorialChat({ tab }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Focus input when panel expands
+  // Focus input when panel expands (skip initial mount)
+  const wasCollapsedRef = useRef(collapsed)
   useEffect(() => {
-    if (!collapsed) inputRef.current?.focus()
+    if (wasCollapsedRef.current && !collapsed) {
+      inputRef.current?.focus()
+    }
+    wasCollapsedRef.current = collapsed
   }, [collapsed])
 
   // Clear conversation when tab changes to avoid context mismatch
@@ -78,7 +82,7 @@ export default function EditorialChat({ tab }) {
 
   if (collapsed) {
     return (
-      <div className="editorial-chat editorial-chat-collapsed">
+      <div className="editorial-chat-collapsed">
         <button
           className="chat-expand-btn"
           onClick={() => setCollapsed(false)}
