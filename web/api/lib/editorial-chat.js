@@ -5,7 +5,7 @@
  * then streams Opus responses back via SSE. Keeps context under 30k tokens.
  */
 
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 
@@ -29,21 +29,23 @@ Style: UK English, analytical but accessible, cite specific entries/themes by ID
 
 // ── Writing preferences (cached) ─────────────────────────
 
-let _writingPrefs = null
+let _writingPrefsCache = { content: null, mtime: 0 }
 
 function getWritingPreferences() {
-  if (_writingPrefs !== null) return _writingPrefs
   const prefsPath = join(EDITORIAL_DIR, 'writing-preferences.md')
-  if (!existsSync(prefsPath)) {
-    _writingPrefs = ''
-    return _writingPrefs
-  }
+  if (!existsSync(prefsPath)) return ''
   try {
-    _writingPrefs = readFileSync(prefsPath, 'utf-8')
+    const stat = statSync(prefsPath)
+    if (stat.mtimeMs !== _writingPrefsCache.mtime) {
+      _writingPrefsCache = {
+        content: readFileSync(prefsPath, 'utf-8'),
+        mtime: stat.mtimeMs,
+      }
+    }
+    return _writingPrefsCache.content
   } catch {
-    _writingPrefs = ''
+    return ''
   }
-  return _writingPrefs
 }
 
 export function getEditorialSystemPrompt() {
@@ -63,7 +65,7 @@ function readJSON(path) {
  * Build context string for a given editorial tab.
  * Each tab gets different state sections to stay within budget.
  *
- * @param {string} tab — one of: state, themes, backlog, decisions, activity
+ * @param {string} tab — one of: state, themes, backlog, decisions, activity, newsletter
  * @param {object} [state] — pre-loaded state.json (or null to load fresh)
  * @returns {{ context: string, tokenEstimate: number }}
  */
@@ -200,8 +202,13 @@ export function buildEditorialContext(tab, state = null) {
       // Published state + in-progress posts for newsletter editing context
       const publishedMeta = readJSON(join(EDITORIAL_DIR, 'published.json')) || {}
       sections.push('\n## Newsletter Context\n')
-      sections.push(`Published edition: ${publishedMeta.week ? 'Week ' + publishedMeta.week : 'None'}`)
-      if (publishedMeta.publishedAt) sections.push(`Last published: ${publishedMeta.publishedAt}`)
+      const nlCount = (publishedMeta.newsletters || []).length
+      const liCount = (publishedMeta.linkedin || []).length
+      sections.push(`Published: ${nlCount} newsletter${nlCount !== 1 ? 's' : ''}, ${liCount} LinkedIn post${liCount !== 1 ? 's' : ''}`)
+      if (liCount > 0) {
+        const latest = publishedMeta.linkedin[liCount - 1]
+        sections.push(`Latest LinkedIn: '${latest.title}' (${latest.date})`)
+      }
       const inProgress = Object.entries(state.postBacklog || {})
         .filter(([, p]) => p.status === 'in-progress' || p.status === 'approved')
       if (inProgress.length > 0) {
