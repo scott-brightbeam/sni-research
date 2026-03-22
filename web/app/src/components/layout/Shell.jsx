@@ -52,12 +52,17 @@ export default function Shell() {
     statusText = `Last run ${formatRelativeTime(status.lastRun.completedAt)}`
 
   // Build editorial status summary for sidebar
-  const runningStages = Object.entries(editorial.status.locks || {})
-    .filter(([, locked]) => locked)
-    .map(([stage]) => stage)
-  const editorialStatusText = runningStages.length > 0
-    ? `Running: ${runningStages.join(', ')}`
-    : null
+  let editorialStatusText = null
+  if (editorial.error) {
+    editorialStatusText = 'Editorial status unavailable'
+  } else {
+    const runningStages = Object.entries(editorial.status.locks || {})
+      .filter(([, locked]) => locked)
+      .map(([stage]) => stage)
+    if (runningStages.length > 0) {
+      editorialStatusText = `Running: ${runningStages.join(', ')}`
+    }
+  }
 
   return (
     <div className="shell">

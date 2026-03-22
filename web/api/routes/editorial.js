@@ -37,15 +37,27 @@ function writeState(state) {
   const tmpPath = statePath + '.tmp'
   const bakPath = statePath + '.bak'
 
-  // Write to tmp
-  writeFileSync(tmpPath, JSON.stringify(state, null, 2))
+  // Phase 1: Write and validate tmp file
+  try {
+    writeFileSync(tmpPath, JSON.stringify(state, null, 2))
+    JSON.parse(readFileSync(tmpPath, 'utf-8'))
+  } catch (err) {
+    try { unlinkSync(tmpPath) } catch { /* cleanup best-effort */ }
+    throw new Error(`Failed to write editorial state: ${err.message}`)
+  }
 
-  // Validate by parsing back
-  JSON.parse(readFileSync(tmpPath, 'utf-8'))
-
-  // Swap: original → .bak, then .tmp → original
-  if (existsSync(statePath)) renameSync(statePath, bakPath)
-  renameSync(tmpPath, statePath)
+  // Phase 2: Atomic swap — recover if mid-swap failure
+  try {
+    if (existsSync(statePath)) renameSync(statePath, bakPath)
+    renameSync(tmpPath, statePath)
+  } catch (err) {
+    // If state.json was moved to .bak but .tmp rename failed, restore from .bak
+    if (!existsSync(statePath) && existsSync(bakPath)) {
+      try { renameSync(bakPath, statePath) } catch { /* last-resort recovery failed */ }
+    }
+    try { unlinkSync(tmpPath) } catch { /* cleanup best-effort */ }
+    throw new Error(`Failed to swap editorial state file: ${err.message}`)
+  }
 }
 
 const STALE_LOCK_MS = 30 * 60 * 1000 // 30 minutes
@@ -506,7 +518,14 @@ export async function putBacklogStatus(id, body) {
     post.publishedDate = new Date().toISOString().split('T')[0]
   }
 
-  writeState(state)
+  try {
+    writeState(state)
+  } catch (err) {
+    throw Object.assign(
+      new Error(`Failed to save status change for post ${id}: ${err.message}`),
+      { status: 500 }
+    )
+  }
   return { ok: true, id, status: body.status }
 }
 
