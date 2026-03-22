@@ -1,7 +1,7 @@
 import { useStatus } from '../hooks/useStatus'
 import { useEditorialState, useEditorialCost } from '../hooks/useEditorialState'
 import { useNotifications } from '../hooks/useNotifications'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import DraftLink from '../components/shared/DraftLink'
 import Skeleton from '../components/shared/Skeleton'
@@ -9,6 +9,7 @@ import TimeRangeSelector from '../components/shared/TimeRangeSelector'
 import { getDateRange, filterByDateEntries, fillCalendarGaps, aggregateToWeeks } from '../lib/dateRange'
 import SectorBadge from '../components/shared/SectorBadge'
 import { formatDuration, formatRelativeTime } from '../lib/format'
+import { apiFetch, apiPut } from '../lib/api'
 import './Dashboard.css'
 
 function formatTimestamp(iso) {
@@ -115,6 +116,7 @@ export default function Dashboard() {
         <EditorialSummaryCard />
         <PostCandidatesCard />
         <CostSummaryCard />
+        <EvRecommendationsCard />
       </div>
     </div>
   )
@@ -349,6 +351,46 @@ function PostCandidatesCard() {
             +{candidates.length - 5} more
           </Link>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── EV recommendations card ───────────────────────────────
+
+function EvRecommendationsCard() {
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    apiFetch('/api/editorial/ev-recommendations')
+      .then(setData)
+      .catch(() => {})
+  }, [])
+
+  if (!data || !data.domains || data.domains.length === 0) return null
+
+  async function handleAction(domain, action) {
+    try {
+      await apiPut(`/api/editorial/ev-recommendations/${domain}`, { action })
+      setData(prev => ({
+        ...prev,
+        domains: prev.domains.filter(d => d.domain !== domain),
+      }))
+    } catch {}
+  }
+
+  return (
+    <div className="card">
+      <div className="card-title">EV Source Recommendations</div>
+      <div className="ev-recs">
+        {data.domains.slice(0, 10).map(d => (
+          <div key={d.domain} className="ev-rec-row">
+            <span className="ev-rec-domain">{d.domain}</span>
+            <span className="ev-rec-count">{d.linkCount} link{d.linkCount !== 1 ? 's' : ''}</span>
+            <button className="btn btn-sm" onClick={() => handleAction(d.domain, 'accept')}>Add</button>
+            <button className="btn btn-sm btn-ghost" onClick={() => handleAction(d.domain, 'dismiss')}>Dismiss</button>
+          </div>
+        ))}
       </div>
     </div>
   )

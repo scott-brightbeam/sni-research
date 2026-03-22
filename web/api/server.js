@@ -8,6 +8,7 @@ import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
+import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recommendations.js'
 
 const PORT = 3900
 
@@ -314,6 +315,17 @@ const server = Bun.serve({
           return json(body, 409)
         }
         return json(result)
+      }
+
+      // --- EV Recommendations ---
+      if (path === '/api/editorial/ev-recommendations' && req.method === 'GET') {
+        return json(getEvRecommendations())
+      }
+
+      const evRecMatch = path.match(/^\/api\/editorial\/ev-recommendations\/([\w.-]+)$/)
+      if (evRecMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(updateEvRecommendation(evRecMatch[1], body))
       }
 
       // --- Editorial Backlog Status ---
