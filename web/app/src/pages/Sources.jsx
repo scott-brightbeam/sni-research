@@ -8,20 +8,28 @@ export default function Sources() {
   if (loading) return <div className="placeholder-text">Loading...</div>
   if (error) return <div className="placeholder-text">Failed to load sources: {error}</div>
 
+  const runs = overview?.runs ?? []
+
   return (
     <div>
       <div className="page-header">
         <h2>Sources</h2>
-        <RunSelector
-          runs={overview?.runs ?? []}
-          selected={selectedRun?.date}
-          onSelect={selectRun}
-        />
+        {runs.length > 0 && (
+          <RunSelector
+            runs={runs}
+            selected={selectedRun?.date}
+            onSelect={selectRun}
+          />
+        )}
       </div>
+
+      {runs.length === 0 && (
+        <div className="placeholder-text">No pipeline runs found. The fetch pipeline needs to run at least once to generate source data.</div>
+      )}
 
       {selectedRun && <RunSummary run={selectedRun} />}
 
-      <ArticlesChart runs={overview?.runs ?? []} />
+      <ArticlesChart runs={runs} />
 
       <LayerCards layerTotals={selectedRun?.layerTotals} />
 
