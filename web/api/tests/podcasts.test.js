@@ -131,13 +131,14 @@ describe('handleGetPodcasts', () => {
     expect(result.lastRun.imported).toBe(2)
   })
 
-  it('returns gracefully when manifest missing', async () => {
+  it('falls back to digest scanner when manifest missing', async () => {
     const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
     if (existsSync(manifestPath)) rmSync(manifestPath)
 
     const result = await handleGetPodcasts({})
-    expect(result.episodes.length).toBe(0)
-    expect(result.lastRun).toBeNull()
+    // Without manifest, scanner finds digest files on disk (including test fixtures)
+    expect(Array.isArray(result.episodes)).toBe(true)
+    expect(result.episodes.length).toBeGreaterThanOrEqual(1) // at least the test digest
   })
 })
 

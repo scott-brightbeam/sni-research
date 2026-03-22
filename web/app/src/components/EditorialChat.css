@@ -88,7 +88,7 @@
   padding: var(--sp-1) var(--sp-2);
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
   line-height: 1;
 }
 
@@ -111,7 +111,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast) ease;
 }
 
 .model-toggle:hover {
@@ -165,7 +165,7 @@
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s;
+  transition: all var(--transition-fast);
 }
 
 .chat-suggestion:hover {
@@ -285,7 +285,7 @@
   height: 36px;
   font-size: 16px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
   flex-shrink: 0;
   display: flex;
   align-items: center;
