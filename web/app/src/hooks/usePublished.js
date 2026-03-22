@@ -23,7 +23,7 @@ export function usePublished(week) {
     } catch (err) {
       if (mountedRef.current) {
         // 404 = no published version yet — not an error
-        if (err.message.includes('404') || err.message.includes('Not found')) {
+        if (err.status === 404) {
           setPublished(null)
         } else {
           setError(err.message)

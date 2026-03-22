@@ -57,7 +57,10 @@ export async function readSSEStream(reader, onEvent) {
         let data
         try {
           data = JSON.parse(line.slice(6))
-        } catch { continue } // skip unparseable SSE lines
+        } catch (e) {
+          console.warn('[SSE] Skipping unparseable line:', line.slice(6, 80), e.message)
+          continue
+        }
         if (onEvent(data) === false) return
       }
     }
