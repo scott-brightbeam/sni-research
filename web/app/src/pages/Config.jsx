@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useConfig } from '../hooks/useConfig'
+import { apiFetch, apiPut, apiPost } from '../lib/api'
 import './Config.css'
 
 export default function Config() {
@@ -24,6 +25,7 @@ export default function Config() {
       {tab === 'off-limits' && <OffLimitsTab />}
       {tab === 'sources' && <SourcesTab />}
       {tab === 'sectors' && <SectorsTab />}
+      <SubscriptionCredentials />
     </div>
   )
 }
@@ -393,6 +395,94 @@ function KeywordGroup({ label, keywords, onAdd, onRemove }) {
           onBlur={handleAdd}
         />
       </div>
+    </div>
+  )
+}
+
+function SubscriptionCredentials() {
+  const [sources, setSources] = useState([])
+  const [creds, setCreds] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  useEffect(() => {
+    apiFetch('/api/subscriptions').then(data => {
+      setSources(data.sources || [])
+      const initial = {}
+      for (const s of data.sources || []) {
+        initial[s.name] = { email: '', password: '', hasSaved: s.hasCredentials }
+      }
+      setCreds(initial)
+    }).catch(() => {})
+  }, [])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const credList = Object.entries(creds)
+        .filter(([, v]) => v.email && v.password)
+        .map(([name, v]) => ({ name, email: v.email, password: v.password }))
+      await apiPut('/api/subscriptions/credentials', { sources: credList })
+    } catch {}
+    setSaving(false)
+  }
+
+  async function handleTest() {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const result = await apiPost('/api/subscriptions/test')
+      setTestResult(result)
+    } catch (err) {
+      setTestResult({ success: false, output: err.message })
+    }
+    setTesting(false)
+  }
+
+  if (sources.length === 0) return null
+
+  return (
+    <div className="config-section subscription-credentials">
+      <div className="config-section-header">
+        <h3>Subscription Credentials</h3>
+      </div>
+      <p className="config-hint">Encrypted at rest with AES-256-GCM.</p>
+      {sources.map(s => (
+        <div key={s.name} className="credential-row">
+          <span className="credential-name">{s.name}</span>
+          <input
+            type="email"
+            className="config-input"
+            placeholder="email@example.com"
+            value={creds[s.name]?.email || ''}
+            onChange={e => setCreds(prev => ({ ...prev, [s.name]: { ...prev[s.name], email: e.target.value } }))}
+          />
+          <input
+            type="password"
+            className="config-input"
+            placeholder={creds[s.name]?.hasSaved ? '••••••••' : 'password'}
+            value={creds[s.name]?.password || ''}
+            onChange={e => setCreds(prev => ({ ...prev, [s.name]: { ...prev[s.name], password: e.target.value } }))}
+          />
+          {s.lastRun && (
+            <span className={`credential-status ${s.lastRun.success ? 'success' : 'error'}`}>
+              {s.lastRun.success ? '✓' : '✗'}
+            </span>
+          )}
+        </div>
+      ))}
+      <div className="credential-actions">
+        <button className="btn btn-primary btn-md" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save All'}
+        </button>
+        <button className="btn btn-md" onClick={handleTest} disabled={testing}>
+          {testing ? 'Testing...' : 'Test Logins'}
+        </button>
+      </div>
+      {testResult && (
+        <pre className="test-output">{testResult.output || (testResult.success ? 'All logins succeeded' : 'Some logins failed')}</pre>
+      )}
     </div>
   )
 }

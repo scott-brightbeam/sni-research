@@ -244,3 +244,59 @@
 }
 
 .keyword-input:focus { border-color: var(--terra); box-shadow: var(--focus-ring); }
+
+/* --- Subscription credentials --- */
+.subscription-credentials {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--light-gray);
+}
+
+.config-hint {
+  font-size: 12px;
+  color: var(--cloudy);
+  margin-bottom: 16px;
+}
+
+.credential-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.credential-name {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.credential-status {
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.credential-status.success { color: var(--green); }
+.credential-status.error { color: var(--danger); }
+
+.credential-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.test-output {
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--cloudy);
+  background: var(--card-bg);
+  padding: 12px;
+  border-radius: var(--radius);
+  margin-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

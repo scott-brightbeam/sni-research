@@ -9,6 +9,7 @@ import { listPublished, getPublished, savePublished, extractExclusions } from '.
 import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
 import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recommendations.js'
+import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, triggerFetch } from './routes/subscriptions.js'
 
 const PORT = 3900
 
@@ -333,6 +334,22 @@ const server = Bun.serve({
       if (backlogMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putBacklogStatus(backlogMatch[1], body))
+      }
+
+      // --- Subscriptions ---
+      if (path === '/api/subscriptions' && req.method === 'GET') {
+        return json(getSubscriptions())
+      }
+      if (path === '/api/subscriptions/credentials' && req.method === 'PUT') {
+        const body = await req.json()
+        return json(saveSubCredentials(body))
+      }
+      if (path === '/api/subscriptions/test' && req.method === 'POST') {
+        return json(await testLogins())
+      }
+      if (path === '/api/subscriptions/fetch' && req.method === 'POST') {
+        const body = await req.json()
+        return json(triggerFetch(body))
       }
 
       // --- Health ---
