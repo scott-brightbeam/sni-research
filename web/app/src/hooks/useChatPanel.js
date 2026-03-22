@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { apiFetch, apiStream } from '../lib/api'
+import { apiFetch, apiStream, readSSEStream } from '../lib/api'
 
 export function useChatPanel(week) {
   const [messages, setMessages] = useState([])
@@ -32,36 +32,19 @@ export function useChatPanel(week) {
         articleRef,
       }, controller.signal)
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.type === 'delta') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + data.text } : m
-              ))
-            } else if (data.type === 'done') {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
-              ))
-            } else if (data.type === 'error') {
-              setError(data.message)
-            }
-          } catch { /* skip malformed SSE */ }
+      await readSSEStream(res.body.getReader(), (data) => {
+        if (data.type === 'delta') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: m.content + data.text } : m
+          ))
+        } else if (data.type === 'done') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, id: data.id, usage: data.usage } : m
+          ))
+        } else if (data.type === 'error') {
+          setError(data.message)
         }
-      }
+      })
 
       setArticleRef(null)
     } catch (err) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { apiStream } from '../lib/api'
+import { apiStream, readSSEStream } from '../lib/api'
 
 let nextId = 1
 
@@ -56,56 +56,26 @@ export function useEditorialChat(tab = 'state') {
         history: messagesRef.current.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
       }, controller.signal)
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
       let fullText = ''
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (!mountedRef.current) break
+      await readSSEStream(res.body.getReader(), (data) => {
+        if (!mountedRef.current) return false
 
-        buffer += decoder.decode(value, { stream: true })
-
-        // Parse SSE lines
-        const lines = buffer.split('\n\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-
-          let data
-          try {
-            data = JSON.parse(line.slice(6))
-          } catch {
-            // Skip unparseable SSE lines only
-            continue
-          }
-
-          if (data.type === 'delta') {
-            fullText += data.text
-            if (!mountedRef.current) continue
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId ? { ...m, content: fullText } : m
-            ))
-          }
-
-          if (data.type === 'done') {
-            if (!mountedRef.current) continue
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId
-                ? { ...m, content: data.text || fullText, contextTokens: data.contextTokens }
-                : m
-            ))
-          }
-
-          if (data.type === 'error') {
-            if (!mountedRef.current) continue
-            setError(data.error)
-          }
+        if (data.type === 'delta') {
+          fullText += data.text
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: fullText } : m
+          ))
+        } else if (data.type === 'done') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId
+              ? { ...m, content: data.text || fullText, contextTokens: data.contextTokens }
+              : m
+          ))
+        } else if (data.type === 'error') {
+          setError(data.error)
         }
-      }
+      })
     } catch (err) {
       if (err.name === 'AbortError') return
       if (!mountedRef.current) return
