@@ -192,7 +192,7 @@ function AnalysisEntry({ entry }) {
 function ThemesTab() {
   const [showStale, setShowStale] = useState(false)
   const filters = showStale ? { stale: 'true' } : { active: 'true' }
-  const { data, loading, error } = useEditorialState('themeRegistry')
+  const { data, loading, error } = useEditorialState('themeRegistry', filters)
 
   if (loading) return <Skeleton.List count={6} />
   if (error) return <div className="error-state">{error}</div>
