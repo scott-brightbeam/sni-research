@@ -231,8 +231,8 @@ async function processTranscript(item, state, index, total) {
   // Capture next post ID before applying — needed for correct notification assignment
   const nextPostBefore = state.counters.nextPost
 
-  // Apply response to state
-  const stats = applyAnalysisResponse(response.parsed, state)
+  // Apply response to state — pass filename for reliable dedup
+  const stats = applyAnalysisResponse(response.parsed, state, { filename })
 
   // Log results
   log(`  Results: ${stats.entriesAdded} entries, ${stats.evidenceAdded} evidence, ` +

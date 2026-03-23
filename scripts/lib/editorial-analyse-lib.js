@@ -118,25 +118,37 @@ export function extractSourceMeta(filename, sources) {
 // ── Deduplication ─────────────────────────────────────────
 
 /**
- * Check whether a transcript has already been processed by matching
- * its episode title and source name against the analysis index.
+ * Check whether a transcript has already been processed.
  *
- * Uses case-insensitive matching to handle minor variations.
+ * Primary: match on original filename (reliable — Claude can't change it).
+ * Fallback: match on episode title + source name for legacy entries
+ * that don't have a filename stored.
  *
- * @param {{ episode: string|null, sourceName: string|null }} meta
+ * @param {{ filename: string, episode: string|null, sourceName: string|null }} meta
  * @param {object} state — the full editorial state
  * @returns {boolean}
  */
 export function isAlreadyProcessed(meta, state) {
-  if (!meta.episode || !meta.sourceName) return false
+  const entries = Object.values(state.analysisIndex || {})
 
-  const episodeLC = meta.episode.toLowerCase()
-  const sourceLC = meta.sourceName.toLowerCase()
+  // Primary: match on filename (added Mar 2026 — prevents Claude title variation dupes)
+  if (meta.filename) {
+    const fnLC = meta.filename.toLowerCase()
+    if (entries.some(entry => entry.filename?.toLowerCase() === fnLC)) return true
+  }
 
-  return Object.values(state.analysisIndex || {}).some(entry =>
-    entry.title?.toLowerCase() === episodeLC &&
-    entry.source?.toLowerCase() === sourceLC
-  )
+  // Fallback: title + source match for legacy entries without filename
+  if (meta.episode && meta.sourceName) {
+    const episodeLC = meta.episode.toLowerCase()
+    const sourceLC = meta.sourceName.toLowerCase()
+    if (entries.some(entry =>
+      !entry.filename &&
+      entry.title?.toLowerCase() === episodeLC &&
+      entry.source?.toLowerCase() === sourceLC
+    )) return true
+  }
+
+  return false
 }
 
 // ── Response application ──────────────────────────────────
@@ -159,7 +171,7 @@ export function isAlreadyProcessed(meta, state) {
  * @param {object} state — mutated in place
  * @returns {{ entriesAdded: number, evidenceAdded: number, themesCreated: number, connectionsAdded: number, postsAdded: number, storiesCollected: number, storyReferences: Array, errors: string[] }}
  */
-export function applyAnalysisResponse(response, state) {
+export function applyAnalysisResponse(response, state, { filename } = {}) {
   const stats = {
     entriesAdded: 0,
     evidenceAdded: 0,
@@ -171,13 +183,14 @@ export function applyAnalysisResponse(response, state) {
     errors: [],
   }
 
-  // 1. Analysis entries
+  // 1. Analysis entries — inject original filename for reliable dedup
   for (const entry of response.analysisEntries || []) {
     if (!entry || typeof entry !== 'object') {
       stats.errors.push('Analysis entry: received non-object item from Opus response')
       continue
     }
     try {
+      if (filename) entry.filename = filename
       addAnalysisEntry(state, entry)
       stats.entriesAdded++
     } catch (err) {
