@@ -299,6 +299,98 @@ export function buildEditorialContext(tab, state = null) {
       break
     }
 
+    case 'ideate': {
+      // MODE 3: IDEATE — load themes + backlog + recent high-potential analysis
+      sections.push('\n## IDEATE MODE\n')
+      sections.push(`Generate 5–10 LinkedIn post ideas based on the themes, recent analysis and existing backlog below.
+
+For each idea provide:
+- A working title (argumentative, states a position — not descriptive)
+- The core argument in one to two sentences
+- Recommended format: quiet-observation, concept-contrast, news-decoder, behavioural-paradox, honest-confession, or practitioners-take
+- Which source documents provide the evidence base
+- Freshness: very-timely, timely-evergreen, or evergreen
+- Priority: immediate, high, medium-high, or medium
+
+Rank by timeliness × audience relevance × originality. Check the existing backlog to avoid duplicates. Focus on angles that would resonate with Scott's audience of senior leaders, transformation professionals and AI-curious executives in regulated industries.\n`)
+
+      // Themes
+      const ideateThemes = Object.entries(state.themeRegistry || {})
+        .filter(([, t]) => !t.archived)
+      sections.push(`\n### Active Themes (${ideateThemes.length})\n`)
+      for (const [code, theme] of ideateThemes) {
+        const recentEv = (theme.evidence || []).slice(-3).map(e => e.source).join('; ')
+        sections.push(`- **${code}**: ${theme.name} (${theme.documentCount || 0} docs, strength: ${theme.evidence?.length || 0})${recentEv ? `\n  Recent evidence: ${recentEv}` : ''}`)
+      }
+
+      // Existing backlog (to avoid duplicates)
+      const ideateBacklog = Object.entries(state.postBacklog || {})
+        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
+        .sort(([a], [b]) => Number(b) - Number(a))
+      sections.push(`\n### Existing Backlog (${ideateBacklog.length} active)\n`)
+      for (const [id, post] of ideateBacklog.slice(0, 20)) {
+        sections.push(`- #${id}: ${post.title} [${post.status}] (${post.format || '?'}, ${post.priority || '?'})`)
+      }
+
+      // Recent high-potential analysis
+      const highPotential = Object.entries(state.analysisIndex || {})
+        .filter(([, e]) => e.postPotential === 'high' || e.postPotential === 'very-high' || e.postPotential === 'medium-high')
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .slice(0, 15)
+      if (highPotential.length > 0) {
+        sections.push(`\n### High Post-Potential Entries\n`)
+        for (const [id, entry] of highPotential) {
+          sections.push(`- #${id}: ${entry.title} (${entry.source}) — ${entry.postPotential}${entry.postPotentialReasoning ? `: ${entry.postPotentialReasoning}` : ''}`)
+        }
+      }
+      break
+    }
+
+    case 'draft': {
+      // MODE 4: DRAFT — load specific backlog item + its source evidence + format guidance
+      // The actual backlog item is passed via the user message, not the tab context
+      sections.push('\n## DRAFT MODE\n')
+      sections.push(`You are drafting a LinkedIn post for Scott Wilkinson (CMO and Head of Culture and Coaching at Brightbeam, an AI-native consultancy).
+
+When the user selects a post idea, generate THREE complete drafts, each using a DIFFERENT format from:
+1. concept-contrast — Before/after comparison illuminating a shift
+2. news-decoder — Current event → deeper signal extraction
+3. behavioural-paradox — Surprising human contradiction → psychology → framework
+4. honest-confession — Genuine mistake or evolution in thinking
+5. quiet-observation — Smaller, sharper insight with precision
+6. practitioners-take — How you actually do something, with specificity
+
+MANDATORY: Every draft MUST end with 'So what's today's in-the-end-at-the-end?' followed by one to three sentences that reframe everything — crystallise the insight, don't repeat it. Often inverts expectations or elevates the stakes. Never a generic call to action.
+
+Writing rules: UK English, spaced en-dashes (not em-dashes), single quotes, active voice, contractions, concrete specifics over abstract claims. See the prohibited language list — avoid all listed patterns.
+
+Label each draft clearly with its format name. Present all three for selection.\n`)
+
+      // Full theme registry for reference
+      const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
+      sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
+      for (const [code, theme] of draftThemes) {
+        const topEvidence = (theme.evidence || []).slice(-3)
+        sections.push(`**${code}: ${theme.name}**`)
+        for (const ev of topEvidence) {
+          sections.push(`  - ${ev.source}: ${ev.content?.slice(0, 200) || '(no content)'}`)
+        }
+      }
+
+      // Backlog items for cross-reference
+      const draftBacklog = Object.entries(state.postBacklog || {})
+        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .slice(0, 10)
+      if (draftBacklog.length > 0) {
+        sections.push(`\n### Active Backlog\n`)
+        for (const [id, post] of draftBacklog) {
+          sections.push(`- #${id}: **${post.title}** [${post.format || '?'}]\n  ${post.coreArgument || ''}`)
+        }
+      }
+      break
+    }
+
     case 'flagged': {
       const reviewDir = join(ROOT, 'data/review')
       if (existsSync(reviewDir)) {

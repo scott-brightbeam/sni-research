@@ -6,7 +6,9 @@ const TAB_LABELS = {
   state: 'Analysis',
   themes: 'Themes',
   backlog: 'Backlog',
-  decisions: 'Decisions',
+  ideate: 'Ideate',
+  draft: 'Draft',
+  decisions: 'Notes',
   activity: 'Activity',
   newsletter: 'Newsletter',
   articles: 'Articles',
@@ -27,8 +29,17 @@ const SUGGESTIONS = {
     'Which posts are ready to move to in-progress?',
     'Suggest a fresh angle for the top-priority post.',
   ],
+  ideate: [
+    'Generate 5 post ideas based on this week\'s strongest themes.',
+    'What contrarian angles could we explore from recent podcasts?',
+    'Which themes are under-served in the current backlog?',
+  ],
+  draft: [
+    'Draft the top-priority post from the backlog.',
+    'Write a quiet-observation post about the enterprise diffusion gap.',
+  ],
   decisions: [
-    'Summarise recent editorial decisions.',
+    'Summarise recent editorial notes and decisions.',
   ],
   activity: [
     'How much has the pipeline cost this week?',

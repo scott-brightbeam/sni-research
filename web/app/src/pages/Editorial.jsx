@@ -17,23 +17,38 @@ import './Editorial.css'
 
 function buildDraftPrompt(source, content) {
   if (source?.type === 'post') {
-    return `Draft post #${source.id}: '${source.title}'\n\nCore argument: ${content?.coreArgument || 'Not specified'}\nFormat: ${content?.format || 'Not specified'}\nSource documents: ${content?.sources?.join(', ') || 'None'}\nNotes: ${content?.notes || 'None'}\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options as specified in the LinkedIn post guidelines.`
+    return `Draft LinkedIn post #${source.id}: '${source.title}'
+
+Core argument: ${content?.coreArgument || 'Not specified'}
+Recommended format: ${content?.format || 'Not specified'}
+Source documents: ${content?.sources?.join(', ') || 'None'}
+Notes: ${content?.notes || 'None'}
+
+Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
   }
   if (source?.type === 'theme') {
-    return `Draft an analysis post for theme ${source.code}: '${source.name}'\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options.`
+    return `Draft a LinkedIn post exploring theme ${source.code}: '${source.name}'
+
+Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
   }
   if (source?.type === 'analysis') {
-    return `Draft a post based on analysis entry #${source.id}: '${source.title}'\n\nSummary: ${content?.summary || ''}\nThemes: ${content?.themes?.join(', ') || 'None'}\n\nPlease draft this as a LinkedIn post following my writing preferences. Produce three format options.`
+    return `Draft a LinkedIn post based on analysis entry #${source.id}: '${source.title}'
+
+Summary: ${content?.summary || ''}
+Themes: ${content?.themes?.join(', ') || 'None'}
+
+Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
   }
-  return `Draft a post about: ${source?.title || 'untitled'}`
+  return `Draft a LinkedIn post about: ${source?.title || 'untitled'}\n\nGenerate THREE drafts in different formats, each ending with the in-the-end-at-the-end.`
 }
 
 const TABS = [
   { key: 'state', label: 'Analysis' },
   { key: 'themes', label: 'Themes' },
   { key: 'backlog', label: 'Backlog' },
+  { key: 'ideate', label: 'Ideate' },
   { key: 'newsletter', label: 'Newsletter' },
-  { key: 'decisions', label: 'Decisions' },
+  { key: 'decisions', label: 'Notes & Decisions' },
   { key: 'activity', label: 'Activity' },
 ]
 
@@ -114,6 +129,7 @@ export default function Editorial() {
               {tab === 'state' && <AnalysisTab onDraftRequest={setDraftRequest} />}
               {tab === 'themes' && <ThemesTab onDraftRequest={setDraftRequest} />}
               {tab === 'backlog' && <BacklogTab filter={backlogFilter} setFilter={setBacklogFilter} onDraftRequest={setDraftRequest} />}
+              {tab === 'ideate' && <IdeateTab />}
               {tab === 'decisions' && <DecisionsTab />}
               {tab === 'activity' && <ActivityTab />}
               {tab === 'newsletter' && <Draft embedded />}
@@ -121,7 +137,7 @@ export default function Editorial() {
           )}
         </div>
         <EditorialChat
-          tab={tab}
+          tab={draftRequest ? 'draft' : tab}
           draftRequest={draftRequest}
           onDraftConsumed={() => setDraftRequest(null)}
         />
@@ -513,6 +529,26 @@ function PostCard({ post, onStatusChange, onDraftRequest }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Ideate Tab ──────────────────────────────────────────
+
+function IdeateTab() {
+  return (
+    <div className="card card-flush">
+      <div className="placeholder-text">
+        <h3>Ideate Mode</h3>
+        <p>Use the AI panel to generate LinkedIn post ideas. Ask it to:</p>
+        <ul>
+          <li>Generate ideas based on this week's strongest themes</li>
+          <li>Find contrarian angles from recent podcast analysis</li>
+          <li>Identify under-served themes in the current backlog</li>
+          <li>Suggest timely angles tied to recent news</li>
+        </ul>
+        <p>Ideas you approve can be added to the Backlog from the chat.</p>
+      </div>
     </div>
   )
 }
