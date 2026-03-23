@@ -377,8 +377,12 @@ function BacklogTab({ filter, setFilter, onDraftRequest }) {
 
   let posts = data?.posts || []
 
-  // Client-side filtering
-  if (filter.status) posts = posts.filter(p => p.status === filter.status)
+  // Client-side filtering — hide archived by default unless explicitly viewing archived status
+  if (filter.status) {
+    posts = posts.filter(p => p.status === filter.status)
+  } else {
+    posts = posts.filter(p => p.status !== 'archived')
+  }
   if (filter.priority) posts = posts.filter(p => p.priority === filter.priority)
 
   return (
