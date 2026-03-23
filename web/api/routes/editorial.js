@@ -62,6 +62,17 @@ function writeState(state) {
 
 const STALE_LOCK_MS = 30 * 60 * 1000 // 30 minutes
 
+/** Guard: reject state writes while the ANALYSE pipeline is running. */
+function guardAgainstPipelineWrite() {
+  const lock = checkLock('analyse')
+  if (lock) {
+    throw Object.assign(
+      new Error('ANALYSE pipeline is running; cannot modify state. Try again shortly.'),
+      { status: 409 }
+    )
+  }
+}
+
 function checkLock(stage) {
   const lockPath = join(editorialDir(), `.${stage}.lock`)
   if (!existsSync(lockPath)) return null
@@ -116,7 +127,7 @@ function matchesSearch(entry, query) {
 
 // ── GET /api/editorial/state ─────────────────────────────
 
-export async function getEditorialState({ section, week } = {}) {
+export async function getEditorialState({ section, week, showArchived } = {}) {
   const state = getState()
   if (!state) return { error: 'No editorial state found', data: null }
 
@@ -131,27 +142,27 @@ export async function getEditorialState({ section, week } = {}) {
     }
   }
 
+  const includeArchived = showArchived === 'true'
+
   switch (section) {
     case 'analysisIndex': {
-      const entries = Object.entries(state.analysisIndex || {}).map(([id, entry]) => ({
+      let entries = Object.entries(state.analysisIndex || {}).map(([id, entry]) => ({
         id: Number(id),
         ...entry,
       }))
-      // Optionally filter by week (match entries whose dateProcessed falls in the week)
-      // For now return all sorted by id descending (newest first)
+      if (!includeArchived) entries = entries.filter(e => !e.archived)
       entries.sort((a, b) => b.id - a.id)
       return { entries }
     }
     case 'themeRegistry': {
-      const themes = Object.entries(state.themeRegistry || {}).map(([code, theme]) => ({
+      let themes = Object.entries(state.themeRegistry || {}).map(([code, theme]) => ({
         code,
         ...theme,
       }))
-      themes.sort((a, b) => {
-        const numA = parseInt(a.code.replace('T', ''))
-        const numB = parseInt(b.code.replace('T', ''))
-        return numA - numB
-      })
+      if (!includeArchived) themes = themes.filter(t => !t.archived)
+      // Sort by most recently cited (latest evidence session) — newest first
+      const latestSession = (t) => Math.max(0, ...(t.evidence || []).map(e => e.session || 0))
+      themes.sort((a, b) => latestSession(b) - latestSession(a))
       return { themes }
     }
     case 'postBacklog': {
@@ -163,9 +174,10 @@ export async function getEditorialState({ section, week } = {}) {
       return { posts }
     }
     case 'decisionLog': {
-      const decisions = state.decisionLog || []
+      let decisions = [...(state.decisionLog || [])]
+      if (!includeArchived) decisions = decisions.filter(d => !d.archived)
       // Reverse so newest first
-      return { decisions: [...decisions].reverse() }
+      return { decisions: decisions.reverse() }
     }
     case 'corpusStats': {
       return { corpusStats: state.corpusStats || {} }
@@ -183,15 +195,17 @@ export async function searchEditorial({ q } = {}) {
 
   const results = []
 
-  // Search Analysis Index
+  // Search Analysis Index (skip archived)
   for (const [id, entry] of Object.entries(state.analysisIndex || {})) {
+    if (entry.archived) continue
     if (matchesSearch(entry, q)) {
       results.push({ type: 'analysisIndex', id: Number(id), title: entry.title, source: entry.source, tier: entry.tier })
     }
   }
 
-  // Search Theme Registry
+  // Search Theme Registry (skip archived)
   for (const [code, theme] of Object.entries(state.themeRegistry || {})) {
+    if (theme.archived) continue
     const hay = [theme.name, ...(theme.evidence || []).map(e => e.content)].join(' ').toLowerCase()
     if (hay.includes(q.toLowerCase())) {
       results.push({ type: 'theme', code, name: theme.name, documentCount: theme.documentCount })
@@ -230,7 +244,7 @@ export async function getEditorialBacklog({ priority, status, format } = {}) {
 
 // ── GET /api/editorial/themes ────────────────────────────
 
-export async function getEditorialThemes({ active, stale } = {}) {
+export async function getEditorialThemes({ active, stale, showArchived } = {}) {
   const state = getState()
   if (!state) return { themes: [] }
 
@@ -238,6 +252,9 @@ export async function getEditorialThemes({ active, stale } = {}) {
     code,
     ...theme,
   }))
+
+  // Filter archived unless explicitly requested
+  if (showArchived !== 'true') themes = themes.filter(t => !t.archived)
 
   // 'active' = has evidence in last 3 sessions
   if (active === 'true' && state.counters) {
@@ -255,11 +272,9 @@ export async function getEditorialThemes({ active, stale } = {}) {
     )
   }
 
-  themes.sort((a, b) => {
-    const numA = parseInt(a.code.replace('T', ''))
-    const numB = parseInt(b.code.replace('T', ''))
-    return numA - numB
-  })
+  // Sort by most recently cited (latest evidence session) — newest first
+  const latestSession = (t) => Math.max(0, ...(t.evidence || []).map(e => e.session || 0))
+  themes.sort((a, b) => latestSession(b) - latestSession(a))
 
   return { themes }
 }
@@ -499,6 +514,7 @@ export async function postTriggerTrack() {
 const VALID_STATUSES = ['suggested', 'approved', 'in-progress', 'published', 'rejected', 'archived']
 
 export async function putBacklogStatus(id, body) {
+  guardAgainstPipelineWrite()
   if (!body || !body.status) {
     throw Object.assign(new Error('status is required'), { status: 400 })
   }
@@ -530,6 +546,109 @@ export async function putBacklogStatus(id, body) {
     )
   }
   return { ok: true, id, status: body.status }
+}
+
+// ── PUT /api/editorial/analysis/:id/archive ─────────────────
+
+export async function putAnalysisArchive(id, body) {
+  guardAgainstPipelineWrite()
+
+  if (!/^\d+$/.test(id)) {
+    throw Object.assign(new Error('id must be numeric'), { status: 400 })
+  }
+
+  const state = getState()
+  if (!state) {
+    throw Object.assign(new Error('No editorial state found'), { status: 404 })
+  }
+
+  const entry = state.analysisIndex?.[id]
+  if (!entry) {
+    throw Object.assign(new Error(`Analysis entry ${id} not found`), { status: 404 })
+  }
+
+  entry.archived = body?.archived !== false
+  writeState(state)
+  return { ok: true, id, archived: entry.archived }
+}
+
+// ── PUT /api/editorial/themes/:code/archive ─────────────────
+
+export async function putThemeArchive(code, body) {
+  guardAgainstPipelineWrite()
+
+  if (!/^T\d+$/.test(code)) {
+    throw Object.assign(new Error('code must match T{number} (e.g. T01)'), { status: 400 })
+  }
+
+  const state = getState()
+  if (!state) {
+    throw Object.assign(new Error('No editorial state found'), { status: 404 })
+  }
+
+  const theme = state.themeRegistry?.[code]
+  if (!theme) {
+    throw Object.assign(new Error(`Theme ${code} not found`), { status: 404 })
+  }
+
+  theme.archived = body?.archived !== false
+  writeState(state)
+  return { ok: true, code, archived: theme.archived }
+}
+
+// ── POST /api/editorial/decisions ───────────────────────────
+
+export async function postDecision(body) {
+  guardAgainstPipelineWrite()
+
+  if (!body?.title || typeof body.title !== 'string' || !body.title.trim()) {
+    throw Object.assign(new Error('title is required'), { status: 400 })
+  }
+  if (!body?.decision || typeof body.decision !== 'string' || !body.decision.trim()) {
+    throw Object.assign(new Error('decision is required'), { status: 400 })
+  }
+
+  const state = getState()
+  if (!state) {
+    throw Object.assign(new Error('No editorial state found'), { status: 404 })
+  }
+
+  if (!Array.isArray(state.decisionLog)) state.decisionLog = []
+
+  const session = Math.max(1, (state.counters?.nextSession || 1) - 1)
+  const sessionDecisions = state.decisionLog.filter(d => d.session === session)
+  const id = `${session}.${sessionDecisions.length + 1}`
+
+  state.decisionLog.push({
+    id,
+    session,
+    title: body.title.trim(),
+    decision: body.decision.trim(),
+    reasoning: (body.reasoning || '').trim(),
+  })
+
+  writeState(state)
+  return { ok: true, id, session }
+}
+
+// ── PUT /api/editorial/decisions/:id/archive ────────────────
+
+export async function putDecisionArchive(id, body) {
+  guardAgainstPipelineWrite()
+
+  const state = getState()
+  if (!state) {
+    throw Object.assign(new Error('No editorial state found'), { status: 404 })
+  }
+
+  const decision = (state.decisionLog || []).find(d => d.id === id)
+  if (!decision) {
+    throw Object.assign(new Error(`Decision ${id} not found`), { status: 404 })
+  }
+
+  decision.archived = body?.archived !== false
+  writeState(state)
+  return { ok: true, id, archived: decision.archived }
 }
 
 // ── POST /api/editorial/chat ──────────────────────────────

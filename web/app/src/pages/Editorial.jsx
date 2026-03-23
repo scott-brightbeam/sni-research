@@ -4,7 +4,7 @@ import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditori
 import { useEditorialStatus } from '../hooks/useEditorialStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatRelativeTime } from '../lib/format'
-import { apiFetch, apiPut } from '../lib/api'
+import { apiFetch, apiPut, apiPost } from '../lib/api'
 import { downloadFile } from '../lib/download'
 import { toast } from '../components/shared/Toast'
 import Draft from './Draft'
@@ -133,7 +133,10 @@ export default function Editorial() {
 // ── Analysis Tab ──────────────────────────────────────────
 
 function AnalysisTab({ onDraftRequest }) {
-  const { data, loading, error } = useEditorialState('analysisIndex')
+  const [showArchived, setShowArchived] = useState(false)
+  const { data, loading, error, refetch } = useEditorialState('analysisIndex', {
+    showArchived: showArchived ? 'true' : '',
+  })
   const costData = useEditorialCost()
 
   if (loading) return <Skeleton.List count={8} />
@@ -160,6 +163,10 @@ function AnalysisTab({ onDraftRequest }) {
       <div className="section-header">
         <h3>Analysis Index</h3>
         <span className="count-badge">{entries.length} entries</span>
+        <label className="filter-toggle">
+          <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} />
+          Show archived
+        </label>
       </div>
 
       {entries.length === 0 ? (
@@ -167,7 +174,7 @@ function AnalysisTab({ onDraftRequest }) {
       ) : (
         <div className="analysis-list">
           {entries.map(entry => (
-            <AnalysisEntry key={entry.id} entry={entry} onDraftRequest={onDraftRequest} />
+            <AnalysisEntry key={entry.id} entry={entry} onDraftRequest={onDraftRequest} refetch={refetch} />
           ))}
         </div>
       )}
@@ -175,11 +182,21 @@ function AnalysisTab({ onDraftRequest }) {
   )
 }
 
-function AnalysisEntry({ entry, onDraftRequest }) {
+function AnalysisEntry({ entry, onDraftRequest, refetch }) {
   const [expanded, setExpanded] = useState(false)
 
+  async function handleArchiveToggle(e) {
+    e.stopPropagation()
+    try {
+      await apiPut(`/api/editorial/analysis/${entry.id}/archive`, { archived: !entry.archived })
+      refetch?.()
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
+
   return (
-    <div className="analysis-entry" onClick={() => setExpanded(!expanded)}>
+    <div className={`analysis-entry${entry.archived ? ' archived' : ''}`} onClick={() => setExpanded(!expanded)}>
       <div className="entry-header">
         <span className="entry-id">#{entry.id}</span>
         <span className="entry-title">{entry.title}</span>
@@ -202,18 +219,20 @@ function AnalysisEntry({ entry, onDraftRequest }) {
         <div className="entry-summary">{entry.summary}</div>
       )}
       {expanded && (
-        <button
-          className="draft-link"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDraftRequest(buildDraftPrompt(
+        <div className="entry-actions" onClick={e => e.stopPropagation()}>
+          <button
+            className="draft-link"
+            onClick={() => onDraftRequest(buildDraftPrompt(
               { type: 'analysis', id: entry.id, title: entry.title },
               { summary: entry.summary, themes: entry.themes }
-            ))
-          }}
-        >
-          Draft in chat
-        </button>
+            ))}
+          >
+            Draft in chat
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={handleArchiveToggle}>
+            {entry.archived ? 'Restore' : 'Archive'}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -223,8 +242,12 @@ function AnalysisEntry({ entry, onDraftRequest }) {
 
 function ThemesTab({ onDraftRequest }) {
   const [showStale, setShowStale] = useState(false)
-  const filters = showStale ? { stale: 'true' } : { active: 'true' }
-  const { data, loading, error } = useEditorialState('themeRegistry', filters)
+  const [showArchived, setShowArchived] = useState(false)
+  const filters = {
+    ...(showStale ? { stale: 'true' } : { active: 'true' }),
+    showArchived: showArchived ? 'true' : '',
+  }
+  const { data, loading, error, refetch } = useEditorialState('themeRegistry', filters)
 
   if (loading) return <Skeleton.List count={6} />
   if (error) return <div className="error-state">{error}</div>
@@ -240,6 +263,10 @@ function ThemesTab({ onDraftRequest }) {
           <input type="checkbox" checked={showStale} onChange={() => setShowStale(!showStale)} />
           Show stale only
         </label>
+        <label className="filter-toggle">
+          <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} />
+          Show archived
+        </label>
       </div>
 
       {allThemes.length === 0 ? (
@@ -247,7 +274,7 @@ function ThemesTab({ onDraftRequest }) {
       ) : (
         <div className="theme-list">
           {allThemes.map(theme => (
-            <ThemeCard key={theme.code} theme={theme} onDraftRequest={onDraftRequest} />
+            <ThemeCard key={theme.code} theme={theme} onDraftRequest={onDraftRequest} refetch={refetch} />
           ))}
         </div>
       )}
@@ -255,11 +282,21 @@ function ThemesTab({ onDraftRequest }) {
   )
 }
 
-function ThemeCard({ theme, onDraftRequest }) {
+function ThemeCard({ theme, onDraftRequest, refetch }) {
   const [expanded, setExpanded] = useState(false)
 
+  async function handleArchiveToggle(e) {
+    e.stopPropagation()
+    try {
+      await apiPut(`/api/editorial/themes/${theme.code}/archive`, { archived: !theme.archived })
+      refetch?.()
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
+
   return (
-    <div className="theme-card" onClick={() => setExpanded(!expanded)}>
+    <div className={`theme-card${theme.archived ? ' archived' : ''}`} onClick={() => setExpanded(!expanded)}>
       <div className="theme-header">
         <span className="theme-code">{theme.code}</span>
         <span className="theme-name">{theme.name}</span>
@@ -284,18 +321,20 @@ function ThemeCard({ theme, onDraftRequest }) {
               ))}
             </div>
           )}
-          <button
-            className="draft-link"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDraftRequest(buildDraftPrompt(
+          <div className="entry-actions" onClick={e => e.stopPropagation()}>
+            <button
+              className="draft-link"
+              onClick={() => onDraftRequest(buildDraftPrompt(
                 { type: 'theme', code: theme.code, name: theme.name },
                 { evidence: theme.evidence, crossConnections: theme.crossConnections }
-              ))
-            }}
-          >
-            Draft {theme.code} in chat
-          </button>
+              ))}
+            >
+              Draft {theme.code} in chat
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={handleArchiveToggle}>
+              {theme.archived ? 'Restore' : 'Archive'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -477,7 +516,37 @@ function PostCard({ post, onStatusChange, onDraftRequest }) {
 // ── Decisions Tab ────────────────────────────────────────
 
 function DecisionsTab() {
-  const { data, loading, error } = useEditorialState('decisionLog')
+  const [showArchived, setShowArchived] = useState(false)
+  const { data, loading, error, refetch } = useEditorialState('decisionLog', {
+    showArchived: showArchived ? 'true' : '',
+  })
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({ title: '', decision: '', reasoning: '' })
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit() {
+    setSubmitting(true)
+    try {
+      await apiPost('/api/editorial/decisions', formData)
+      setShowForm(false)
+      setFormData({ title: '', decision: '', reasoning: '' })
+      refetch()
+      toast('Decision recorded')
+    } catch (err) {
+      toast(err.message, 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleArchiveToggle(d) {
+    try {
+      await apiPut(`/api/editorial/decisions/${d.id}/archive`, { archived: !d.archived })
+      refetch()
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
 
   if (loading) return <Skeleton.List count={4} />
   if (error) return <div className="error-state">{error}</div>
@@ -489,20 +558,72 @@ function DecisionsTab() {
       <div className="section-header">
         <h3>Decision Log</h3>
         <span className="count-badge">{decisions.length} decisions</span>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancel' : '+ Decision'}
+        </button>
+        <label className="filter-toggle">
+          <input type="checkbox" checked={showArchived} onChange={() => setShowArchived(!showArchived)} />
+          Show archived
+        </label>
       </div>
 
+      {showForm && (
+        <div className="decision-form">
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Decision title"
+            value={formData.title}
+            onChange={e => setFormData(f => ({ ...f, title: e.target.value }))}
+          />
+          <textarea
+            className="form-textarea"
+            placeholder="What was decided?"
+            value={formData.decision}
+            onChange={e => setFormData(f => ({ ...f, decision: e.target.value }))}
+          />
+          <textarea
+            className="form-textarea"
+            placeholder="Reasoning (optional)"
+            value={formData.reasoning}
+            onChange={e => setFormData(f => ({ ...f, reasoning: e.target.value }))}
+          />
+          <div className="form-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={submitting || !formData.title.trim() || !formData.decision.trim()}
+              onClick={handleSubmit}
+            >
+              {submitting ? 'Saving...' : 'Save Decision'}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setShowForm(false); setFormData({ title: '', decision: '', reasoning: '' }) }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {decisions.length === 0 ? (
-        <EmptyState icon="⚖" title="No decisions recorded" description="Editorial decisions appear as the pipeline runs." />
+        <EmptyState icon="⚖" title="No decisions recorded" description="Record editorial decisions to guide content and framing." />
       ) : (
         <div className="decision-list">
           {decisions.map((d, i) => (
-            <div key={i} className="decision-item">
+            <div key={d.id || i} className={`decision-item${d.archived ? ' archived' : ''}`}>
               <div className="decision-header">
-                <span className="decision-type">{d.type || 'decision'}</span>
-                <span className="decision-date">{d.date || d.timestamp}</span>
+                <span className="decision-id">#{d.id}</span>
+                <span className="decision-title">{d.title}</span>
+                <span className="decision-session">S{d.session}</span>
               </div>
               <div className="decision-content">{d.decision || d.content || d.summary}</div>
               {d.reasoning && <div className="decision-reasoning">{d.reasoning}</div>}
+              <div className="entry-actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => handleArchiveToggle(d)}>
+                  {d.archived ? 'Restore' : 'Archive'}
+                </button>
+              </div>
             </div>
           ))}
         </div>

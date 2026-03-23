@@ -7,7 +7,7 @@ import { getConfig, putConfig } from './routes/config.js'
 import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
-import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus } from './routes/editorial.js'
+import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus, putAnalysisArchive, putThemeArchive, postDecision, putDecisionArchive } from './routes/editorial.js'
 import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recommendations.js'
 import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, triggerFetch } from './routes/subscriptions.js'
 
@@ -334,6 +334,29 @@ const server = Bun.serve({
       if (backlogMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putBacklogStatus(backlogMatch[1], body))
+      }
+
+      const analysisArchiveMatch = path.match(/^\/api\/editorial\/analysis\/(\d+)\/archive$/)
+      if (analysisArchiveMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putAnalysisArchive(analysisArchiveMatch[1], body))
+      }
+
+      const themeArchiveMatch = path.match(/^\/api\/editorial\/themes\/(T\d+)\/archive$/)
+      if (themeArchiveMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putThemeArchive(themeArchiveMatch[1], body))
+      }
+
+      if (path === '/api/editorial/decisions' && req.method === 'POST') {
+        const body = await req.json()
+        return json(await postDecision(body))
+      }
+
+      const decisionArchiveMatch = path.match(/^\/api\/editorial\/decisions\/([\d.]+)\/archive$/)
+      if (decisionArchiveMatch && req.method === 'PUT') {
+        const body = await req.json()
+        return json(await putDecisionArchive(decisionArchiveMatch[1], body))
       }
 
       // --- Subscriptions ---
