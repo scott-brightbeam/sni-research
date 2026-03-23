@@ -113,6 +113,9 @@ export async function handleGetPodcasts(query) {
     } catch { /* skip if can't read dir */ }
   }
 
+  // Newest first
+  episodes.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
   return { week: week ? parseInt(week, 10) : null, episodes, lastRun }
 }
 

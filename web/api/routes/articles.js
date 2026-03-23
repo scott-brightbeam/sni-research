@@ -41,6 +41,10 @@ export async function getArticles({ sector, date, dateFrom, dateTo, search, limi
     collectArticle(raw, meta, 'podcast-extract')
   }, { sector, date, dateFrom, dateTo })
 
+  // Newest first — sort by date_published descending, then scraped_at as tiebreaker
+  allMatched.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || '')
+    || (b.scraped_at || '').localeCompare(a.scraped_at || ''))
+
   const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
   const off = Math.max(parseInt(offset) || 0, 0)
 
@@ -94,6 +98,9 @@ export async function getFlaggedArticles() {
       flagged: true,
     })
   })
+
+  // Newest first
+  articles.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || ''))
 
   return { articles, total: articles.length }
 }
