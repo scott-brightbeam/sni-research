@@ -39,6 +39,7 @@ function scanDigestFiles() {
             duration: digest.duration,
             episodeUrl: digest.episodeUrl || null,
             type: 'podcast',
+            archived: digest.archived || false,
             digestPath: `data/podcasts/${dateDir}/${sourceDir}/${file}`,
             digest,
           })
@@ -84,7 +85,7 @@ export async function handleGetPodcasts(query) {
           } catch { /* skip malformed */ }
         }
       }
-      return { ...entry, digest }
+      return { ...entry, archived: digest?.archived || entry.archived || false, digest }
     })
   } else {
     // Fallback: scan digest files directly

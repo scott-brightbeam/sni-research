@@ -112,6 +112,7 @@ export default function Database() {
             showArchived={showArchived}
             onShowArchivedChange={setShowArchived}
             onDraftInChat={setDraftRequest}
+            onReload={podcastResult.refetch}
           />
         )}
 
@@ -143,7 +144,7 @@ export default function Database() {
 
 // ── Podcasts Tab ──────────────────────────────────────────
 
-function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange, onDraftInChat }) {
+function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange, onDraftInChat, onReload }) {
   const [sourceFilter, setSourceFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [expandedIdx, setExpandedIdx] = useState(null)
@@ -218,6 +219,7 @@ function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedCha
               expanded={expandedIdx === i}
               onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
               onDraftInChat={onDraftInChat}
+              onReload={onReload}
             />
           ))}
         </div>
@@ -226,17 +228,37 @@ function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedCha
   )
 }
 
-function PodcastCard({ episode, expanded, onToggle, onDraftInChat }) {
+function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
   const ep = episode
   const digest = ep.digest || {}
   const storiesExtracted = digest.stories?.length || ep.storiesExtracted || 0
   const storiesFound = ep.storiesFound || 0
   const themes = digest.themes || ep.themes || []
 
+  async function handleArchive(e) {
+    e.stopPropagation()
+    try {
+      // digestPath format: data/podcasts/YYYY-MM-DD/source-slug/episode-slug.digest.json
+      const parts = (ep.digestPath || '').split('/')
+      if (parts.length >= 5) {
+        const [, , date, source, file] = parts
+        const slug = file.replace('.digest.json', '')
+        await apiPatch(`/api/podcasts/${date}/${source}/${slug}`, { archived: !ep.archived })
+        onReload?.()
+      }
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
       <div className="podcast-card-header">
-        <div className="podcast-card-title">{ep.title || ep.filename || 'Untitled episode'}</div>
+        <div className="podcast-card-title">
+          {ep.title || ep.filename || 'Untitled episode'}
+          {ep.archived && <span className="badge-archived">archived</span>}
+        </div>
+        <button className="btn-icon" title={ep.archived ? 'Restore' : 'Archive'} onClick={handleArchive}>
+          {ep.archived ? '↩' : '📦'}
+        </button>
         {ep.tier && (
           <span className={`badge badge-tier${ep.tier}`}>{TIER_LABELS[ep.tier] || `Tier ${ep.tier}`}</span>
         )}
