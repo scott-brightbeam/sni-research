@@ -99,6 +99,12 @@ function spawnStage(script) {
   if (!existsSync(scriptPath)) {
     throw Object.assign(new Error(`Script not found: ${script}`), { status: 500 })
   }
+  // In test mode, return a fake process instead of spawning real pipeline scripts.
+  // This prevents tests from making real Opus API calls ($85+ per test run).
+  if (process.env.SNI_TEST_MODE || process.env.NODE_ENV === 'test') {
+    console.log(`[editorial] TEST MODE — skipping spawn of ${script}`)
+    return { pid: -1, exited: Promise.resolve(0) }
+  }
   const proc = Bun.spawn(['bun', scriptPath], {
     cwd: ROOT,
     env: { ...process.env },

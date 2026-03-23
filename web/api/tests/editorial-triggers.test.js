@@ -6,6 +6,8 @@ import { tmpdir } from 'os'
 // Use an isolated temp directory so tests never touch production data/editorial/
 const TEST_DIR = join(tmpdir(), `sni-editorial-trigger-test-${process.pid}`)
 process.env.SNI_EDITORIAL_DIR = TEST_DIR
+// CRITICAL: prevent tests from spawning real pipeline scripts that hit the Opus API
+process.env.SNI_TEST_MODE = '1'
 
 // Import AFTER setting env var so the module picks up the override
 const {
@@ -108,7 +110,7 @@ describe('POST /api/editorial/trigger/analyse', () => {
     const result = await postTriggerAnalyse()
     expect(result.ok).toBe(true)
     expect(result.stage).toBe('analyse')
-    expect(typeof result.pid).toBe('number')
+    expect(result.pid).toBe(-1) // test mode returns fake PID
   })
 
   it('returns conflict when lock exists and not stale', async () => {
@@ -143,7 +145,7 @@ describe('POST /api/editorial/trigger/discover', () => {
     const result = await postTriggerDiscover()
     expect(result.ok).toBe(true)
     expect(result.stage).toBe('discover')
-    expect(typeof result.pid).toBe('number')
+    expect(result.pid).toBe(-1) // test mode returns fake PID
   })
 
   it('returns conflict when lock exists and not stale', async () => {
@@ -163,7 +165,7 @@ describe('POST /api/editorial/trigger/draft', () => {
     const result = await postTriggerDraft()
     expect(result.ok).toBe(true)
     expect(result.stage).toBe('draft')
-    expect(typeof result.pid).toBe('number')
+    expect(result.pid).toBe(-1) // test mode returns fake PID
   })
 
   it('returns conflict when lock exists and not stale', async () => {
@@ -183,7 +185,7 @@ describe('POST /api/editorial/trigger/track', () => {
     const result = await postTriggerTrack()
     expect(result.ok).toBe(true)
     expect(result.stage).toBe('track')
-    expect(typeof result.pid).toBe('number')
+    expect(result.pid).toBe(-1) // test mode returns fake PID
   })
 })
 
