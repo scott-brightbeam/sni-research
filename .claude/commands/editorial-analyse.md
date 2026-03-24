@@ -10,21 +10,26 @@ Process the OLDEST unprocessed podcast transcript through the Brightbeam editori
 For the OLDEST unprocessed file:
 
 5. Read the full transcript
-6. Increment `counters.nextSession` (this is your session number)
-7. Analyse through the Brightbeam editorial lens — read `config/prompts/editorial-context.v1.txt` for the full analytical framework
-8. Produce these outputs:
+6. Extract the `**URL:**` field from the frontmatter. If present, this is the episode URL. If missing, search `~/Projects/Claude/HomeBrew/podcasts/episodes-log.json` for a matching episode (by title or date+feedId) to find the `episodeUrl`.
+7. Increment `counters.nextSession` (this is your session number)
+8. Analyse through the Brightbeam editorial lens — read `config/prompts/editorial-context.v1.txt` for the full analytical framework
+9. **Actively discover new themes.** Do not just map content to existing T01-T26. Look for patterns, tensions, or phenomena that existing themes don't capture. A new theme is warranted when the content surfaces a recurring pattern, a genuine tension, or a distinct phenomenon. Create T27+ as needed.
+10. Produce these outputs:
 
 **Analysis entry** — add to `state.analysisIndex[String(nextDocument)]`:
 ```json
-{ "title", "source", "host", "participants", "filename", "date", "dateProcessed": "YYYY-MM-DD",
-  "session", "tier": 1, "status": "active", "themes": ["T01", ...],
-  "summary" (analytical, 2-3 sentences), "keyThemes", "postPotential", "postPotentialReasoning" }
+{ "title", "source", "host", "participants", "filename", "url" (episode or article URL — REQUIRED),
+  "date", "dateProcessed": "YYYY-MM-DD", "session", "tier": 1, "status": "active",
+  "themes": ["T01", ...], "summary" (analytical, 2-3 sentences), "keyThemes",
+  "postPotential", "postPotentialReasoning" }
 ```
+The `url` field is non-negotiable. Every entry must link back to its source.
 Increment `counters.nextDocument` after.
 
 **Theme evidence** — for each relevant existing theme, append to `state.themeRegistry[code].evidence`:
 ```json
-{ "session", "source": "Podcast Name - Episode (date)", "content": "specific evidence — data points, quotes, examples" }
+{ "session", "source": "Podcast Name - Episode (date)", "url": "episode or article URL",
+  "content": "specific evidence — data points, quotes, examples" }
 ```
 Trim evidence array to last 12 entries. Update `lastUpdated` to `"Session N"`. Increment `documentCount`.
 
