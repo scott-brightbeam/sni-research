@@ -347,8 +347,7 @@ Rank by timeliness × audience relevance × originality. Check the existing back
     }
 
     case 'draft': {
-      // MODE 4: DRAFT — load specific backlog item + its source evidence + format guidance
-      // The actual backlog item is passed via the user message, not the tab context
+      // MODE 4: DRAFT — load source documents, format guidance, theme context
       sections.push('\n## DRAFT MODE\n')
       sections.push(`You are drafting a LinkedIn post for Scott Wilkinson (CMO and Head of Culture and Coaching at Brightbeam, an AI-native consultancy).
 
@@ -366,18 +365,105 @@ Writing rules: UK English, spaced en-dashes (not em-dashes), single quotes, acti
 
 Label each draft clearly with its format name. Present all three for selection.\n`)
 
-      // Full theme registry for reference
-      const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
-      sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
-      for (const [code, theme] of draftThemes) {
-        const topEvidence = (theme.evidence || []).slice(-3)
-        sections.push(`**${code}: ${theme.name}**`)
-        for (const ev of topEvidence) {
-          sections.push(`  - ${ev.source}: ${ev.content?.slice(0, 200) || '(no content)'}`)
+      // Load FULL SOURCE DOCUMENTS for drafting — transcripts and articles
+      const transcriptDir = join(process.env.HOME || '/Users/scott', 'Desktop/Podcast Transcripts')
+      const sourceDocsLoaded = []
+      let sourceTokensUsed = 0
+      const SOURCE_BUDGET = 15_000 // tokens reserved for source documents
+
+      // Build a lookup: sourceDocument string → analysis entry with filename
+      const entryBySource = {}
+      for (const [id, entry] of Object.entries(state.analysisIndex || {})) {
+        const key = `${entry.source}${entry.date ? ` (${entry.date})` : ''}`
+        entryBySource[key] = entry
+        // Also index by partial match patterns
+        if (entry.source) entryBySource[entry.source] = entry
+        const shortKey = `${entry.source} - ${(entry.title || '').split(' ').slice(0, 4).join(' ')}`
+        entryBySource[shortKey] = entry
+      }
+
+      // Find backlog items that reference source documents — check all active posts
+      const activePosts = Object.entries(state.postBacklog || {})
+        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
+      for (const [, post] of activePosts) {
+        for (const srcDoc of post.sourceDocuments || []) {
+          // Try to find the matching analysis entry
+          const entry = entryBySource[srcDoc] || Object.values(state.analysisIndex || {}).find(e =>
+            srcDoc.toLowerCase().includes((e.source || '').toLowerCase()) &&
+            srcDoc.toLowerCase().includes((e.date || '').slice(5))
+          )
+          if (!entry?.filename) continue
+
+          // Read the transcript file
+          const transcriptPath = join(transcriptDir, entry.filename)
+          if (existsSync(transcriptPath)) {
+            try {
+              const content = readFileSync(transcriptPath, 'utf-8')
+              const tokens = estimateTokens(content)
+              if (sourceTokensUsed + tokens <= SOURCE_BUDGET) {
+                sourceDocsLoaded.push({ source: srcDoc, filename: entry.filename, content })
+                sourceTokensUsed += tokens
+              } else {
+                // Truncate to fit budget
+                const remaining = SOURCE_BUDGET - sourceTokensUsed
+                if (remaining > 1000) {
+                  const truncated = content.slice(0, remaining * 4) // rough char-to-token ratio
+                  sourceDocsLoaded.push({ source: srcDoc, filename: entry.filename, content: truncated + '\n\n[TRUNCATED — source too long for context budget]' })
+                  sourceTokensUsed = SOURCE_BUDGET
+                }
+              }
+            } catch { /* skip unreadable */ }
+          }
+
+          // Also try article full_text from data/verified/
+          if (!entry.filename && entry.url) {
+            // Search verified articles by URL
+            const verifiedDir = join(ROOT, 'data/verified')
+            if (existsSync(verifiedDir)) {
+              for (const dateDir of readdirSync(verifiedDir).sort().reverse().slice(0, 14)) {
+                const datePath = join(verifiedDir, dateDir)
+                if (!statSync(datePath).isDirectory()) continue
+                for (const sectorDir of readdirSync(datePath)) {
+                  const sectorPath = join(datePath, sectorDir)
+                  if (!statSync(sectorPath).isDirectory()) continue
+                  for (const file of readdirSync(sectorPath)) {
+                    if (!file.endsWith('.json')) continue
+                    try {
+                      const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+                      if (raw.url === entry.url && raw.full_text) {
+                        const tokens = estimateTokens(raw.full_text)
+                        if (sourceTokensUsed + tokens <= SOURCE_BUDGET) {
+                          sourceDocsLoaded.push({ source: srcDoc, filename: file, content: `# ${raw.title}\n\n${raw.full_text}` })
+                          sourceTokensUsed += tokens
+                        }
+                      }
+                    } catch { /* skip */ }
+                  }
+                }
+              }
+            }
+          }
         }
       }
 
-      // Backlog items for cross-reference
+      if (sourceDocsLoaded.length > 0) {
+        sections.push(`\n### Source Documents (${sourceDocsLoaded.length} loaded, ~${sourceTokensUsed.toLocaleString()} tokens)\n`)
+        for (const doc of sourceDocsLoaded) {
+          sections.push(`#### ${doc.source}\n_File: ${doc.filename}_\n\n${doc.content}\n`)
+        }
+      } else {
+        sections.push('\n### Source Documents\n_No source documents pre-loaded. When you select a post to draft, the relevant transcripts and articles will be loaded from the knowledge base._\n')
+      }
+
+      // Theme summaries for context (not full evidence — source docs carry the detail)
+      const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
+      sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
+      for (const [code, theme] of draftThemes) {
+        const connections = (theme.crossConnections || []).map(c => c.theme).join(', ')
+        sections.push(`- **${code}**: ${theme.name} (${theme.documentCount || 0} docs)${connections ? ` — connects: ${connections}` : ''}`)
+      }
+
+      // Active backlog for cross-reference
       const draftBacklog = Object.entries(state.postBacklog || {})
         .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
         .sort(([a], [b]) => Number(b) - Number(a))
