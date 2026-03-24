@@ -78,15 +78,26 @@ function findTranscriptByMeta(source, date) {
     const sourceSlug = source.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-')
     const datePrefix = (date || '').slice(0, 10) // handle both YYYY-MM-DD and longer formats
 
-    // Best match: date prefix + source slug
+    // Generate alternative slugs for known naming mismatches
+    // e.g. "The a16z Show" → slug "the-a16z-show" but transcripts use "a16z-"
+    const altSlugs = [sourceSlug]
+    if (sourceSlug.startsWith('the-')) altSlugs.push(sourceSlug.slice(4)) // strip leading "the-"
+    if (sourceSlug.includes('-podcast')) altSlugs.push(sourceSlug.replace('-podcast', ''))
+    if (sourceSlug.includes('-show')) altSlugs.push(sourceSlug.replace('-show', ''))
+
+    // Best match: date prefix + any slug variant
     if (datePrefix) {
-      const match = files.find(f => f.startsWith(datePrefix) && f.includes(sourceSlug))
-      if (match) return join(TRANSCRIPT_DIR, match)
+      for (const slug of altSlugs) {
+        const match = files.find(f => f.startsWith(datePrefix) && f.includes(slug))
+        if (match) return join(TRANSCRIPT_DIR, match)
+      }
     }
 
-    // Fallback: source slug anywhere in filename
-    const match = files.find(f => f.includes(sourceSlug))
-    if (match) return join(TRANSCRIPT_DIR, match)
+    // Fallback: any slug variant anywhere in filename
+    for (const slug of altSlugs) {
+      const match = files.find(f => f.includes(slug))
+      if (match) return join(TRANSCRIPT_DIR, match)
+    }
   } catch { /* skip */ }
   return null
 }
@@ -129,6 +140,10 @@ function safeReadFile(dir, filename) {
  */
 function loadSourceDocuments(sourceRefs, state) {
   if (!sourceRefs || sourceRefs.length === 0) return { docs: [], tokensUsed: 0, skipped: [] }
+  if (!state) state = {} // null guard — prevent TypeError on state.analysisIndex access
+
+  // Cap refs to prevent excessive filesystem operations from malformed requests
+  const cappedRefs = sourceRefs.slice(0, 50)
 
   const BUDGET = 15_000
   const docs = []
@@ -174,12 +189,12 @@ function loadSourceDocuments(sourceRefs, state) {
     return false
   }
 
-  for (const ref of sourceRefs) {
+  for (const ref of cappedRefs) {
     if (tokensUsed >= BUDGET) { skipped.push(`${ref.type}:${ref.id || ref.filename || ref.code || '?'} (budget full)`); continue }
 
     switch (ref.type) {
       case 'transcript': {
-        if (!ref.filename) break
+        if (!ref.filename) { skipped.push('transcript (no filename)'); break }
         const content = safeReadFile(TRANSCRIPT_DIR, ref.filename)
         if (content && !loadedPaths.has(ref.filename)) {
           loadedPaths.add(ref.filename)
@@ -193,15 +208,21 @@ function loadSourceDocuments(sourceRefs, state) {
       case 'article': {
         // Validate path components
         if (!PARAM_RE.test(ref.date || '') || !PARAM_RE.test(ref.sector || '') || !PARAM_RE.test(ref.slug || '')) {
-          skipped.push(`article ${ref.slug} (invalid path)`)
+          skipped.push(`article ${ref.slug || '?'} (invalid path components)`)
           break
         }
-        const path = join(ROOT, 'data/verified', ref.date, ref.sector, `${ref.slug}.json`)
-        if (existsSync(path)) {
+        const articlePath = join(ROOT, 'data/verified', ref.date, ref.sector, `${ref.slug}.json`)
+        if (loadedPaths.has(articlePath)) break // dedup
+        if (existsSync(articlePath)) {
           try {
-            const raw = JSON.parse(readFileSync(path, 'utf-8'))
-            if (raw.full_text) addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
-          } catch { /* skip */ }
+            const raw = JSON.parse(readFileSync(articlePath, 'utf-8'))
+            if (raw.full_text) {
+              loadedPaths.add(articlePath)
+              addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
+            } else {
+              skipped.push(`article ${ref.slug} (no full_text)`)
+            }
+          } catch { skipped.push(`article ${ref.slug} (parse error)`) }
         } else {
           skipped.push(`article ${ref.slug} (not found)`)
         }
@@ -242,7 +263,7 @@ function loadSourceDocuments(sourceRefs, state) {
 
       case 'source_name': {
         const name = String(ref.name || '')
-        if (!name) break
+        if (!name) { skipped.push('source_name (empty)'); break }
         // Strip parenthetical date suffix: "Big Technology Podcast - Sorkin (18 Mar)" → "Big Technology Podcast"
         const nameBase = name.split(' - ')[0].split(' (')[0].trim()
         const nameDate = parseFuzzyDate(name.match(/\(([^)]+)\)/)?.[1])
@@ -286,17 +307,24 @@ function loadSourceDocuments(sourceRefs, state) {
               try {
                 const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
                 if (raw.url === ref.url && raw.full_text) {
-                  addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
+                  const urlDocPath = join(sectorPath, file)
+                  if (!loadedPaths.has(urlDocPath)) {
+                    loadedPaths.add(urlDocPath)
+                    addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
+                  }
                   found = true
                   break
                 }
-              } catch { /* skip */ }
+              } catch { /* skip malformed JSON */ }
             }
           }
         }
         if (!found) skipped.push(`${ref.url} (not found in corpus)`)
         break
       }
+
+      default:
+        skipped.push(`${ref.type || 'unknown'} (unrecognised ref type)`)
     }
   }
 

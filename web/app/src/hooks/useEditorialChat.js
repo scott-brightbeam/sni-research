@@ -39,7 +39,7 @@ export function useEditorialChat(tab = 'state') {
   }, [])
 
   const send = useCallback(async (text, sourceRefs = null) => {
-    if (!text) return
+    if (!text || typeof text !== 'string') return
     const trimmed = text.trim()
     if (!trimmed || loadingRef.current) return
 
