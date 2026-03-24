@@ -1,5 +1,20 @@
 Process the OLDEST unprocessed podcast transcript through the Brightbeam editorial intelligence lens.
 
+## CRITICAL: Source Fidelity Rule
+
+**Only include what is in the source material.** Never project external knowledge.
+
+Previous audits found fabrication in 69% of entries (11 of 16). The patterns:
+- Projected product names and terminology not in the transcript
+- Invented statistics (e.g. "40x cost" that doesn't appear anywhere)
+- Misattributed frameworks to the wrong speaker
+- Added words to real quotes
+- Generated entries from filenames without reading the actual content
+
+Every quote must be verifiable against the transcript. Every stat must appear in the source. Every attribution must name the correct speaker. If you know something about a company/person from external knowledge but it's not in THIS transcript, do not include it.
+
+Label editorial inferences explicitly: "Editorial inference: [your analysis]" — never present your interpretation as something the source said.
+
 ## Instructions
 
 1. Read `data/editorial/state.json` — note the counters (nextSession, nextDocument, nextPost) and existing themes
@@ -64,4 +79,33 @@ Increment `counters.nextPost` after. Include MEDIUM-HIGH, HIGH and IMMEDIATE pri
 ```json
 { "type": "analyse", "title": "Session N: processed filename.md", "detail": "X entries, Y evidence, Z posts", "timestamp": "ISO" }
 ```
-12. Report what was processed and what was found
+12. **MANDATORY VERIFICATION** — After writing state.json, dispatch a sub-agent to audit the entry:
+
+```
+Agent prompt: "Audit analysis entry #[ID] in data/editorial/state.json against the
+original transcript at ~/Desktop/Podcast Transcripts/[filename].
+
+Check EVERY quoted phrase and data point in the entry summary, theme evidence items
+(session [N] in themeRegistry), and post candidates against the actual transcript text.
+
+For each claim report:
+- VERIFIED: appears in transcript
+- PARAPHRASED: concept present, wording different (acceptable)
+- FABRICATED: does NOT appear in the transcript
+- PROJECTED: external knowledge imported (product names, terminology, facts not mentioned)
+- MISATTRIBUTED: attributed to wrong speaker
+
+Also check: any significant insights MISSED from the transcript?
+
+Be exhaustive. Check every quoted phrase. Previous audits found fabrication in 69% of entries."
+```
+
+If the audit finds FABRICATED or PROJECTED items:
+- Fix them immediately before processing the next transcript
+- Replace fabricated quotes with actual transcript text
+- Remove projected external knowledge
+- Label editorial inferences as such (prefix with "Editorial inference:")
+
+Do NOT proceed to the next transcript until the current one passes audit.
+
+13. Report what was processed and what was found
