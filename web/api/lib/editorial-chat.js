@@ -76,14 +76,25 @@ function findTranscriptByMeta(source, date) {
   try {
     const files = readdirSync(TRANSCRIPT_DIR).filter(f => f.endsWith('.md'))
     const sourceSlug = source.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-')
-    const datePrefix = (date || '').slice(0, 10) // handle both YYYY-MM-DD and longer formats
+    // Normalise date to ISO (handles "5 March 2026", "18 Mar", "2026-03-18")
+    const datePrefix = parseFuzzyDate(date) || (date || '').slice(0, 10)
 
     // Generate alternative slugs for known naming mismatches
     // e.g. "The a16z Show" → slug "the-a16z-show" but transcripts use "a16z-"
     const altSlugs = [sourceSlug]
-    if (sourceSlug.startsWith('the-')) altSlugs.push(sourceSlug.slice(4)) // strip leading "the-"
+    if (sourceSlug.startsWith('the-')) altSlugs.push(sourceSlug.slice(4))
     if (sourceSlug.includes('-podcast')) altSlugs.push(sourceSlug.replace('-podcast', ''))
     if (sourceSlug.includes('-show')) altSlugs.push(sourceSlug.replace('-show', ''))
+    // Known source-specific aliases (transcript naming differs from source names)
+    const SLUG_ALIASES = {
+      'exponential-view-podcast': ['ev-podcast'],
+      'exponential-view-newsletter': ['ev-newsletter'],
+      'big-technology-podcast': ['big-technology'],
+      'intelligence-squared-on-demand-': ['intelligence-squared', 'on-demand'],
+    }
+    for (const [pattern, aliases] of Object.entries(SLUG_ALIASES)) {
+      if (sourceSlug.includes(pattern)) altSlugs.push(...aliases)
+    }
 
     // Best match: date prefix + any slug variant
     if (datePrefix) {
@@ -103,17 +114,22 @@ function findTranscriptByMeta(source, date) {
 }
 
 /**
- * Parse a date from mixed formats: "18 Mar", "18 March 2026", "2026-03-18", "March 2026"
+ * Parse a date from mixed formats: "18 Mar", "18 March 2026", "2026-03-18", "March 2026", "5 March 2026"
  * Returns YYYY-MM-DD or null.
+ *
+ * Handles year-less dates like "18 Mar" by assuming the current year.
  */
 function parseFuzzyDate(str) {
   if (!str) return null
   // Already ISO
   const isoMatch = str.match(/(\d{4}-\d{2}-\d{2})/)
   if (isoMatch) return isoMatch[1]
-  // Try Date.parse for human formats
+  // If year-less (e.g. "18 Mar", "Mar 18"), append current year before parsing
+  const currentYear = new Date().getFullYear()
+  const yearless = !str.match(/\d{4}/)
+  const withYear = yearless ? `${str} ${currentYear}` : str
   try {
-    const d = new Date(str)
+    const d = new Date(withYear)
     if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
   } catch { /* skip */ }
   return null
