@@ -102,7 +102,11 @@ export default function Copilot() {
         )}
       </div>
 
-      {chat.error && <div className="chat-error">{chat.error}</div>}
+      {chat.error?.status === 503 ? (
+        <div className="chat-error migration-banner">Editorial chat has moved to Claude Code. Past conversations are still readable below.</div>
+      ) : chat.error ? (
+        <div className="chat-error">{chat.error.message || chat.error}</div>
+      ) : null}
 
       <div className="copilot-body">
         <div className="thread-sidebar">

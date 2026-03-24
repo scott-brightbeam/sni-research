@@ -137,7 +137,7 @@ export function useChat(week) {
       await loadUsage()
     } catch (err) {
       if (err.name === 'AbortError') return
-      if (mountedRef.current) setError(err.message)
+      if (mountedRef.current) setError({ message: err.message, status: err.status })
     } finally {
       if (mountedRef.current) setSending(false)
       abortRef.current = null

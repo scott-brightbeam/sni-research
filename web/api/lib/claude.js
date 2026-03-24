@@ -6,11 +6,7 @@ let _client = null
 export function getClient() {
   if (_client) return _client
   const key = loadEnvKey('ANTHROPIC_API_KEY')
-  if (!key) {
-    const err = new Error('ANTHROPIC_API_KEY not found in environment or .env')
-    err.status = 500
-    throw err
-  }
+  if (!key) return null  // Anthropic API removed 2026-03-23; Claude Code handles all LLM work now
   _client = new Anthropic({ apiKey: key })
   return _client
 }

@@ -104,7 +104,7 @@ export function useEditorialChat(tab = 'state') {
     } catch (err) {
       if (err.name === 'AbortError') return
       if (!mountedRef.current) return
-      setError(err.message)
+      setError({ message: err.message, status: err.status })
       // Remove the empty assistant message on error
       setThreads(prev => ({
         ...prev,

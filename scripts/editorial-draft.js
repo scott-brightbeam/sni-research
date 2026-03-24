@@ -39,6 +39,7 @@ import {
   getSessionCosts,
   resetSessionCosts,
   validateProviders,
+  availableEditorialProviders,
 } from './lib/editorial-multi-model.js'
 import {
   extractDraftMarkdown,
@@ -101,6 +102,9 @@ function parseArgs() {
         break
       case '--force':
         opts.force = true
+        break
+      case '--critique-only':
+        opts.critiqueOnly = true
         break
       default:
         warn(`Unknown argument: ${args[i]}`)
@@ -312,6 +316,41 @@ async function main() {
   if (!state) {
     err('Cannot load data/editorial/state.json — run editorial-analyse.js first')
     process.exit(1)
+  }
+
+  // 2b. Critique-only mode — skip draft, only run Gemini+GPT critique pair
+  if (opts.critiqueOnly) {
+    if (!opts.session) { err('--critique-only requires --session N'); process.exit(1) }
+
+    const providers = availableEditorialProviders()
+    if (!providers.openai && !providers.gemini) {
+      err('At least one of OPENAI_API_KEY or GOOGLE_AI_API_KEY required for critique')
+      process.exit(1)
+    }
+
+    const draftPath = join(DRAFTS_DIR, `draft-session-${opts.session}-v1.md`)
+    if (!existsSync(draftPath)) {
+      err(`Draft not found: ${draftPath}`)
+      err(`Generate draft first, then: bun scripts/editorial-draft.js --critique-only --session ${opts.session}`)
+      process.exit(1)
+    }
+    const draft = readFileSync(draftPath, 'utf-8')
+
+    log(`Critique-only mode: reading ${draftPath}`)
+    resetSessionCosts()
+
+    const themeNames = Object.entries(state.themeRegistry || {}).map(([code, t]) => `${code}: ${t.name}`).join(', ')
+    const critiquePrompt = renderCritiquePrompt(draft, { themes: themeNames, week: opts.session, sections: '' })
+    const critiqueResults = await callCritiqueModels(critiquePrompt, { maxTokens: 4000 })
+    const { merged } = mergeCritiques(critiqueResults)
+
+    const critiquePath = join(DRAFTS_DIR, `critique-session-${opts.session}.json`)
+    writeFileSync(critiquePath, JSON.stringify({ gemini: critiqueResults.gemini, openai: critiqueResults.openai, merged }, null, 2))
+    log(`Critique saved to ${critiquePath}`)
+
+    const costs = getSessionCosts()
+    log(`Cost: $${costs.total.toFixed(4)} (Gemini: $${costs.gemini.toFixed(4)}, OpenAI: $${costs.openai.toFixed(4)})`)
+    process.exit(0)
   }
 
   // 3. Resolve week and session

@@ -395,7 +395,12 @@ async function main() {
   }
 
   try {
-    const client = new Anthropic({ apiKey: loadEnvKey('ANTHROPIC_API_KEY') })
+    const apiKey = loadEnvKey('ANTHROPIC_API_KEY')
+    if (!apiKey) {
+      console.log('[podcast-import] ANTHROPIC_API_KEY not configured. Podcast import now runs through Claude Code.')
+      process.exit(0)
+    }
+    const client = new Anthropic({ apiKey })
     const model = config.model || 'claude-sonnet-4-20250514'
     let thresholds
     try {

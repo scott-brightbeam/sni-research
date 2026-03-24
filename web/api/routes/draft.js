@@ -222,6 +222,10 @@ export async function handleCheckOverlap({ week } = {}) {
   let tier2FailedCount = 0
   if (tier2Candidates.length > 0) {
     const client = getClient()
+    if (!client) {
+      // Skip Tier-2 LLM confirmation — return Tier-1 cosine results only
+      tier2FailedCount = tier2Candidates.length
+    } else {
     const model = 'claude-sonnet-4-20250514'
 
     let tier2CallIndex = 0
@@ -255,6 +259,7 @@ export async function handleCheckOverlap({ week } = {}) {
         console.error(`[overlap] Tier 2 check failed for "${current.heading}" vs "${archived.heading}": ${err.message}`)
       }
     }
+    } // close else (client available)
   }
 
   return {

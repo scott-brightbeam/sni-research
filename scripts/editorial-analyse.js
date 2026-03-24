@@ -333,11 +333,9 @@ async function main() {
   // 1. Validate providers
   const providers = validateProviders()
   if (!providers.ready) {
-    err('Missing API keys:')
-    for (const missing of providers.missing) {
-      err(`  • ${missing}`)
-    }
-    process.exit(1)
+    log('ANTHROPIC_API_KEY not configured. Editorial analysis now runs through Claude Code.')
+    log('Use /editorial-analyse in Claude Code or the scheduled task.')
+    process.exit(0)
   }
 
   // 2. Load config
@@ -411,8 +409,23 @@ async function main() {
     storiesCollected: 0,
   }
 
+  let consecutiveFailures = 0
+  const CIRCUIT_BREAKER_LIMIT = 3
+
   for (let i = 0; i < pending.length; i++) {
     const item = pending[i]
+
+    // Circuit breaker — stop after N consecutive failures
+    if (consecutiveFailures >= CIRCUIT_BREAKER_LIMIT) {
+      const remaining = pending.length - i
+      err(`\n⚡ Circuit breaker tripped: ${consecutiveFailures} consecutive failures.`)
+      err(`   Stopping session. ${remaining} transcripts skipped.`)
+      err(`   Fix the issue and re-run to process remaining files.`)
+      logActivity('error', `ANALYSE circuit breaker`, `${consecutiveFailures} consecutive failures, ${remaining} transcripts skipped`)
+      totals.failed += remaining
+      break
+    }
+
     try {
       const { stats, storyRefs } = await processTranscript(item, state, i + 1, pending.length)
 
@@ -425,6 +438,7 @@ async function main() {
         totals.postsAdded += stats.postsAdded
         totals.storiesCollected += stats.storiesCollected
         storyCollector.add(storyRefs, item.filename)
+        consecutiveFailures = 0  // reset on success
       } else {
         totals.skipped++
       }
@@ -436,7 +450,8 @@ async function main() {
 
     } catch (error) {
       totals.failed++
-      err(`  FAILED: ${item.filename}: ${error.message}`)
+      consecutiveFailures++
+      err(`  FAILED (${consecutiveFailures}/${CIRCUIT_BREAKER_LIMIT}): ${item.filename}: ${error.message}`)
       logActivity('error', `ANALYSE failed: ${item.filename}`, error.message)
 
       // Save state even on failure (preserves progress from previous transcripts)

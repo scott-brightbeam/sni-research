@@ -557,7 +557,8 @@ export async function runDraft(args = {}) {
   // ─── API calls ───────────────────────────────────────────────
   const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY not found in .env — required for draft generation');
+    log('ANTHROPIC_API_KEY not configured. Newsletter draft now runs through Claude Code.');
+    process.exit(0);
   }
 
   const anthropic = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 }); // 10 min for long drafts

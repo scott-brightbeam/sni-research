@@ -166,7 +166,7 @@ export async function runReview(args) {
 
   // Load prompt and call LLM
   const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not found — cannot run LLM review');
+  if (!apiKey) { log('ANTHROPIC_API_KEY not configured. LLM review now runs through Claude Code.'); process.exit(0); }
 
   const anthropic = new Anthropic({ apiKey });
   const { meta, template } = loadPrompt('self-review');

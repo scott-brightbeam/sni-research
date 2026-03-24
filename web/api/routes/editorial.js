@@ -725,6 +725,12 @@ export async function postEditorialChat(body, req) {
   }
 
   const client = getClient()
+  if (!client) {
+    return new Response(JSON.stringify({
+      type: 'error', code: 'ANTHROPIC_DISABLED',
+      message: 'Editorial chat has moved to Claude Code.'
+    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'http://localhost:5173' } })
+  }
 
   const corsHeaders = {
     'Access-Control-Allow-Origin': 'http://localhost:5173',

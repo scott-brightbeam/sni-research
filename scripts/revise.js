@@ -383,6 +383,12 @@ async function runPostRevision(client, systemPrompt, revisedDraft, week, draftWo
 // ─── Main workflow ────────────────────────────────────────────────────────────
 
 export async function runRevise({ week, year, dryRun = false, triageOnly = false, execute = false }) {
+  const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
+  if (!apiKey) {
+    log('ANTHROPIC_API_KEY not configured. Revision now runs through Claude Code.');
+    return;
+  }
+
   const draftPath = join(ROOT, 'output', `draft-week-${week}.md`);
   const benchmarkPath = join(ROOT, 'output', `benchmark-week-${week}.json`);
   const contextPath = join(ROOT, 'output', `draft-context-week-${week}.md`);
@@ -441,7 +447,6 @@ export async function runRevise({ week, year, dryRun = false, triageOnly = false
       systemPrompt = template;
     }
 
-    const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
     const client = new Anthropic({ apiKey });
 
     log('Step 1a: Opus triage-only (2-4 minutes)...');
@@ -491,7 +496,6 @@ export async function runRevise({ week, year, dryRun = false, triageOnly = false
       systemPrompt = template;
     }
 
-    const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
     const client = new Anthropic({ apiKey });
 
     log('Step 1b: Opus redraft from triage (2-4 minutes)...');
@@ -584,7 +588,6 @@ export async function runRevise({ week, year, dryRun = false, triageOnly = false
     systemPrompt = template;
   }
 
-  const apiKey = loadEnvKey('ANTHROPIC_API_KEY');
   const client = new Anthropic({ apiKey });
 
   // ─── Step 1: Meta-evaluation + redraft ──────────────────────────────────

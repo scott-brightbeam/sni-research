@@ -133,6 +133,9 @@ export async function extractExclusions({ week }) {
   const content = readFileSync(mdPath, 'utf-8')
 
   const client = getClient()
+  if (!client) {
+    return { entries: [], message: 'Extraction disabled (no API key)' }
+  }
 
   const response = await client.messages.create({
     model: DEFAULT_MODEL,

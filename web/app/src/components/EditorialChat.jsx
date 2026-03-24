@@ -173,9 +173,11 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
           </div>
         ))}
 
-        {error && (
-          <div className="editorial-chat-error">{error}</div>
-        )}
+        {error?.status === 503 ? (
+          <div className="editorial-chat-error migration-banner">Chat has moved to Claude Code.</div>
+        ) : error ? (
+          <div className="editorial-chat-error">{error.message || error}</div>
+        ) : null}
 
         <div ref={messagesEndRef} />
       </div>
