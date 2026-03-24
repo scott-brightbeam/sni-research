@@ -10,6 +10,8 @@ import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
+const TRANSCRIPT_DIR = join(process.env.HOME || '/Users/scott', 'Desktop/Podcast Transcripts')
+const PARAM_RE = /^[\w-]+$/  // path component validation — matches validateParam in walk.js
 const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
 
 const CONTEXT_BUDGET = 30_000 // tokens
@@ -61,15 +63,256 @@ function readJSON(path) {
   try { return JSON.parse(readFileSync(path, 'utf-8')) } catch { return null }
 }
 
+// ── Source document loading ──────────────────────────────
+
+/**
+ * Scan transcript directory for a file matching source name and date.
+ * Fallback for entries that lack the `filename` field (81% of legacy entries).
+ *
+ * Transcript naming convention: YYYY-MM-DD-source-slug-title.md
+ */
+function findTranscriptByMeta(source, date) {
+  if (!source || !existsSync(TRANSCRIPT_DIR)) return null
+  try {
+    const files = readdirSync(TRANSCRIPT_DIR).filter(f => f.endsWith('.md'))
+    const sourceSlug = source.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-')
+    const datePrefix = (date || '').slice(0, 10) // handle both YYYY-MM-DD and longer formats
+
+    // Best match: date prefix + source slug
+    if (datePrefix) {
+      const match = files.find(f => f.startsWith(datePrefix) && f.includes(sourceSlug))
+      if (match) return join(TRANSCRIPT_DIR, match)
+    }
+
+    // Fallback: source slug anywhere in filename
+    const match = files.find(f => f.includes(sourceSlug))
+    if (match) return join(TRANSCRIPT_DIR, match)
+  } catch { /* skip */ }
+  return null
+}
+
+/**
+ * Parse a date from mixed formats: "18 Mar", "18 March 2026", "2026-03-18", "March 2026"
+ * Returns YYYY-MM-DD or null.
+ */
+function parseFuzzyDate(str) {
+  if (!str) return null
+  // Already ISO
+  const isoMatch = str.match(/(\d{4}-\d{2}-\d{2})/)
+  if (isoMatch) return isoMatch[1]
+  // Try Date.parse for human formats
+  try {
+    const d = new Date(str)
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+  } catch { /* skip */ }
+  return null
+}
+
+/**
+ * Safely read a file, ensuring the resolved path stays within the expected directory.
+ * Returns file content or null if path traversal detected or file not found.
+ */
+function safeReadFile(dir, filename) {
+  const resolved = resolve(dir, filename)
+  if (!resolved.startsWith(resolve(dir))) return null // path traversal
+  if (!existsSync(resolved)) return null
+  try { return readFileSync(resolved, 'utf-8') } catch { return null }
+}
+
+/**
+ * Load source documents from structured references.
+ * Each ref type resolves differently — transcripts by filename, articles by path, themes by evidence lookup.
+ *
+ * @param {Array<object>} sourceRefs — structured references from the UI
+ * @param {object} state — current editorial state
+ * @returns {{ docs: Array<{label:string, content:string}>, tokensUsed: number, skipped: string[] }}
+ */
+function loadSourceDocuments(sourceRefs, state) {
+  if (!sourceRefs || sourceRefs.length === 0) return { docs: [], tokensUsed: 0, skipped: [] }
+
+  const BUDGET = 15_000
+  const docs = []
+  const skipped = []
+  const loadedPaths = new Set() // dedup
+  let tokensUsed = 0
+
+  function addDoc(label, content) {
+    const tokens = estimateTokens(content)
+    const budgetLeft = BUDGET - tokensUsed
+    if (tokens <= budgetLeft) {
+      docs.push({ label, content })
+      tokensUsed += tokens
+      return true
+    }
+    if (budgetLeft > 2000) {
+      docs.push({ label, content: content.slice(0, budgetLeft * 4) + '\n\n[TRUNCATED — source exceeds remaining budget]' })
+      tokensUsed = BUDGET
+      return true
+    }
+    skipped.push(`${label} (budget exhausted)`)
+    return false
+  }
+
+  function loadTranscriptForEntry(entry) {
+    if (!entry) return false
+    // Try filename first
+    if (entry.filename) {
+      const content = safeReadFile(TRANSCRIPT_DIR, entry.filename)
+      if (content && !loadedPaths.has(entry.filename)) {
+        loadedPaths.add(entry.filename)
+        return addDoc(entry.filename, content)
+      }
+    }
+    // Fallback: scan by source + date
+    const path = findTranscriptByMeta(entry.source, entry.date)
+    if (path && !loadedPaths.has(path)) {
+      loadedPaths.add(path)
+      try {
+        return addDoc(`${entry.source} (${entry.date || '?'})`, readFileSync(path, 'utf-8'))
+      } catch { /* skip */ }
+    }
+    return false
+  }
+
+  for (const ref of sourceRefs) {
+    if (tokensUsed >= BUDGET) { skipped.push(`${ref.type}:${ref.id || ref.filename || ref.code || '?'} (budget full)`); continue }
+
+    switch (ref.type) {
+      case 'transcript': {
+        if (!ref.filename) break
+        const content = safeReadFile(TRANSCRIPT_DIR, ref.filename)
+        if (content && !loadedPaths.has(ref.filename)) {
+          loadedPaths.add(ref.filename)
+          addDoc(ref.filename, content)
+        } else if (!content) {
+          skipped.push(`${ref.filename} (not found)`)
+        }
+        break
+      }
+
+      case 'article': {
+        // Validate path components
+        if (!PARAM_RE.test(ref.date || '') || !PARAM_RE.test(ref.sector || '') || !PARAM_RE.test(ref.slug || '')) {
+          skipped.push(`article ${ref.slug} (invalid path)`)
+          break
+        }
+        const path = join(ROOT, 'data/verified', ref.date, ref.sector, `${ref.slug}.json`)
+        if (existsSync(path)) {
+          try {
+            const raw = JSON.parse(readFileSync(path, 'utf-8'))
+            if (raw.full_text) addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
+          } catch { /* skip */ }
+        } else {
+          skipped.push(`article ${ref.slug} (not found)`)
+        }
+        break
+      }
+
+      case 'entry': {
+        const entry = state?.analysisIndex?.[String(ref.id)]
+        if (entry) {
+          if (!loadTranscriptForEntry(entry)) skipped.push(`entry #${ref.id} (no transcript found)`)
+        } else {
+          skipped.push(`entry #${ref.id} (not in index)`)
+        }
+        break
+      }
+
+      case 'theme': {
+        const theme = state?.themeRegistry?.[ref.code]
+        if (!theme) { skipped.push(`theme ${ref.code} (not found)`); break }
+        // Load source docs for most recent evidence (up to 4)
+        const evidenceEntries = (theme.evidence || []).slice(-4)
+        for (const ev of evidenceEntries) {
+          if (tokensUsed >= BUDGET) break
+          // Match evidence to analysis entry — disambiguate by date
+          const evSourceBase = (ev.source || '').split(' (')[0].split(' - ')[0].trim()
+          const evDate = parseFuzzyDate((ev.source || '').match(/\(([^)]+)\)/)?.[1])
+          const candidates = Object.values(state.analysisIndex || {}).filter(e =>
+            (e.source || '').toLowerCase().includes(evSourceBase.toLowerCase()) ||
+            evSourceBase.toLowerCase().includes((e.source || '').toLowerCase())
+          )
+          // Prefer date match, fall back to most recent
+          const entry = (evDate && candidates.find(e => e.date?.startsWith(evDate))) ||
+                        candidates.sort((a, b) => (b.session || 0) - (a.session || 0))[0]
+          if (entry) loadTranscriptForEntry(entry)
+        }
+        break
+      }
+
+      case 'source_name': {
+        const name = String(ref.name || '')
+        if (!name) break
+        // Strip parenthetical date suffix: "Big Technology Podcast - Sorkin (18 Mar)" → "Big Technology Podcast"
+        const nameBase = name.split(' - ')[0].split(' (')[0].trim()
+        const nameDate = parseFuzzyDate(name.match(/\(([^)]+)\)/)?.[1])
+
+        // Match against analysis entries (both directions for abbreviated names)
+        const candidates = Object.values(state.analysisIndex || {}).filter(e =>
+          (e.source || '').toLowerCase().includes(nameBase.toLowerCase()) ||
+          nameBase.toLowerCase().includes((e.source || '').toLowerCase())
+        )
+        const entry = (nameDate && candidates.find(e => e.date?.startsWith(nameDate))) ||
+                      candidates.sort((a, b) => (b.session || 0) - (a.session || 0))[0]
+        if (entry) {
+          if (!loadTranscriptForEntry(entry)) skipped.push(`${name} (no transcript)`)
+        } else {
+          skipped.push(`${name} (no matching entry)`)
+        }
+        break
+      }
+
+      case 'url': {
+        // Build URL index from analysisIndex first (fast path)
+        const entry = Object.values(state.analysisIndex || {}).find(e => e.url === ref.url)
+        if (entry) {
+          loadTranscriptForEntry(entry)
+          break
+        }
+        // Slow path: scan data/verified/ for article with matching URL
+        const verifiedDir = join(ROOT, 'data/verified')
+        if (!existsSync(verifiedDir)) { skipped.push(`url (verified dir missing)`); break }
+        let found = false
+        for (const dateDir of readdirSync(verifiedDir).sort().reverse().slice(0, 14)) {
+          if (found || tokensUsed >= BUDGET) break
+          const datePath = join(verifiedDir, dateDir)
+          if (!statSync(datePath).isDirectory()) continue
+          for (const sectorDir of readdirSync(datePath)) {
+            if (found) break
+            const sectorPath = join(datePath, sectorDir)
+            if (!statSync(sectorPath).isDirectory()) continue
+            for (const file of readdirSync(sectorPath)) {
+              if (!file.endsWith('.json')) continue
+              try {
+                const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+                if (raw.url === ref.url && raw.full_text) {
+                  addDoc(`${raw.title} (${raw.source})`, `# ${raw.title}\n\n${raw.full_text}`)
+                  found = true
+                  break
+                }
+              } catch { /* skip */ }
+            }
+          }
+        }
+        if (!found) skipped.push(`${ref.url} (not found in corpus)`)
+        break
+      }
+    }
+  }
+
+  return { docs, tokensUsed, skipped }
+}
+
 /**
  * Build context string for a given editorial tab.
  * Each tab gets different state sections to stay within budget.
  *
- * @param {string} tab — one of: state, themes, backlog, decisions, activity, newsletter
+ * @param {string} tab — one of: state, themes, backlog, decisions, activity, newsletter, ideate, draft, articles, podcasts, flagged
  * @param {object} [state] — pre-loaded state.json (or null to load fresh)
+ * @param {Array<object>} [sourceRefs] — structured source document references from the UI
  * @returns {{ context: string, tokenEstimate: number }}
  */
-export function buildEditorialContext(tab, state = null) {
+export function buildEditorialContext(tab, state = null, sourceRefs = null) {
   if (!state) {
     const statePath = join(EDITORIAL_DIR, 'state.json')
     if (!existsSync(statePath)) return { context: '(No editorial state available yet.)', tokenEstimate: 10 }
@@ -260,6 +503,15 @@ export function buildEditorialContext(tab, state = null) {
         }
         sections.push(`\n**Stats:** ${articles.length} total — ${Object.entries(bySector).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
       }
+      // Load source documents if refs provided (e.g. user clicked "Draft in chat" on an article)
+      if (sourceRefs?.length > 0) {
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        if (srcDocs.length > 0) {
+          sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
+          for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
+        }
+        if (srcSkipped.length > 0) sections.push(`\n_Skipped: ${srcSkipped.join('; ')}_\n`)
+      }
       break
     }
 
@@ -295,6 +547,15 @@ export function buildEditorialContext(tab, state = null) {
           if (estimateTokens(sections.join('\n') + line) > budget) break
           sections.push(line)
         }
+      }
+      // Load source documents if refs provided (e.g. user clicked "Draft in chat" on a podcast)
+      if (sourceRefs?.length > 0) {
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        if (srcDocs.length > 0) {
+          sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
+          for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
+        }
+        if (srcSkipped.length > 0) sections.push(`\n_Skipped: ${srcSkipped.join('; ')}_\n`)
       }
       break
     }
@@ -347,7 +608,7 @@ Rank by timeliness × audience relevance × originality. Check the existing back
     }
 
     case 'draft': {
-      // MODE 4: DRAFT — load source documents, format guidance, theme context
+      // MODE 4: DRAFT — format guidance + source documents via structured refs
       sections.push('\n## DRAFT MODE\n')
       sections.push(`You are drafting a LinkedIn post for Scott Wilkinson (CMO and Head of Culture and Coaching at Brightbeam, an AI-native consultancy).
 
@@ -365,97 +626,23 @@ Writing rules: UK English, spaced en-dashes (not em-dashes), single quotes, acti
 
 Label each draft clearly with its format name. Present all three for selection.\n`)
 
-      // Load FULL SOURCE DOCUMENTS for drafting — transcripts and articles
-      const transcriptDir = join(process.env.HOME || '/Users/scott', 'Desktop/Podcast Transcripts')
-      const sourceDocsLoaded = []
-      let sourceTokensUsed = 0
-      const SOURCE_BUDGET = 15_000 // tokens reserved for source documents
-
-      // Build a lookup: sourceDocument string → analysis entry with filename
-      const entryBySource = {}
-      for (const [id, entry] of Object.entries(state.analysisIndex || {})) {
-        const key = `${entry.source}${entry.date ? ` (${entry.date})` : ''}`
-        entryBySource[key] = entry
-        // Also index by partial match patterns
-        if (entry.source) entryBySource[entry.source] = entry
-        const shortKey = `${entry.source} - ${(entry.title || '').split(' ').slice(0, 4).join(' ')}`
-        entryBySource[shortKey] = entry
-      }
-
-      // Find backlog items that reference source documents — check all active posts
-      const activePosts = Object.entries(state.postBacklog || {})
-        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
-      for (const [, post] of activePosts) {
-        for (const srcDoc of post.sourceDocuments || []) {
-          // Try to find the matching analysis entry
-          const entry = entryBySource[srcDoc] || Object.values(state.analysisIndex || {}).find(e =>
-            srcDoc.toLowerCase().includes((e.source || '').toLowerCase()) &&
-            srcDoc.toLowerCase().includes((e.date || '').slice(5))
-          )
-          if (!entry?.filename) continue
-
-          // Read the transcript file
-          const transcriptPath = join(transcriptDir, entry.filename)
-          if (existsSync(transcriptPath)) {
-            try {
-              const content = readFileSync(transcriptPath, 'utf-8')
-              const tokens = estimateTokens(content)
-              if (sourceTokensUsed + tokens <= SOURCE_BUDGET) {
-                sourceDocsLoaded.push({ source: srcDoc, filename: entry.filename, content })
-                sourceTokensUsed += tokens
-              } else {
-                // Truncate to fit budget
-                const remaining = SOURCE_BUDGET - sourceTokensUsed
-                if (remaining > 1000) {
-                  const truncated = content.slice(0, remaining * 4) // rough char-to-token ratio
-                  sourceDocsLoaded.push({ source: srcDoc, filename: entry.filename, content: truncated + '\n\n[TRUNCATED — source too long for context budget]' })
-                  sourceTokensUsed = SOURCE_BUDGET
-                }
-              }
-            } catch { /* skip unreadable */ }
-          }
-
-          // Also try article full_text from data/verified/
-          if (!entry.filename && entry.url) {
-            // Search verified articles by URL
-            const verifiedDir = join(ROOT, 'data/verified')
-            if (existsSync(verifiedDir)) {
-              for (const dateDir of readdirSync(verifiedDir).sort().reverse().slice(0, 14)) {
-                const datePath = join(verifiedDir, dateDir)
-                if (!statSync(datePath).isDirectory()) continue
-                for (const sectorDir of readdirSync(datePath)) {
-                  const sectorPath = join(datePath, sectorDir)
-                  if (!statSync(sectorPath).isDirectory()) continue
-                  for (const file of readdirSync(sectorPath)) {
-                    if (!file.endsWith('.json')) continue
-                    try {
-                      const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
-                      if (raw.url === entry.url && raw.full_text) {
-                        const tokens = estimateTokens(raw.full_text)
-                        if (sourceTokensUsed + tokens <= SOURCE_BUDGET) {
-                          sourceDocsLoaded.push({ source: srcDoc, filename: file, content: `# ${raw.title}\n\n${raw.full_text}` })
-                          sourceTokensUsed += tokens
-                        }
-                      }
-                    } catch { /* skip */ }
-                  }
-                }
-              }
-            }
+      // Load source documents via structured refs (replaces old fragile string-matching)
+      if (sourceRefs?.length > 0) {
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        if (srcDocs.length > 0) {
+          sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
+          for (const doc of srcDocs) {
+            sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
           }
         }
-      }
-
-      if (sourceDocsLoaded.length > 0) {
-        sections.push(`\n### Source Documents (${sourceDocsLoaded.length} loaded, ~${sourceTokensUsed.toLocaleString()} tokens)\n`)
-        for (const doc of sourceDocsLoaded) {
-          sections.push(`#### ${doc.source}\n_File: ${doc.filename}_\n\n${doc.content}\n`)
+        if (srcSkipped.length > 0) {
+          sections.push(`\n_Source loading: ${srcSkipped.length} skipped — ${srcSkipped.join('; ')}_\n`)
         }
       } else {
-        sections.push('\n### Source Documents\n_No source documents pre-loaded. When you select a post to draft, the relevant transcripts and articles will be loaded from the knowledge base._\n')
+        sections.push('\n### Source Documents\n_No source references provided. Select a post, theme, or entry to draft and source documents will be loaded automatically._\n')
       }
 
-      // Theme summaries for context (not full evidence — source docs carry the detail)
+      // Theme summaries for context
       const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
       sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
       for (const [code, theme] of draftThemes) {
@@ -503,6 +690,15 @@ Label each draft clearly with its format name. Present all three for selection.\
           if (estimateTokens(sections.join('\n') + line) > budget) break
           sections.push(line)
         }
+      }
+      // Load source documents if refs provided
+      if (sourceRefs?.length > 0) {
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        if (srcDocs.length > 0) {
+          sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
+          for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
+        }
+        if (srcSkipped.length > 0) sections.push(`\n_Skipped: ${srcSkipped.join('; ')}_\n`)
       }
       break
     }

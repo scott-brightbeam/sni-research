@@ -667,7 +667,7 @@ export async function putDecisionArchive(id, body) {
  * @returns {Response} — SSE stream
  */
 export async function postEditorialChat(body, req) {
-  const { message, tab, history, injectContext, model } = body
+  const { message, tab, history, injectContext, model, sourceRefs } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
@@ -679,7 +679,7 @@ export async function postEditorialChat(body, req) {
   let context = null
   let tokenEstimate = 0
   if (injectContext !== false) {
-    const ctx = buildEditorialContext(activeTab)
+    const ctx = buildEditorialContext(activeTab, null, Array.isArray(sourceRefs) ? sourceRefs : null)
     context = ctx.context
     tokenEstimate = ctx.tokenEstimate
   }

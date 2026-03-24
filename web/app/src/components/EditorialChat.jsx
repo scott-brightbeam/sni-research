@@ -73,12 +73,14 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Handle incoming draft requests
+  // Handle incoming draft requests — supports both string (legacy) and object (new) format
   useEffect(() => {
     if (draftRequest) {
       setModel('opus')
       setCollapsed(false)
-      send(draftRequest)
+      const msg = typeof draftRequest === 'string' ? draftRequest : draftRequest?.message
+      const refs = typeof draftRequest === 'object' ? draftRequest?.sourceRefs : null
+      send(msg, refs)
       onDraftConsumed?.()
     }
   }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps

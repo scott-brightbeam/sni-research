@@ -134,7 +134,7 @@ export default function Database() {
         )}
       </div>
       <EditorialChat
-        tab={tab}
+        tab={draftRequest ? 'draft' : tab}
         draftRequest={draftRequest}
         onDraftConsumed={() => setDraftRequest(null)}
       />
@@ -315,8 +315,10 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
                 .map(s => typeof s === 'string' ? s : s.headline || s.title || '')
                 .filter(Boolean)
                 .join('\n- ')
-              const prompt = `Draft a newsletter post about this podcast episode:\n\n**${ep.title || 'Untitled'}** (${ep.source})\n\n${digest.summary || ''}\n\nKey stories:\n- ${stories}`
-              onDraftInChat(prompt)
+              onDraftInChat({
+                message: `Draft a post about podcast: '${ep.title || 'Untitled'}' (${ep.source})\n\nGenerate THREE drafts in different formats, each ending with the in-the-end-at-the-end.`,
+                sourceRefs: ep.filename ? [{ type: 'transcript', filename: ep.filename }] : [],
+              })
             }}
           >
             ✏️ Draft in chat
@@ -381,8 +383,10 @@ function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
   }
 
   function handleDraftInChat(a) {
-    const prompt = `Draft a newsletter post about this article:\n\n**${a.title}** (${a.source || 'unknown'}, ${a.sector})\n\n${a.snippet || ''}`
-    onDraftInChat(prompt)
+    onDraftInChat({
+      message: `Draft a post about: '${a.title}' (${a.source || 'unknown'}, ${a.sector})\n\nGenerate THREE drafts in different formats, each ending with the in-the-end-at-the-end.`,
+      sourceRefs: [{ type: 'article', date: a.date_published, sector: a.sector, slug: a.slug }],
+    })
   }
 
   return (

@@ -15,31 +15,27 @@ import EmptyState from '../components/shared/EmptyState'
 import '../components/shared/DraftLink.css'
 import './Editorial.css'
 
-function buildDraftPrompt(source, content) {
+function buildDraftRequest(source, content) {
+  const sourceRefs = content?.sourceRefs || []
+  let message = ''
+
   if (source?.type === 'post') {
-    return `Draft LinkedIn post #${source.id}: '${source.title}'
-
-Core argument: ${content?.coreArgument || 'Not specified'}
-Recommended format: ${content?.format || 'Not specified'}
-Source documents: ${content?.sources?.join(', ') || 'None'}
-Notes: ${content?.notes || 'None'}
-
-Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
+    message = `Draft LinkedIn post #${source.id}: '${source.title}'\n\nCore argument: ${content?.coreArgument || 'Not specified'}\nRecommended format: ${content?.format || 'Not specified'}\nNotes: ${content?.notes || 'None'}`
+  } else if (source?.type === 'theme') {
+    message = `Draft a LinkedIn post exploring theme ${source.code}: '${source.name}'`
+  } else if (source?.type === 'analysis') {
+    message = `Draft a LinkedIn post based on analysis entry #${source.id}: '${source.title}'\n\nSummary: ${content?.summary || ''}\nThemes: ${content?.themes?.join(', ') || 'None'}`
+  } else if (source?.type === 'article') {
+    message = `Draft a post about: '${source.title}' (${source.source})`
+  } else if (source?.type === 'podcast') {
+    message = `Draft a post about podcast: '${source.title}' (${source.source})`
+  } else {
+    message = `Draft a LinkedIn post about: ${source?.title || 'untitled'}`
   }
-  if (source?.type === 'theme') {
-    return `Draft a LinkedIn post exploring theme ${source.code}: '${source.name}'
 
-Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
-  }
-  if (source?.type === 'analysis') {
-    return `Draft a LinkedIn post based on analysis entry #${source.id}: '${source.title}'
+  message += '\n\nGenerate THREE complete drafts, each using a different LinkedIn format. Every draft must end with the in-the-end-at-the-end.'
 
-Summary: ${content?.summary || ''}
-Themes: ${content?.themes?.join(', ') || 'None'}
-
-Generate THREE complete drafts, each using a different LinkedIn format. Label each with its format name. Every draft must end with the in-the-end-at-the-end closing element.`
-  }
-  return `Draft a LinkedIn post about: ${source?.title || 'untitled'}\n\nGenerate THREE drafts in different formats, each ending with the in-the-end-at-the-end.`
+  return { message, sourceRefs }
 }
 
 const TABS = [
@@ -238,9 +234,11 @@ function AnalysisEntry({ entry, onDraftRequest, refetch }) {
         <div className="entry-actions" onClick={e => e.stopPropagation()}>
           <button
             className="draft-link"
-            onClick={() => onDraftRequest(buildDraftPrompt(
+            onClick={() => onDraftRequest(buildDraftRequest(
               { type: 'analysis', id: entry.id, title: entry.title },
-              { summary: entry.summary, themes: entry.themes }
+              { summary: entry.summary, themes: entry.themes,
+                sourceRefs: entry.filename ? [{ type: 'transcript', filename: entry.filename }] :
+                            entry.url ? [{ type: 'url', url: entry.url }] : [] }
             ))}
           >
             Draft in chat
@@ -340,9 +338,9 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
           <div className="entry-actions" onClick={e => e.stopPropagation()}>
             <button
               className="draft-link"
-              onClick={() => onDraftRequest(buildDraftPrompt(
+              onClick={() => onDraftRequest(buildDraftRequest(
                 { type: 'theme', code: theme.code, name: theme.name },
-                { evidence: theme.evidence, crossConnections: theme.crossConnections }
+                { sourceRefs: [{ type: 'theme', code: theme.code }] }
               ))}
             >
               Draft {theme.code} in chat
@@ -499,9 +497,12 @@ function PostCard({ post, onStatusChange, onDraftRequest }) {
               className="draft-link"
               onClick={(e) => {
                 e.stopPropagation()
-                onDraftRequest(buildDraftPrompt(
+                onDraftRequest(buildDraftRequest(
                   { type: 'post', id: post.id, title: post.title || post.workingTitle },
-                  { coreArgument: post.coreArgument, format: post.format, sources: post.sourceDocuments, notes: post.notes }
+                  { coreArgument: post.coreArgument, format: post.format, notes: post.notes,
+                    sourceRefs: (post.sourceDocuments || []).map(sd =>
+                      (typeof sd === 'number' || /^\d+$/.test(sd)) ? { type: 'entry', id: String(sd) } : { type: 'source_name', name: String(sd) }
+                    ).concat((post.sourceUrls || []).map(u => ({ type: 'url', url: u }))) }
                 ))
               }}
             >
