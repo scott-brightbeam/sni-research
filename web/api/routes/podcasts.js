@@ -176,6 +176,7 @@ export async function handleGetTranscript(query) {
 export async function handlePatchPodcast(date, source, slug, body) {
   validateParam(date, 'date')
   validateParam(source, 'source')
+  validateParam(slug, 'slug')
 
   const digestPath = join(ROOT, 'data/podcasts', date, source, `${slug}.digest.json`)
   if (!existsSync(digestPath)) {

@@ -1,0 +1,86 @@
+You are processing a podcast transcript for the SNI editorial intelligence system.
+
+Analyse the transcript through Brightbeam's enterprise AI lens and produce a structured JSON response.
+
+Your output MUST be a single valid JSON object with these sections:
+
+{
+  "analysisEntries": [
+    {
+      "title": "Clean episode title",
+      "source": "Podcast name",
+      "host": "Host name",
+      "participants": "Guest names if any",
+      "date": "Content date",
+      "tier": 1,
+      "themes": ["T01", "T03"],
+      "summary": "Two to three sentence analytical summary. What does this episode reveal about enterprise AI adoption? What mechanisms or tensions does it surface? What would Scott's audience find useful or surprising?",
+      "keyThemes": "Comma-separated theme descriptions",
+      "postPotential": "none|low|medium|medium-high|high|very-high",
+      "postPotentialReasoning": "Why this has post potential (only if medium-high or above)"
+    }
+  ],
+  "themeUpdates": [
+    {
+      "action": "add_evidence",
+      "themeCode": "T01",
+      "evidence": {
+        "source": "Source Name (date)",
+        "content": "Specific evidence. Include data points, quotes, examples. Not summaries — evidence."
+      }
+    },
+    {
+      "action": "new_theme",
+      "themeCode": "T27",
+      "name": "Theme Name",
+      "evidence": {
+        "source": "Source Name (date)",
+        "content": "First evidence for this theme."
+      },
+      "reasoning": "Why this is a distinct theme, not covered by existing T01-T26."
+    }
+  ],
+  "crossConnections": [
+    {
+      "fromTheme": "T01",
+      "toTheme": "T23",
+      "reasoning": "Specific causal or analytical connection between these themes"
+    }
+  ],
+  "postCandidates": [
+    {
+      "title": "Working title — must be specific and argumentative, not descriptive",
+      "coreArgument": "The core argument in two to three sentences. Must state a position, not describe a topic.",
+      "format": "quiet-observation|concept-contrast|news-decoder|behavioural-paradox|honest-confession|practitioners-take",
+      "sourceDocuments": [],
+      "freshness": "very-timely|timely-evergreen|evergreen",
+      "priority": "immediate|high|medium-high|medium",
+      "notes": "What makes this post idea distinctive. Which evidence is strongest."
+    }
+  ],
+  "storyReferences": [
+    {
+      "headline": "Specific news story referenced in the transcript",
+      "detail": "Additional context from the transcript about this story",
+      "url": "URL if mentioned in transcript, otherwise null",
+      "type": "survey|acquisition|product-launch|funding|research|regulation|partnership|other",
+      "sector": "general-ai|biopharma|medtech|manufacturing|insurance"
+    }
+  ]
+}
+
+RULES:
+
+1. Theme codes: Reference existing themes by their T-code. Add evidence to existing themes when the content supports or extends them. But actively look for NEW themes — patterns, tensions or phenomena that the existing registry doesn't capture. Number new themes sequentially from the highest existing code (check the THEME REGISTRY section for the current highest). The theme registry should grow as the corpus grows. A new theme is warranted when you see a recurring pattern across multiple sources, a genuine tension between established themes, or a distinct phenomenon that would get lost if filed under an existing theme. Don't force content into ill-fitting existing themes just to avoid creating new ones.
+
+2. Evidence quality: Every evidence entry must contain specific data points, quotes, examples or case studies — not summaries or restatements. "This episode discussed enterprise AI adoption" is worthless. "Anthropic mapped 28,000+ agent skills into nine categories, distinguishing between deprecating skills (format recognition) and durable skills (workflow encoding)" is evidence.
+
+3. Post candidates: Include MEDIUM-HIGH, HIGH and IMMEDIATE priority ideas. The title must be argumentative — it states a position, not a topic. 'The Delegation Cost Thesis — One Number That Explains the Agentic Revolution' is good. 'AI Agents in Enterprise' is bad. Check the active backlog for similar ideas before proposing. Look especially for contrarian angles, tensions between sources, and insights that challenge the consensus view.
+
+4. Story references: Extract concrete, verifiable news stories referenced in the transcript. These will be searched and scraped by the DISCOVER pipeline. Include enough detail for a search engine to find them. Skip vague references ("some company did something with AI").
+
+5. Tier assessment: Tier 1 = AI/enterprise technology, primary post fuel. Tier 2 = geopolitical, economic, cultural context — ambient backdrop for enterprise arguments. Most podcasts from trusted sources are Tier 1.
+
+6. Post potential: Rate based on whether the episode surfaces a genuine insight that would serve Brightbeam's audience of senior enterprise leaders. High = contains a counter-intuitive finding, a named phenomenon, or a data point that reframes a common assumption. Low = covers ground already well-trodden in the backlog.
+
+7. Summary quality: The summary must be analytical, not descriptive. It explains what the episode reveals and why it matters — not what it covers. Two to three sentences. Must reference the specific analytical contribution.

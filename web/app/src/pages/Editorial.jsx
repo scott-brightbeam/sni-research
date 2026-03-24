@@ -166,7 +166,7 @@ function AnalysisTab({ onDraftRequest }) {
           <div className="cost-progress">
             <div
               className="cost-fill"
-              style={{ width: `${Math.min(100, ((costData.data.weeklyTotal || 0) / (costData.data.budget || 50)) * 100)}%` }}
+              style={{ '--cost-pct': `${Math.min(100, ((costData.data.weeklyTotal || 0) / (costData.data.budget || 50)) * 100)}%` }}
             />
           </div>
         </div>

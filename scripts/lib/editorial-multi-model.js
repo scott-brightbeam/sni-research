@@ -98,6 +98,9 @@ export function resetSessionCosts() {
  * @returns {Promise<{ provider: string, model: string, raw: string, parsed: object|null, inputTokens: number, outputTokens: number }>}
  */
 export async function callOpus(userMessage, opts = {}) {
+  if (process.env.SNI_TEST_MODE === '1') {
+    throw new Error('callOpus blocked: SNI_TEST_MODE=1 — refusing to hit Anthropic API in test context')
+  }
   const client = getAnthropicClient()
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured')
 
@@ -151,6 +154,9 @@ export async function callOpus(userMessage, opts = {}) {
  * @returns {Promise<AsyncGenerator<string>>}
  */
 export async function callOpusStreaming(userMessage, opts = {}) {
+  if (process.env.SNI_TEST_MODE === '1') {
+    throw new Error('callOpusStreaming blocked: SNI_TEST_MODE=1 — refusing to hit Anthropic API in test context')
+  }
   const client = getAnthropicClient()
   if (!client) throw new Error('ANTHROPIC_API_KEY not configured')
 

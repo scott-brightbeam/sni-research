@@ -10,7 +10,9 @@ import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
-const TRANSCRIPT_DIR = join(process.env.HOME || '/Users/scott', 'Desktop/Podcast Transcripts')
+const TRANSCRIPT_DIR = process.env.HOME
+  ? join(process.env.HOME, 'Desktop/Podcast Transcripts')
+  : null  // callers must guard — no hardcoded fallback
 const PARAM_RE = /^[\w-]+$/  // path component validation — matches validateParam in walk.js
 const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
 
@@ -140,8 +142,10 @@ function parseFuzzyDate(str) {
  * Returns file content or null if path traversal detected or file not found.
  */
 function safeReadFile(dir, filename) {
+  if (!dir) return null  // TRANSCRIPT_DIR may be null if $HOME unset
+  const resolvedDir = resolve(dir) + '/'
   const resolved = resolve(dir, filename)
-  if (!resolved.startsWith(resolve(dir))) return null // path traversal
+  if (!resolved.startsWith(resolvedDir)) return null // path traversal
   if (!existsSync(resolved)) return null
   try { return readFileSync(resolved, 'utf-8') } catch { return null }
 }

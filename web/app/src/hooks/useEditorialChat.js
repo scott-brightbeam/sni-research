@@ -38,10 +38,11 @@ export function useEditorialChat(tab = 'state') {
     }
   }, [])
 
-  const send = useCallback(async (text, sourceRefs = null) => {
+  const send = useCallback(async (text, sourceRefs = null, modelOverride = null) => {
     if (!text || typeof text !== 'string') return
     const trimmed = text.trim()
     if (!trimmed || loadingRef.current) return
+    const effectiveModel = modelOverride || model
 
     // Abort any in-flight request
     if (abortRef.current) abortRef.current.abort()
@@ -71,7 +72,7 @@ export function useEditorialChat(tab = 'state') {
       const res = await apiStream('/api/editorial/chat', {
         message: trimmed,
         tab,
-        model,
+        model: effectiveModel,
         injectContext: isFirstMessage,
         history: currentHistory,
         ...(sourceRefs ? { sourceRefs } : {}),

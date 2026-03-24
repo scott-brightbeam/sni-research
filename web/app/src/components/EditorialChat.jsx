@@ -79,8 +79,8 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
       setModel('opus')
       setCollapsed(false)
       const msg = typeof draftRequest === 'string' ? draftRequest : draftRequest?.message
-      const refs = typeof draftRequest === 'object' ? draftRequest?.sourceRefs : null
-      send(msg, refs)
+      const refs = draftRequest && typeof draftRequest === 'object' ? draftRequest.sourceRefs : null
+      send(msg, refs, 'opus') // pass model override — setModel is async, send's closure would capture old model
       onDraftConsumed?.()
     }
   }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps

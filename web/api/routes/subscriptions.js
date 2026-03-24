@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { spawn } from 'child_process'
 import yaml from 'js-yaml'
+import { validateParam } from '../lib/walk.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
@@ -92,6 +93,7 @@ export function testLogins() {
 }
 
 export function triggerFetch(body) {
+  if (body?.source) validateParam(body.source, 'source') // prevent injection via spawn args
   const sourceArg = body?.source ? ['--source', body.source] : []
   const proc = spawn('node', ['scripts/subscription-fetch.js', ...sourceArg], {
     cwd: ROOT,
