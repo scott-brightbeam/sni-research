@@ -16,6 +16,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renameSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
+import { enqueue as enqueueUrl } from './url-resolution-queue.js'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const EDITORIAL_DIR = join(ROOT, 'data/editorial')
@@ -280,6 +281,7 @@ export function addAnalysisEntry(state, entry) {
     host: entry.host ?? null,
     ...(entry.participants ? { participants: entry.participants } : {}),
     ...(entry.filename ? { filename: entry.filename } : {}),
+    url: entry.url ?? null,
     date: entry.date ?? null,
     dateProcessed: new Date().toISOString().slice(0, 10),
     session: entry.session ?? state.counters.nextSession,
@@ -293,6 +295,18 @@ export function addAnalysisEntry(state, entry) {
     _reconstructed: false,
   }
   state.counters.nextDocument++
+
+  // Queue for URL resolution if missing
+  if (!entry.url) {
+    enqueueUrl('analysis', {
+      id,
+      title: entry.title,
+      source: entry.source,
+      date: entry.date,
+      host: entry.host,
+    })
+  }
+
   return { id, entry: state.analysisIndex[id] }
 }
 
@@ -309,10 +323,12 @@ export function addThemeEvidence(state, themeCode, evidence) {
   if (!Array.isArray(theme.evidence)) theme.evidence = []
 
   const session = state.counters.nextSession
+  const evidenceIndex = theme.evidence.length
   theme.evidence.push({
     session,
     source: evidence.source,
     content: evidence.content,
+    url: evidence.url ?? null,
   })
 
   // Keep evidence manageable
@@ -322,6 +338,15 @@ export function addThemeEvidence(state, themeCode, evidence) {
 
   theme.lastUpdated = `Session ${session}`
   theme.documentCount = (theme.documentCount || 0) + 1
+
+  // Queue for URL resolution if missing
+  if (!evidence.url) {
+    enqueueUrl('evidence', {
+      id: `${themeCode}:${evidenceIndex}`,
+      title: (evidence.content || '').slice(0, 100),
+      source: evidence.source,
+    })
+  }
 }
 
 /**
@@ -352,8 +377,18 @@ export function addNewTheme(state, code, name, evidence) {
       session,
       source: evidence.source,
       content: evidence.content,
+      url: evidence.url ?? null,
     }] : [],
     crossConnections: [],
+  }
+
+  // Queue initial evidence for URL resolution if missing
+  if (evidence && !evidence.url) {
+    enqueueUrl('evidence', {
+      id: `${code}:0`,
+      title: (evidence.content || '').slice(0, 100),
+      source: evidence.source,
+    })
   }
 }
 
@@ -395,11 +430,22 @@ export function addPostBacklogEntry(state, entry) {
     coreArgument: entry.coreArgument ?? '',
     format: entry.format ?? null,
     sourceDocuments: entry.sourceDocuments ?? [],
+    sourceUrls: entry.sourceUrls ?? [],
     freshness: entry.freshness ?? 'evergreen',
     priority: entry.priority ?? 'medium',
     notes: entry.notes ?? '',
   }
   state.counters.nextPost++
+
+  // Queue for URL resolution if no source URLs provided
+  if (!entry.sourceUrls || entry.sourceUrls.length === 0) {
+    enqueueUrl('post', {
+      id,
+      title: entry.title,
+      source: (entry.sourceDocuments || []).join(', '),
+    })
+  }
+
   return { id, entry: state.postBacklog[id] }
 }
 
