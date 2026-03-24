@@ -1,10 +1,68 @@
-# SNI Research v2 — Web UI
+# SNI Research v2 — Editorial Intelligence Platform
 
 ## What this is
 
-SNI (Sector News Intelligence) is an automated weekly newsletter pipeline covering AI news across five sectors: general AI, biopharma, medtech, manufacturing and insurance. It runs on Scott's Mac via launchd (fetch, score, draft, review, publish stages).
+SNI (Sector News Intelligence) is an end-to-end editorial intelligence platform covering AI news across five sectors: general AI, biopharma, medtech, manufacturing and insurance. It produces a weekly newsletter and LinkedIn content pipeline.
 
-The **web UI** is a browser-based editorial workbench for monitoring the pipeline, curating articles, editing drafts and AI-assisted writing. All UI code lives in `web/`.
+The system is a single unified whole — not separate pipelines with upstream/downstream boundaries. Every component is part of the same system:
+
+### The complete system
+
+```
+DISCOVER (automated, daily)
+  ├─ Article fetching      Brave Search + RSS feeds → data/verified/
+  │   └─ scripts/fetch.js  launchd 04:00 daily
+  ├─ Article scoring       Heuristic relevance scoring → data/verified/
+  │   └─ scripts/score.js  runs after fetch (heuristic mode, no API key)
+  ├─ Podcast monitoring    RSS feed checking → new episode detection
+  │   └─ ~/Projects/Claude/HomeBrew/podcasts/scripts/run_pipeline.py
+  │       launchd 22:00-06:00 (6 runs nightly)
+  └─ Podcast transcription Whisper API / website / YouTube → ~/Desktop/Podcast Transcripts/*.md
+      └─ same script as above, delivers .md files
+
+ANALYSE (Claude Code, scheduled daily 07:30)
+  ├─ Transcript analysis   Read .md transcripts → themes, evidence, post ideas
+  │   └─ Claude Code /editorial-analyse skill
+  ├─ Podcast digest        Generate episode summaries → data/podcasts/
+  │   └─ Claude Code /podcast-import skill
+  └─ Story discovery       Gemini + Google Search → find original articles
+      └─ scripts/editorial-discover.js (uses Google AI key, not Anthropic)
+
+PRODUCE (Claude Code, Thursday + on-demand)
+  ├─ Newsletter draft      Claude Code generates → data/editorial/drafts/
+  │   └─ Claude Code /editorial-draft skill
+  ├─ External critique     Gemini + GPT parallel → critique JSON
+  │   └─ scripts/editorial-draft.js --critique-only
+  ├─ Draft revision        Claude Code revises based on critique
+  ├─ LinkedIn ideation     Claude Code /editorial-analyse IDEATE mode
+  └─ LinkedIn drafting     Claude Code /editorial-analyse DRAFT mode
+
+PRESENT (web UI, always-on)
+  ├─ Dashboard             Pipeline status, article stats, editorial summary
+  ├─ Database              Articles, podcasts, flagged items with archive/search
+  ├─ Editorial             Analysis index, themes, backlog, ideation, notes
+  ├─ Sources               RSS feed health, query performance
+  └─ Config                Sector keywords, search queries, pipeline settings
+
+STATE (persistent, shared by all components)
+  ├─ data/editorial/state.json     Analysis index, theme registry, post backlog, decisions
+  ├─ data/verified/                Scored articles (JSON per article)
+  ├─ data/podcasts/                Episode digests + manifest
+  ├─ data/editorial/activity.json  Pipeline activity log
+  ├─ config/                       Search queries, sectors, sources, prompts
+  └─ output/                       Drafts, reports, run summaries
+```
+
+### URL provenance — non-negotiable
+
+Every content item must carry the URL of its original source from the moment it enters the system:
+- **Articles:** `url` field set by RSS feed entry or Brave Search result at fetch time
+- **Podcasts:** `episodeUrl` field set by RSS feed parser at episode detection time
+- **Analysis entries:** `url` field inherited from the source article or podcast digest
+- **Theme evidence:** `url` field linking back to the source
+- **Post candidates:** `sourceUrls` linking to evidence sources
+
+URLs flow forward through every stage. They are never reconstructed after the fact.
 
 ## Success criteria
 
@@ -13,22 +71,38 @@ The **web UI** is a browser-based editorial workbench for monitoring the pipelin
 - Phase 4 (Polish): article CRUD, detail panel, manual ingest, config viewer, real-time updates
 - All phases: zero modification to pipeline scripts, all code in `web/`, tests pass, Vite builds clean
 
-## Architecture constraints — non-negotiable
+## Architecture constraints
 
-- All new web UI code goes in `web/`. New pipeline scripts may be added to `scripts/`. New config files may be added to `config/`. Existing files in `scripts/` and `config/` are **never** modified.
-- Two servers: pipeline ingest (port 3847, unchanged), UI API (port 3900, new)
-- API server reads `data/`, `output/`, `config/`, `logs/` — never imports pipeline modules
-- Branch: `feature/web-ui` — pipeline runs from `master` via launchd
-- Runtime: Bun, ES modules, sync file I/O. No `__dirname` — use `import.meta.dir`.
+- Web UI code lives in `web/`. Pipeline scripts in `scripts/`. Config in `config/`.
+- Pipeline scripts may be modified when the change is necessary for system-wide concerns (API key removal, URL propagation, etc.)
+- Two servers: pipeline ingest (port 3847), UI API (port 3900)
+- API server reads `data/`, `output/`, `config/`, `logs/`
 - Vite dev server on port 5173 proxies `/api` to 3900
+- Runtime: Bun (ES modules), Python 3.13 (podcast transcription pipeline)
 
 ## Environment
 
-- **Runtime:** Bun 1.3.9 (ES modules, no CommonJS)
-- **Node:** v22.17.1 (available but Bun is primary)
-- **API key:** `ANTHROPIC_API_KEY` in `.env` (used by pipeline scripts via `loadEnvKey()` workaround for Bun >=1.3 .env bug)
+- **Runtime:** Bun 1.3.9 (ES modules, no CommonJS) + Python 3.13 (podcast pipeline)
+- **Node:** v22.17.1 (available for subscription scripts)
+- **API keys in `.env`:**
+  - `BRAVE_API_KEY` — article fetching via Brave Search
+  - `OPENAI_API_KEY` — critique pair (GPT), evaluation
+  - `GOOGLE_AI_API_KEY` — critique pair (Gemini), DISCOVER (Google Search grounding)
+  - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` — alerts via Zaphod
+  - ~~`ANTHROPIC_API_KEY`~~ — **REMOVED 23 Mar 2026.** All Anthropic/Claude processing now runs through Claude Code (Max subscription). Scripts exit cleanly when key is missing.
 - **No external services** — all data is local files. No database.
-- **launchd:** Pipeline runs on schedule from `master` branch. Web UI runs from `feature/web-ui`.
+- **Scheduling:** launchd for automated stages (fetch, podcast transcription). Claude Code scheduled tasks for analysis and drafting. See "Scheduled jobs" section below.
+
+## Scheduled jobs
+
+| Job | Schedule | Runner | What |
+|-----|----------|--------|------|
+| `com.sni.fetch.plist` | Daily 04:00 | launchd → Bun | Fetch articles (Brave + RSS), score (heuristic) |
+| `com.scott.podcast-pipeline.plist` | 22:00, 23:00, 00:00, 02:00, 04:00, 06:00 | launchd → Python | Monitor podcast RSS, transcribe new episodes |
+| `editorial-analyse-daily` | Daily 07:30 | Claude Code scheduled task | Process one unprocessed transcript |
+| `podcast-import-daily` | Daily 07:00 | Claude Code scheduled task | Import new podcast digests |
+| `pipeline-weekly-newsletter` | Thursday 14:00 | Claude Code scheduled task | Generate weekly newsletter |
+| `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch through report; stops at draft) |
 
 ## How to run
 
@@ -101,11 +175,14 @@ Analyse the current situation and invoke relevant skills:
 ## Domain terminology
 
 - **Sector:** One of five news categories — general-ai, biopharma, medtech, manufacturing, insurance
-- **Pipeline:** The automated fetch→score→draft→review→publish chain (scripts/, runs via launchd)
-- **Ingest:** Manual article submission (separate from pipeline fetch)
+- **DISCOVER stage:** Automated content acquisition — article fetching (Brave + RSS), podcast monitoring and transcription
+- **ANALYSE stage:** Content processing — transcript analysis, theme extraction, post ideation (Claude Code)
+- **PRODUCE stage:** Content creation — newsletter drafting, critique, revision, LinkedIn posts (Claude Code + Gemini/GPT)
+- **PRESENT stage:** Web UI — dashboard, editorial workbench, database browser
+- **Ingest:** Manual article submission (separate from automated fetch)
 - **Flagged:** Articles marked for editorial review (high relevance score or manual flag)
 - **Week N:** Pipeline runs weekly; data directories named by week number (e.g., `data/verified/week-9/`)
-- **Co-pilot:** AI chat assistant for editorial writing (Phase 3)
+- **State document:** `data/editorial/state.json` — the persistent memory of the editorial intelligence system (analysis index, theme registry, post backlog, decision log)
 
 ## Sector keyword config rules — non-negotiable
 
@@ -124,25 +201,64 @@ Analyse the current situation and invoke relevant skills:
 ## Project structure
 
 ```
-sni-research-v2/
-├── scripts/          # Pipeline — DO NOT MODIFY
-├── config/           # Pipeline config — DO NOT MODIFY
-├── data/             # Articles (verified/, review/) — API reads these
-├── output/           # Drafts, reports, runs — API reads these
-├── logs/             # Pipeline logs — API reads these
-├── web/              # ALL UI CODE LIVES HERE
-│   ├── api/          # Bun HTTP server (port 3900)
-│   │   ├── server.js
-│   │   ├── routes/   # articles.js, status.js, draft.js, chat.js, config.js
-│   │   ├── lib/      # walk.js, claude.js, env.js, context.js
-│   │   └── tests/    # 8 test files (68 tests, 279 assertions)
-│   └── app/          # Vite + React SPA
+sni-research-v2/                          # Main project
+├── scripts/                              # Pipeline scripts (Bun)
+│   ├── fetch.js                          # Article fetching (Brave + RSS)
+│   ├── score.js                          # Relevance scoring (heuristic fallback)
+│   ├── draft.js                          # Newsletter generation (needs Claude Code now)
+│   ├── review.js, revise.js              # Draft review/revision (needs Claude Code now)
+│   ├── select.js                         # Evaluation (OpenAI + Gemini)
+│   ├── report.js                         # Research pack generation
+│   ├── podcast-import.js                 # Podcast digest creation (needs Claude Code now)
+│   ├── editorial-analyse.js              # Editorial analysis (needs Claude Code now)
+│   ├── editorial-draft.js                # Editorial draft + critique-only mode
+│   ├── editorial-discover.js             # Story discovery (Gemini + Google Search)
+│   └── lib/                              # Shared libraries
+├── config/                               # Pipeline configuration
+│   ├── search-queries.yaml               # Brave Search query tiers (L1-L4)
+│   ├── sources.yaml                      # RSS feeds
+│   ├── sectors.yaml                      # Sector keyword rules
+│   ├── editorial-sources.yaml            # Podcast source metadata
+│   └── prompts/                          # LLM prompts (editorial-context, analyse, draft, etc.)
+├── data/                                 # All persistent data
+│   ├── verified/                         # Scored articles (JSON per article, has url field)
+│   ├── review/                           # Flagged articles
+│   ├── podcasts/                         # Episode digests + manifest.json
+│   └── editorial/                        # Editorial state
+│       ├── state.json                    # THE source of truth (analysis, themes, backlog, decisions)
+│       ├── activity.json                 # Activity log
+│       ├── drafts/                       # Newsletter drafts and critiques
+│       └── stories-session-N.json        # Story references for DISCOVER
+├── output/                               # Drafts, reports, run summaries
+├── logs/                                 # Pipeline logs
+├── web/                                  # Web UI
+│   ├── api/                              # Bun HTTP server (port 3900)
+│   │   ├── server.js, routes/, lib/
+│   │   └── tests/                        # 228 tests, 739 assertions
+│   └── app/                              # Vite + React SPA
 │       └── src/
-│           ├── pages/       # Dashboard, Articles, Draft, Copilot, Config
-│           ├── components/  # layout/ (Shell, Sidebar), DraftChatPanel
-│           ├── hooks/       # useStatus, useArticles, useFlaggedArticles, useDebouncedValue, useConfig
-│           ├── lib/         # api.js (fetch + stream wrappers), format.js (dates, colours)
-│           └── styles/      # tokens.css (design system)
-├── docs/             # Specs, plans
-└── .claude/          # Context files, launch.json
+│           ├── pages/                    # Dashboard, Database, Editorial, Copilot, Sources, Config
+│           ├── components/, hooks/, lib/, styles/
+├── .claude/
+│   ├── commands/                         # Claude Code skills
+│   │   ├── editorial-analyse.md          # Process transcripts → state.json
+│   │   ├── editorial-draft.md            # Generate newsletter
+│   │   ├── podcast-import.md             # Import podcast digests
+│   │   └── pipeline-weekly.md            # Thursday pipeline coordinator
+│   ├── context/                          # Design specs, phase status, coding patterns
+│   └── launch.json                       # Dev server configs
+├── docs/                                 # Specs, plans
+└── .env                                  # API keys (no ANTHROPIC_API_KEY)
+
+~/Projects/Claude/HomeBrew/podcasts/      # Podcast transcription pipeline (Python)
+├── scripts/
+│   ├── run_pipeline.py                   # Main orchestrator (launchd)
+│   ├── rss_parser.py                     # RSS feed parsing, episode detection
+│   ├── transcript_whisper.py             # Whisper API transcription
+│   ├── transcript_website.py             # Website transcript extraction
+│   ├── transcript_youtube.py             # YouTube transcript extraction
+│   └── qa.py                             # Quality checks
+├── feeds.json                            # Podcast feed URLs
+├── episodes-log.json                     # All detected episodes (HAS episodeUrl + audioUrl)
+└── Delivers to: ~/Desktop/Podcast Transcripts/*.md
 ```
