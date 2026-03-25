@@ -67,21 +67,33 @@ const SUGGESTIONS = {
  * Receives the current editorial tab to provide tab-specific context.
  */
 export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
-  const { messages, loading, error, send, clear, model, setModel } = useEditorialChat(tab)
+  // Internal chat tab — follows parent tab, but pins to 'draft' independently when a draft request arrives
+  const [chatTab, setChatTab] = useState(tab)
+  const { messages, loading, error, send, clear, model, setModel } = useEditorialChat(chatTab)
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Handle incoming draft requests — supports both string (legacy) and object (new) format
+  // Sync chatTab with parent tab when user navigates (but not during draft streaming)
+  const prevTabRef = useRef(tab)
+  useEffect(() => {
+    if (tab !== prevTabRef.current) {
+      setChatTab(tab)
+      prevTabRef.current = tab
+    }
+  }, [tab])
+
+  // Handle incoming draft requests — pin chat to 'draft' context independently of parent tab
   useEffect(() => {
     if (draftRequest) {
+      setChatTab('draft')
       setModel('opus')
       setCollapsed(false)
       const msg = typeof draftRequest === 'string' ? draftRequest : draftRequest?.message
       const refs = draftRequest && typeof draftRequest === 'object' ? draftRequest.sourceRefs : null
-      send(msg, refs, 'opus') // pass model override — setModel is async, send's closure would capture old model
-      onDraftConsumed?.()
+      send(msg, refs, 'opus', 'draft')  // pass tab override — setChatTab is async, send's closure captures old tab
+      onDraftConsumed?.()  // consume immediately — chatTab stays on 'draft' independently
     }
   }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,14 +139,14 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
     )
   }
 
-  const tabSuggestions = SUGGESTIONS[tab] || []
+  const tabSuggestions = SUGGESTIONS[chatTab] || []
 
   return (
     <div className="editorial-chat">
       <div className="chat-header">
         <div className="chat-header-left">
           <h3>Editorial AI</h3>
-          <span className="chat-context-tag">{TAB_LABELS[tab] || tab}</span>
+          <span className={`chat-context-tag${chatTab === 'draft' ? ' draft-mode' : ''}`}>{TAB_LABELS[chatTab] || chatTab}</span>
         </div>
         <div className="chat-header-actions">
           <button
@@ -157,7 +169,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="chat-welcome">
-            <p>Ask about {TAB_LABELS[tab]?.toLowerCase() || 'editorial state'} — I have full context loaded.</p>
+            <p>Ask about {TAB_LABELS[chatTab]?.toLowerCase() || 'editorial state'} — I have full context loaded.</p>
             <div className="chat-suggestions">
               {tabSuggestions.map(text => (
                 <Suggestion key={text} text={text} onClick={send} disabled={loading} />
@@ -192,7 +204,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Ask about ${TAB_LABELS[tab]?.toLowerCase() || 'editorial state'}...`}
+          placeholder={`Ask about ${TAB_LABELS[chatTab]?.toLowerCase() || 'editorial state'}...`}
           rows={2}
           disabled={loading}
         />

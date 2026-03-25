@@ -75,6 +75,11 @@
   font-family: 'Poppins', Arial, sans-serif;
 }
 
+.chat-context-tag.draft-mode {
+  color: var(--purple);
+  background: var(--purple-15);
+}
+
 .chat-header-actions {
   display: flex;
   gap: var(--sp-1);

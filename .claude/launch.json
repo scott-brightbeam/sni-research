@@ -3,19 +3,20 @@
   "configurations": [
     {
       "name": "ingest-server",
-      "runtimeExecutable": "bun",
+      "runtimeExecutable": "/Users/scott/.bun/bin/bun",
       "runtimeArgs": ["scripts/server.js"],
       "port": 3847
     },
     {
       "name": "web-api",
-      "runtimeExecutable": "bun",
+      "runtimeExecutable": "/Users/scott/.bun/bin/bun",
       "runtimeArgs": ["--watch", "web/api/server.js"],
-      "port": 3900
+      "port": 3900,
+      "autoPort": false
     },
     {
       "name": "web-app",
-      "runtimeExecutable": "bun",
+      "runtimeExecutable": "/Users/scott/.bun/bin/bun",
       "runtimeArgs": ["run", "dev"],
       "cwd": "web/app",
       "port": 5173

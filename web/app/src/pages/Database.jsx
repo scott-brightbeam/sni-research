@@ -134,7 +134,7 @@ export default function Database() {
         )}
       </div>
       <EditorialChat
-        tab={draftRequest ? 'draft' : tab}
+        tab={tab}
         draftRequest={draftRequest}
         onDraftConsumed={() => setDraftRequest(null)}
       />
