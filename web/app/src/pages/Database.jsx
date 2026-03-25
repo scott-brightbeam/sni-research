@@ -246,7 +246,7 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
         await apiPatch(`/api/podcasts/${date}/${source}/${slug}`, { archived: !ep.archived })
         onReload?.()
       }
-    } catch { /* ignore */ }
+    } catch (err) { console.error('Archive failed:', err.message) }
   }
 
   return (
@@ -607,75 +607,6 @@ function ArticleDetail({ article, detail, loading, error }) {
         </div>
       </div>
     </div>
-  )
-}
-
-// ── Ingest Form ───────────────────────────────────────────
-
-function IngestForm({ onSuccess }) {
-  const [url, setUrl] = useState('')
-  const [sectorOverride, setSectorOverride] = useState('')
-  const [status, setStatus] = useState(null)
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!url.trim()) return
-
-    setStatus({ type: 'loading', message: 'Scraping...' })
-
-    try {
-      const body = { url: url.trim() }
-      if (sectorOverride) body.sectorOverride = sectorOverride
-
-      const result = await apiPost('/api/articles/ingest', body)
-
-      if (result.status === 'duplicate') {
-        setStatus({ type: 'duplicate', message: `Already exists: ${result.title}` })
-      } else if (result.off_limits_warning) {
-        setStatus({ type: 'warning', message: `Saved with warning: ${result.off_limits_warning}` })
-        setTimeout(() => onSuccess(), 3000)
-      } else {
-        setStatus({ type: 'success', message: `Added: ${result.title} (${result.sector})` })
-        setTimeout(() => onSuccess(), 2000)
-      }
-    } catch (err) {
-      setStatus({ type: 'error', message: err.message })
-    }
-  }
-
-  return (
-    <form className="ingest-form" onSubmit={handleSubmit}>
-      <input
-        type="url"
-        placeholder="Paste article URL..."
-        value={url}
-        onChange={e => setUrl(e.target.value)}
-        className="ingest-url"
-        required
-        disabled={status?.type === 'loading'}
-      />
-      <select
-        value={sectorOverride}
-        onChange={e => setSectorOverride(e.target.value)}
-        className="ingest-sector"
-        disabled={status?.type === 'loading'}
-      >
-        <option value="">Auto-classify</option>
-        {SECTORS.filter(Boolean).map(s => (
-          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-        ))}
-      </select>
-      <button
-        type="submit"
-        className="btn btn-primary btn-md"
-        disabled={status?.type === 'loading'}
-      >
-        {status?.type === 'loading' ? status.message : 'Ingest'}
-      </button>
-      {status && status.type !== 'loading' && (
-        <div className={`ingest-banner ingest-${status.type}`}>{status.message}</div>
-      )}
-    </form>
   )
 }
 

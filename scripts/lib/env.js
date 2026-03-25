@@ -24,7 +24,7 @@ export function loadEnvKey(key) {
     const lines = readFileSync(envPath, 'utf8').split('\n');
     for (const line of lines) {
       const match = line.match(new RegExp(`^${key}=(.+)$`));
-      if (match) return match[1].trim();
+      if (match) return match[1].trim().replace(/^["']|["']$/g, '');
     }
   } catch { /* .env missing is fine */ }
   return undefined;

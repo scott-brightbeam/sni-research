@@ -298,12 +298,14 @@ function saveCostLog(sessionNum, costs, elapsed, config) {
     total: costs.total,
   }
 
-  // Aggregate weekly cost (ISO week number)
+  // Aggregate weekly cost (ISO 8601 week number)
   const now = new Date()
-  const startOfYear = new Date(now.getFullYear(), 0, 1)
-  const dayOfYear = Math.floor((now - startOfYear) / 86400000)
-  const weekNum = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7)
-  const weekKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
+  const isoDate = new Date(now.getTime())
+  isoDate.setHours(0, 0, 0, 0)
+  isoDate.setDate(isoDate.getDate() + 3 - (isoDate.getDay() + 6) % 7)
+  const week1 = new Date(isoDate.getFullYear(), 0, 4)
+  const weekNum = 1 + Math.round(((isoDate - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)
+  const weekKey = `${isoDate.getFullYear()}-W${String(weekNum).padStart(2, '0')}`
 
   if (!costLog.weeks[weekKey]) {
     costLog.weeks[weekKey] = {

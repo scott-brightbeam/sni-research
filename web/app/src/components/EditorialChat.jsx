@@ -141,13 +141,14 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
             className={`model-toggle ${model === 'opus' ? 'model-opus' : 'model-sonnet'}`}
             onClick={() => setModel(m => m === 'sonnet' ? 'opus' : 'sonnet')}
             title={model === 'sonnet' ? 'Switch to Opus' : 'Switch to Sonnet'}
+            aria-label={model === 'sonnet' ? 'Switch to Opus' : 'Switch to Sonnet'}
           >
             {model === 'sonnet' ? 'S' : 'O'}
           </button>
-          <button className="chat-btn" onClick={clear} title="Clear conversation">
+          <button className="chat-btn" onClick={clear} title="Clear conversation" aria-label="Clear conversation">
             ↺
           </button>
-          <button className="chat-btn" onClick={() => setCollapsed(true)} title="Collapse">
+          <button className="chat-btn" onClick={() => setCollapsed(true)} title="Collapse" aria-label="Collapse chat">
             ▶
           </button>
         </div>
@@ -176,7 +177,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
         ))}
 
         {error?.status === 503 ? (
-          <div className="editorial-chat-error migration-banner">Chat has moved to Claude Code.</div>
+          <div className="editorial-chat-error">Chat has moved to Claude Code.</div>
         ) : error ? (
           <div className="editorial-chat-error">{error.message || error}</div>
         ) : null}

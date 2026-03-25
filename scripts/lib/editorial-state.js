@@ -14,7 +14,7 @@
  * helpers — this module is for pipeline scripts that read AND write.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renameSync, unlinkSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renameSync, unlinkSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { enqueue as enqueueUrl } from './url-resolution-queue.js'
 
@@ -208,11 +208,21 @@ export function saveState(state) {
   mkdirSync(EDITORIAL_DIR, { recursive: true })
   mkdirSync(BACKUPS_DIR, { recursive: true })
 
-  // Backup existing state
+  // Backup existing state (keep last 20 backups)
   if (existsSync(STATE_PATH)) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupName = `state-${timestamp}.json`
     copyFileSync(STATE_PATH, join(BACKUPS_DIR, backupName))
+
+    // Prune old backups
+    try {
+      const backups = readdirSync(BACKUPS_DIR).filter(f => f.startsWith('state-') && f.endsWith('.json')).sort()
+      if (backups.length > 20) {
+        for (const old of backups.slice(0, backups.length - 20)) {
+          unlinkSync(join(BACKUPS_DIR, old))
+        }
+      }
+    } catch { /* pruning is best-effort */ }
   }
 
   // Write-validate-swap

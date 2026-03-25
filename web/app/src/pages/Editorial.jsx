@@ -322,7 +322,7 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
       {expanded && (
         <div className="theme-details">
           {(theme.evidence || []).slice(-3).map((ev, i) => (
-            <div key={i} className="evidence-item">
+            <div key={`${ev.session}-${ev.source || i}`} className="evidence-item">
               <span className="evidence-source">Session {ev.session} · {ev.source}</span>
               <p className="evidence-content">{ev.content}</p>
             </div>
@@ -331,7 +331,7 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
             <div className="cross-connections">
               <strong>Cross-connections:</strong>
               {theme.crossConnections.map((cc, i) => (
-                <span key={i} className="cross-link">{cc.theme}</span>
+                <span key={cc.theme || i} className="cross-link">{cc.theme}</span>
               ))}
             </div>
           )}
@@ -736,7 +736,7 @@ function ActivityTab() {
       ) : (
         <div className="activity-list">
           {activities.map((a, i) => (
-            <div key={i} className={`activity-item activity-${a.stage || a.type || 'info'}`}>
+            <div key={a.timestamp || i} className={`activity-item activity-${a.stage || a.type || 'info'}`}>
               <div className="activity-header">
                 <span className="activity-stage">{a.stage || a.type}</span>
                 <span className="activity-time">{formatRelativeTime(a.timestamp)}</span>
@@ -771,7 +771,7 @@ function SearchResults({ query }) {
       ) : (
         <div className="search-results">
           {results.map((r, i) => (
-            <div key={i} className="search-result">
+            <div key={r.id || r.code || i} className="search-result">
               <span className="result-type">{r.type}</span>
               <span className="result-title">{r.title || r.name || `#${r.id || r.code}`}</span>
               {r.source && <span className="result-source">{r.source}</span>}
