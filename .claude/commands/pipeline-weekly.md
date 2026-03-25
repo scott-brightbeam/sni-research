@@ -11,11 +11,12 @@ Read `output/runs/` for this week's run files. Verify:
 - Score stage completed (heuristic mode is acceptable)
 - Report stage generated `output/*-research.md`
 
-### 2. Run DISCOVER if stories pending
+### 2. Verify story references are resolved
 
-Check `data/editorial/stories-session-*.json` for unprocessed stories.
-If found: `bun scripts/editorial-discover.js --session {latest_session}`
-This uses Gemini + Google Search (no Anthropic key needed).
+Check all `data/editorial/stories-session-*.json` files from this week.
+Count entries where `url` is null vs resolved.
+If any remain unresolved, use WebSearch to find them inline (same process as /editorial-discover).
+The daily editorial-discover task (09:00) should have already resolved most stories — this is the catch-up step.
 
 ### 3. Generate newsletter draft
 

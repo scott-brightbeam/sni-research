@@ -1,5 +1,14 @@
 # SNI Research v2 — Editorial Intelligence Platform
 
+## Cost protection — mandatory
+
+**Never send queries to the Anthropic API without explicit user permission.** This includes:
+- Calling the editorial chat endpoint (`/api/editorial/chat`)
+- Running pipeline scripts that use Opus/Sonnet (`editorial-analyse.js`, `editorial-draft.js`, `editorial-discover.js`)
+- Any `curl` or programmatic call that hits the Anthropic API
+
+Ask first. Every time. No exceptions. A single unguarded session burned $231 on 23 March 2026.
+
 ## What this is
 
 SNI (Sector News Intelligence) is an end-to-end editorial intelligence platform covering AI news across five sectors: general AI, biopharma, medtech, manufacturing and insurance. It produces a weekly newsletter and LinkedIn content pipeline.
@@ -20,13 +29,15 @@ DISCOVER (automated, daily)
   └─ Podcast transcription Whisper API / website / YouTube → ~/Desktop/Podcast Transcripts/*.md
       └─ same script as above, delivers .md files
 
-ANALYSE (Claude Code, scheduled daily 07:30)
-  ├─ Transcript analysis   Read .md transcripts → themes, evidence, post ideas
-  │   └─ Claude Code /editorial-analyse skill
+ANALYSE (Claude Code, scheduled daily 07:00-07:30)
   ├─ Podcast digest        Generate episode summaries → data/podcasts/
-  │   └─ Claude Code /podcast-import skill
-  └─ Story discovery       Gemini + Google Search → find original articles
-      └─ scripts/editorial-discover.js (uses Google AI key, not Anthropic)
+  │   └─ Claude Code /podcast-import skill (07:00)
+  ├─ Transcript analysis   Read .md transcripts → themes, evidence, post ideas
+  │   └─ Claude Code /editorial-analyse skill (07:30)
+  ├─ Story discovery       WebSearch for story references from transcripts
+  │   └─ Claude Code /editorial-discover skill (09:00)
+  └─ Sector gap-fill       WebSearch for underserved sectors
+      └─ Claude Code /editorial-sector-search skill (10:00)
 
 PRODUCE (Claude Code, Thursday + on-demand)
   ├─ Newsletter draft      Claude Code generates → data/editorial/drafts/
@@ -99,10 +110,14 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 |-----|----------|--------|------|
 | `com.sni.fetch.plist` | Daily 04:00 | launchd → Bun | Fetch articles (Brave + RSS), score (heuristic) |
 | `com.scott.podcast-pipeline.plist` | 22:00, 23:00, 00:00, 02:00, 04:00, 06:00 | launchd → Python | Monitor podcast RSS, transcribe new episodes |
-| `editorial-analyse-daily` | Daily 07:30 | Claude Code scheduled task | Process one unprocessed transcript |
 | `podcast-import-daily` | Daily 07:00 | Claude Code scheduled task | Import new podcast digests |
+| `editorial-analyse-daily` | Daily 07:30 | Claude Code scheduled task | Process one unprocessed transcript |
+| `editorial-discover` | Daily 09:00 | Claude Code scheduled task | WebSearch for story references from latest analyse session |
+| `sector-gap-fill` | Daily 10:00 | Claude Code scheduled task | Fill underserved sectors via WebSearch |
+| `editorial-wednesday-sweep` | Wednesday 20:00 | Claude Code scheduled task | Final quality gate before Thursday newsletter |
 | `pipeline-weekly-newsletter` | Thursday 14:00 | Claude Code scheduled task | Generate weekly newsletter |
-| `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch through report; stops at draft) |
+| `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch through report; skips discover) |
+| ~~`com.sni.podcast-import.plist`~~ | ~~07:00~~ | ~~launchd~~ | **Disabled** — replaced by Claude Code `podcast-import-daily` |
 
 ## How to run
 

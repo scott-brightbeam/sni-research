@@ -44,6 +44,21 @@ Wednesday evening quality sweep — verify all editorial state is complete befor
    }
    ```
 
-8. If any issues were found and fixed, save state.json with the write-validate-swap pattern (backup first).
+8. **Story reference completeness:**
+   - Scan all `data/editorial/stories-session-*.json` from this week
+   - Count entries where `url` is null vs resolved vs 'not-found'
+   - For any still null, use WebSearch to find them (same process as /editorial-discover)
 
-9. Report summary to the user.
+9. **Sector coverage vs weekly threshold:**
+   - Count articles per sector for the current week from `data/verified/`
+   - Thresholds: general 70 (warn below 50), verticals 21 each (warn below 14)
+   - For sectors below warning threshold, run 3-5 WebSearch queries to fill gaps (same process as /editorial-sector-search)
+
+10. If any issues were found and fixed, save state.json with the write-validate-swap pattern (backup first).
+
+11. **Write sweep report** to `data/editorial/sweep-report-{date}.json` including all checks above plus:
+    - `storyRefs: { total, resolved, notFound, stillNull, fixedThisSweep }`
+    - `sectorCoverage: { general: N, insurance: N, biopharma: N, medtech: N, manufacturing: N }`
+    - `articlesAddedBySweep: N`
+
+12. Report summary to the user.
