@@ -82,7 +82,10 @@ export async function getDraft({ week } = {}) {
     if (!/^\d+$/.test(week)) throw Object.assign(new Error(`Invalid week: ${week}`), { status: 400 })
     weekNum = parseInt(week)
   } else {
-    weekNum = available[available.length - 1]
+    // Default to the current ISO week, or the nearest available week before it
+    const currentWeek = getISOWeek(new Date())
+    const candidates = available.filter(w => w <= currentWeek)
+    weekNum = candidates.length > 0 ? candidates[candidates.length - 1] : available[available.length - 1]
   }
 
   const draftPath = join(OUTPUT, `draft-week-${weekNum}.md`)
