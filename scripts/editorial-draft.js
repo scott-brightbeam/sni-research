@@ -339,9 +339,19 @@ async function main() {
     log(`Critique-only mode: reading ${draftPath}`)
     resetSessionCosts()
 
+    // Load critique template (was missing — caused models to receive raw draft with no instructions)
+    let critiqueTemplate
+    try {
+      critiqueTemplate = readFileSync(join(ROOT, 'config/prompts/editorial-critique.v1.txt'), 'utf-8')
+    } catch (e) {
+      err(`Failed to load critique template: ${e.message}`)
+      process.exit(1)
+    }
+
     const themeNames = Object.entries(state.themeRegistry || {}).map(([code, t]) => `${code}: ${t.name}`).join(', ')
-    const critiquePrompt = renderCritiquePrompt(draft, { themes: themeNames, week: opts.session, sections: '' })
-    const critiqueResults = await callCritiqueModels(critiquePrompt, { maxTokens: 4000 })
+    const critiquePrompt = renderCritiquePrompt(critiqueTemplate, draft, { themes: themeNames, week: opts.session, sectionNames: [] })
+    const critiqueSystem = 'You are an editorial reviewer for a weekly AI newsletter targeting senior enterprise leaders. Provide specific, actionable critique.'
+    const critiqueResults = await callCritiqueModels(critiquePrompt, { system: critiqueSystem, maxTokens: 4000 })
     const { merged } = mergeCritiques(critiqueResults)
 
     const critiquePath = join(DRAFTS_DIR, `critique-session-${opts.session}.json`)
@@ -349,7 +359,7 @@ async function main() {
     log(`Critique saved to ${critiquePath}`)
 
     const costs = getSessionCosts()
-    log(`Cost: $${costs.total.toFixed(4)} (Gemini: $${costs.gemini.toFixed(4)}, OpenAI: $${costs.openai.toFixed(4)})`)
+    log(`Cost: $${costs.total.toFixed(4)} (Gemini: $${costs.gemini.cost?.toFixed(4) || '0'}, OpenAI: $${costs.openai.cost?.toFixed(4) || '0'})`)
     process.exit(0)
   }
 
