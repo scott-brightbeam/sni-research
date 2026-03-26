@@ -110,19 +110,8 @@ export default function Draft({ embedded = false }) {
   // Must be before early returns to satisfy Rules of Hooks
   const components = useMemo(() => ({
     a: ({ href, children }) => {
-      const info = linkMap[href]
       return (
-        <>
-          <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-          {info && (
-            <span
-              className={`link-badge ${info.status === 'ok' ? 'ok' : 'dead'}`}
-              title={`${info.httpStatus} — ${info.responseTimeMs}ms`}
-            >
-              {info.status === 'ok' ? '✓' : '✗'}
-            </span>
-          )}
-        </>
+        <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
       )
     },
     p: ({ children }) => {
