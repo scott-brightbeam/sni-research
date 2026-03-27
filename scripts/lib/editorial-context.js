@@ -264,6 +264,21 @@ export function buildDraftContext(week, opts = {}) {
   const b = BUDGETS.draft
   const sections = []
 
+  // Compute the Friday-Thursday date window for this week number
+  const year = new Date().getFullYear()
+  const jan4 = new Date(year, 0, 4)
+  const jan4Day = jan4.getDay() || 7
+  const mondayOfWeek1 = new Date(jan4)
+  mondayOfWeek1.setDate(jan4.getDate() - jan4Day + 1)
+  const mondayOfWeekN = new Date(mondayOfWeek1)
+  mondayOfWeekN.setDate(mondayOfWeek1.getDate() + (week - 1) * 7)
+  const weekWindowStart = new Date(mondayOfWeekN)
+  weekWindowStart.setDate(mondayOfWeekN.getDate() - 3) // Friday before
+  const weekWindowEnd = new Date(mondayOfWeekN)
+  weekWindowEnd.setDate(mondayOfWeekN.getDate() + 3) // Thursday
+  const weekStartStr = weekWindowStart.toISOString().split('T')[0]
+  const weekEndStr = weekWindowEnd.toISOString().split('T')[0]
+
   // 1. State overview
   const counters = getCounters(state)
   sections.push({
@@ -278,11 +293,13 @@ export function buildDraftContext(week, opts = {}) {
   const themeMd = renderSection(state, 'themeRegistry', { active: true })
   sections.push({ label: 'ACTIVE THEMES', content: trimToTokenBudget(themeMd, b.themeRegistry) })
 
-  // 3. This week's analysis index entries (ranked by post potential, date-based window)
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+  // 3. This week's analysis index entries (ranked by post potential, using the week's date window)
   const potentialRank = { 'very-high': 5, 'high': 4, 'medium-high': 3, 'medium': 2, 'low': 1, 'none': 0 }
   const weekEntries = Object.entries(state.analysisIndex || {})
-    .filter(([, e]) => (e.dateProcessed || e.date || '') >= sevenDaysAgo && e.status === 'active')
+    .filter(([, e]) => {
+      const d = e.dateProcessed || e.date || ''
+      return d >= weekStartStr && d <= weekEndStr && e.status === 'active'
+    })
     .sort(([, a], [, b]) => (potentialRank[(b.postPotential || '').toLowerCase()] || 0) - (potentialRank[(a.postPotential || '').toLowerCase()] || 0))
   const analysisMd = weekEntries.map(([id, e]) => renderAnalysisEntry(id, e)).join('\n\n')
   sections.push({ label: 'THIS WEEK\'S ANALYSIS (by editorial potential)', content: trimToTokenBudget(analysisMd, b.analysisIndex) })
@@ -465,14 +482,24 @@ function loadSectorArticleSummaries(articlesDir, week) {
   const sectorLabels = { general: 'AI & Technology', biopharma: 'Biopharma', medtech: 'Medtech', manufacturing: 'Manufacturing', insurance: 'Insurance' }
   const lines = []
 
-  // Compute the Friday-Thursday window for this week number
-  // week param is an ISO week number — compute the date range
-  const now = new Date()
-  const daysSinceFriday = (now.getDay() + 2) % 7  // days since last Friday
-  const windowStart = new Date(now)
-  windowStart.setDate(windowStart.getDate() - daysSinceFriday)
+  // Compute the Friday-Thursday window for this ISO week number
+  // ISO week N: Monday of that week is the reference. Our newsletter window is Friday (of prior week) through Thursday.
+  // Step 1: Find the Monday of ISO week N in the current year
+  const year = new Date().getFullYear()
+  const jan4 = new Date(year, 0, 4) // Jan 4 is always in ISO week 1
+  const jan4Day = jan4.getDay() || 7 // convert Sunday=0 to 7
+  const mondayOfWeek1 = new Date(jan4)
+  mondayOfWeek1.setDate(jan4.getDate() - jan4Day + 1)
+  const mondayOfWeekN = new Date(mondayOfWeek1)
+  mondayOfWeekN.setDate(mondayOfWeek1.getDate() + (week - 1) * 7)
+  // Step 2: Friday before that Monday = Monday - 3 days
+  const windowStart = new Date(mondayOfWeekN)
+  windowStart.setDate(mondayOfWeekN.getDate() - 3)
+  // Step 3: Thursday of that week = Monday + 3 days
+  const windowEnd = new Date(mondayOfWeekN)
+  windowEnd.setDate(mondayOfWeekN.getDate() + 3)
   const startStr = windowStart.toISOString().split('T')[0]
-  const endStr = now.toISOString().split('T')[0]
+  const endStr = windowEnd.toISOString().split('T')[0]
 
   // Collect date directories within the window
   let dateDirs = []
