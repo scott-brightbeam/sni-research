@@ -289,7 +289,7 @@ export function buildDraftContext(week, opts = {}) {
   const activePosts = Object.entries(state.postBacklog || {})
     .filter(([, p]) => p.status === 'suggested' || p.status === 'approved')
     .sort(([, a], [, b]) => {
-      const pr = { 'immediate': 4, 'high': 3, 'medium-high': 2, 'medium': 1 }
+      const pr = { 'immediate': 4, 'IMMEDIATE': 4, 'high': 3, 'HIGH': 3, 'medium-high': 2, 'MEDIUM-HIGH': 2, 'medium': 1, 'MEDIUM': 1 }
       return (pr[b.priority] || 0) - (pr[a.priority] || 0)
     })
     .slice(0, 15)
@@ -305,7 +305,8 @@ export function buildDraftContext(week, opts = {}) {
   for (const [code, theme] of Object.entries(state.themeRegistry || {})) {
     if (theme.archived) continue
     for (const cc of (theme.crossConnections || [])) {
-      connections.push(`${code} ↔ ${cc.theme || cc.toTheme}: ${cc.reasoning || ''}`)
+      const target = cc.theme || cc.toTheme || cc.fromTheme || '?'
+      connections.push(`${code} ↔ ${target}: ${cc.reasoning || ''}`)
     }
   }
   if (connections.length > 0) {
