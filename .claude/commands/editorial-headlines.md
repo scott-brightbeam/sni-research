@@ -8,7 +8,7 @@ You are the front-page news check for the SNI newsletter. Every day, search for 
 
 **The goal: by Wednesday evening, every major AI story from the week should be in `data/verified/`.** The newsletter should never be missing a story that a reader would expect to see.
 
-**Quality bar: only add stories that a reader would notice if missing from the newsletter.** This is a precision tool, not a volume tool. Maximum 10 new articles per run.
+**Quality bar: apply an FT editor's judgement.** For each story, ask: would this make it into the final published newsletter, given our audience of senior leaders in regulated industries? If yes — fetch it. If it's background noise, aggregator churn, or a story that adds volume without editorial value — skip it. There is no numerical cap. The constraint is relevance, not quantity.
 
 ## Step 1: Determine the newsletter date window
 
@@ -83,9 +83,9 @@ grep -rl "ARTICLE_URL" data/verified/ 2>/dev/null
 If found → skip.
 If not found → also check for title similarity: `grep -rl "KEY_PHRASE_FROM_TITLE" data/verified/ 2>/dev/null`. If a substantially similar story exists from a different publication, skip.
 
-## Step 4: Verify and save (max 10 per run)
+## Step 4: Verify and save
 
-For each new story (up to 10 per run, prioritised by editorial significance):
+For each editorially relevant story:
 1. Confirm publication date is within the newsletter window — WebFetch the article and check the date in the page content
 2. Confirm it's genuine reporting (not aggregator, not social media, not paywalled)
 3. WebFetch the article content
@@ -128,7 +128,7 @@ Outside date window (rejected): N
 
 ## Rules
 
-1. **Max 10 new articles per run** — quality over quantity. Prioritise stories by editorial significance.
+1. **Editorial relevance is the gate, not a number.** Ask: would an FT editor include this in a newsletter for senior leaders in regulated industries? If yes, fetch it. If not, skip it.
 2. Date verification is mandatory — reject anything outside the newsletter window
 3. European stories are first-class — equal search effort as US
 4. Irish stories matter — we're based in Ireland
