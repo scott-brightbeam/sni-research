@@ -278,12 +278,12 @@ export function buildDraftContext(week, opts = {}) {
   const themeMd = renderSection(state, 'themeRegistry', { active: true })
   sections.push({ label: 'ACTIVE THEMES', content: trimToTokenBudget(themeMd, b.themeRegistry) })
 
-  // 3. This week's analysis index entries (ranked by post potential)
-  const currentSession = counters.nextSession - 1
+  // 3. This week's analysis index entries (ranked by post potential, date-based window)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
   const potentialRank = { 'very-high': 5, 'high': 4, 'medium-high': 3, 'medium': 2, 'low': 1, 'none': 0 }
   const weekEntries = Object.entries(state.analysisIndex || {})
-    .filter(([, e]) => e.session >= currentSession - 3 && e.status === 'active')
-    .sort(([, a], [, b]) => (potentialRank[b.postPotential] || 0) - (potentialRank[a.postPotential] || 0))
+    .filter(([, e]) => (e.dateProcessed || e.date || '') >= sevenDaysAgo && e.status === 'active')
+    .sort(([, a], [, b]) => (potentialRank[(b.postPotential || '').toLowerCase()] || 0) - (potentialRank[(a.postPotential || '').toLowerCase()] || 0))
   const analysisMd = weekEntries.map(([id, e]) => renderAnalysisEntry(id, e)).join('\n\n')
   sections.push({ label: 'THIS WEEK\'S ANALYSIS (by editorial potential)', content: trimToTokenBudget(analysisMd, b.analysisIndex) })
 
@@ -291,8 +291,8 @@ export function buildDraftContext(week, opts = {}) {
   const activePosts = Object.entries(state.postBacklog || {})
     .filter(([, p]) => p.status === 'suggested' || p.status === 'approved')
     .sort(([, a], [, b]) => {
-      const pr = { 'immediate': 4, 'IMMEDIATE': 4, 'high': 3, 'HIGH': 3, 'medium-high': 2, 'MEDIUM-HIGH': 2, 'medium': 1, 'MEDIUM': 1 }
-      return (pr[b.priority] || 0) - (pr[a.priority] || 0)
+      const pr = { 'immediate': 4, 'high': 3, 'medium-high': 2, 'medium': 1 }
+      return (pr[(b.priority || '').toLowerCase()] || 0) - (pr[(a.priority || '').toLowerCase()] || 0)
     })
     .slice(0, 15)
   if (activePosts.length > 0) {
@@ -337,15 +337,31 @@ export function buildDraftContext(week, opts = {}) {
   ].join('\n')
   sections.push({ label: 'PUBLISHED ITEMS', content: trimToTokenBudget(pubMd, b.publishedTracking) })
 
-  // Compose
-  const userMessage = sections
-    .map(s => `## ${s.label}\n\n${s.content}`)
-    .join('\n\n---\n\n')
+  // Compose with total budget enforcement
+  let userMessage = ''
+  let totalTokens = 0
+  const systemPrompt = buildSystemPrompt('draft')
+  const systemTokens = estimateTokens(systemPrompt)
 
-  const system = buildSystemPrompt('draft')
-  const tokenEstimate = estimateTokens(system) + estimateTokens(userMessage)
+  for (const s of sections) {
+    const sectionText = `## ${s.label}\n\n${s.content}\n\n---\n\n`
+    const sectionTokens = estimateTokens(sectionText)
+    if (totalTokens + sectionTokens + systemTokens > b.total) {
+      // Budget would overflow — truncate this section to fit
+      const remaining = b.total - totalTokens - systemTokens - 500 // 500 token buffer for the closing instruction
+      if (remaining > 1000) {
+        userMessage += `## ${s.label}\n\n${trimToTokenBudget(s.content, remaining)}\n\n---\n\n`
+        totalTokens += remaining
+      }
+      break // No more sections — budget exhausted
+    }
+    userMessage += sectionText
+    totalTokens += sectionTokens
+  }
 
-  return { system, user: userMessage + `\n\n---\n\nProduce the complete newsletter draft for Week ${week}.`, tokenEstimate }
+  const tokenEstimate = systemTokens + totalTokens
+
+  return { system: systemPrompt, user: userMessage + `Produce the complete newsletter draft for Week ${week}.`, tokenEstimate }
 }
 
 // ── CHAT context assembly ────────────────────────────────
@@ -443,39 +459,64 @@ export function buildChatContext(tab, opts = {}) {
  * @returns {string}
  */
 function loadSectorArticleSummaries(articlesDir, week) {
-  const sectors = ['general-ai', 'biopharma', 'medtech', 'manufacturing', 'insurance']
+  // Scan data/verified/{YYYY-MM-DD}/{sector}/*.json within the newsletter week window
+  // The articlesDir is data/verified/, directories are date-based (not week-based)
+  const sectors = ['general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
+  const sectorLabels = { general: 'AI & Technology', biopharma: 'Biopharma', medtech: 'Medtech', manufacturing: 'Manufacturing', insurance: 'Insurance' }
   const lines = []
 
+  // Compute the Friday-Thursday window for this week number
+  // week param is an ISO week number — compute the date range
+  const now = new Date()
+  const daysSinceFriday = (now.getDay() + 2) % 7  // days since last Friday
+  const windowStart = new Date(now)
+  windowStart.setDate(windowStart.getDate() - daysSinceFriday)
+  const startStr = windowStart.toISOString().split('T')[0]
+  const endStr = now.toISOString().split('T')[0]
+
+  // Collect date directories within the window
+  let dateDirs = []
+  try {
+    dateDirs = readdirSync(articlesDir)
+      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= startStr && d <= endStr)
+      .sort()
+  } catch { return '(No sector articles available for this week.)' }
+
   for (const sector of sectors) {
-    // Look for week directories matching the week number
-    const weekDirs = readdirSync(articlesDir, { withFileTypes: true })
-      .filter(d => d.isDirectory() && d.name.includes(`week-${week}`))
+    const sectorArticles = []
 
-    for (const weekDir of weekDirs) {
-      const sectorDir = join(articlesDir, weekDir.name, sector)
-      if (!existsSync(sectorDir)) continue
+    for (const dateDir of dateDirs) {
+      const sectorPath = join(articlesDir, dateDir, sector)
+      if (!existsSync(sectorPath)) continue
 
-      const articles = readdirSync(sectorDir, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-
-      if (articles.length === 0) continue
-
-      lines.push(`### ${sector.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`)
-
-      for (const article of articles.slice(0, 10)) {
-        const metaPath = join(sectorDir, article.name, 'meta.json')
-        if (!existsSync(metaPath)) continue
-
-        try {
-          const meta = JSON.parse(readFileSync(metaPath, 'utf-8'))
-          lines.push(`- **${meta.title || article.name}** (${meta.source || 'Unknown'})`)
-          if (meta.snippet) lines.push(`  ${meta.snippet.slice(0, 200)}`)
-        } catch {
-          // Skip corrupt meta files
+      try {
+        const files = readdirSync(sectorPath).filter(f => f.endsWith('.json'))
+        for (const file of files) {
+          try {
+            const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+            if (raw.archived) continue
+            sectorArticles.push({
+              title: raw.title || file.replace('.json', ''),
+              source: raw.source || 'Unknown',
+              date: raw.date_published || dateDir,
+              snippet: (raw.snippet || '').slice(0, 200),
+              url: raw.url || null,
+            })
+          } catch { /* skip malformed */ }
         }
-      }
-      lines.push('')
+      } catch { /* skip unreadable dir */ }
     }
+
+    if (sectorArticles.length === 0) continue
+
+    // Sort by date descending, take top 15 per sector
+    sectorArticles.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    lines.push(`### ${sectorLabels[sector] || sector} (${sectorArticles.length} articles)`)
+    for (const a of sectorArticles.slice(0, 15)) {
+      lines.push(`- **${a.title}** (${a.source}, ${a.date})${a.url ? ` [${a.url}]` : ''}`)
+      if (a.snippet) lines.push(`  ${a.snippet}`)
+    }
+    lines.push('')
   }
 
   return lines.join('\n') || '(No sector articles available for this week.)'
