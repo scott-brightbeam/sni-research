@@ -30,7 +30,21 @@ Flag every instance found with its exact location in the draft.
 
 4. SYNTHESIS — Does the tl;dr connect themes across sections? Are there missed cross-references between sectors?
 
-5. PODCAST SECTION — Is this analytical synthesis across episodes, or individual episode recaps? Does it surface cross-podcast tensions and convergences?
+5. PODCAST SECTION — This section must be analytical synthesis, not episode recaps. A brilliant podcast section:
+- Uses argumentative sub-headings that state positions ('60% of companies are exaggerating AI's role in layoffs', 'The submarine problem is a workforce problem. And it's yours too.') — never descriptive labels ('AI Daily Brief summary', 'What Azeem said this week')
+- Synthesises across 2-3 episodes per theme, naming specific data points, quotes and named sources
+- Surfaces tensions or contradictions between different hosts and guests — where do they agree, where do they diverge, and what does the divergence reveal?
+- Draws explicit implications for the newsletter's audience: enterprise leaders in regulated industries across biopharma, medtech, manufacturing and insurance
+- Has ZERO URL overlap with the tl;dr or sector bullet sections above — every linked story must be different from those already covered
+- Attribution follows the pattern: inline link mid-paragraph as `[host name on podcast name](episode-url)` — never listed below the text
+
+Here is what a strong podcast sub-section looks like (from published Week 13):
+
+'Chris Power (CEO, Hadrian) and Admiral Robert Goucher [on the a16z podcast](url) described American submarine manufacturing: decades of industrial decline, a skilled workforce that doesn't exist in sufficient numbers, and a technology intervention compressing the timeline. Power: "Three years ago it was incredibly difficult and now... is pretty fast." The mechanism isn't AI replacing welders. There aren't enough welders to replace. Software multiplies the output of the ones who exist.'
+
+Note: argumentative heading, inline podcast link, specific quote, cross-sector implication drawn explicitly.
+
+If the podcast section reads as a series of individual episode summaries — each paragraph summarising what one host discussed — flag it as SEVERITY: high and instruct the author to rewrite as cross-cutting analytical synthesis with argumentative headings.
 
 6. ACCURACY — Are there unsupported claims? Misattributed quotes? Fabricated statistics?
 

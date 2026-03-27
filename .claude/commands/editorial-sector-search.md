@@ -46,6 +46,15 @@ If all sectors are above threshold, report 'All sectors adequately covered' and 
 
 For each sector below threshold, run 3-5 targeted searches. Use keywords from `config/sectors.yaml` for sector-specific terms.
 
+**Editorial quality gate — apply an FT editor's judgement.** For each article found, ask: would this make it into the final published newsletter, given our audience of senior leaders in regulated industries? Specifically:
+
+- **Include** if the article names a specific company, data point, deal, regulatory action or clinical result that an enterprise leader would act on or need to know about
+- **Include** if the article reveals a pattern, tension or structural shift in the sector — even if the article itself is from a niche source
+- **Skip** if the article is aggregator churn (rewriting a press release without adding context), generic trend commentary without evidence, or a story that adds volume without editorial value
+- **Skip** if the article is paywalled and WebFetch cannot extract meaningful content
+
+Filling a sector quota with weak articles is worse than leaving the gap. Weak articles pollute the corpus that the Thursday draft selects from — every low-quality article in the pool competes for attention against stronger stories and wastes scoring tokens. If a sector genuinely has fewer than 21 articles worth including this week, report the shortfall rather than padding.
+
 **Search strategy by sector:**
 
 **Insurance:**
@@ -112,8 +121,9 @@ Sectors still below threshold: [list]
 
 ## Rules
 
-1. Quality over quantity — articles must be editorially relevant for enterprise leaders in regulated industries
-2. Every article MUST have a valid URL
-3. Never fabricate content
+1. **Editorial relevance over volume** — every article must pass the FT editor test: would this story appear in a weekly intelligence briefing for senior leaders in regulated industries? If not, do not add it to the corpus regardless of sector need
+2. Every article MUST have a valid, verified URL
+3. Never fabricate content — only save what WebFetch actually returns
 4. Prioritise insurance (weakest RSS coverage) when multiple sectors need filling
-5. Focus on articles from the current newsletter week, not older content
+5. Focus on articles from the current newsletter week (Friday-Thursday window), not older content
+6. If a sector cannot be filled to threshold with editorially relevant articles, report the shortfall — do not pad with weak content
