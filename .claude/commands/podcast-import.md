@@ -19,7 +19,7 @@ For each new transcript:
    - `date`: from filename
    - `week`: ISO week number
    - `duration`: estimate from word count (~150 words/minute)
-   - `summary`: 3-5 sentence analytical summary through the Brightbeam lens
+   - `summary`: 3-5 sentence analytical summary through the Brightbeam editorial lens: what does this mean for organisations adopting AI in regulated industries? Where is the gap between what the technology community says and what enterprises experience? What human, cultural or behavioural dynamics does this reveal?
    - `key_stories`: array of `{ headline, detail, url?, sector }` — concrete news stories referenced
    - `tier`: from config (1 = primary AI content, 2 = contextual)
 
@@ -28,3 +28,10 @@ For each new transcript:
 
 8. Save updated manifest.json (write-validate-swap)
 9. Report: N transcripts imported, sources covered, stories extracted
+
+## Success criteria
+
+Each digest must contain:
+- At least 3 key stories with searchable headlines
+- A 200-word analytical summary
+- Correct sector tags matching `config/sectors.yaml` sector names

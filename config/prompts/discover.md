@@ -19,6 +19,9 @@ Your task: identify 5-15 significant AI stories from this week that are MISSING 
 For each missing story, provide:
 - title: The article headline or a descriptive title
 - url: The direct URL to the article (must be a real, accessible URL)
+
+**URL hallucination warning:** URLs generated from memory are frequently non-existent. For each URL, note your confidence level. The downstream DISCOVER pipeline will verify all URLs — do not fabricate URLs you are uncertain about. If you cannot recall the exact URL, describe the article with enough detail for a web search to find it.
+
 - source: The publication name
 - sector: One of: general, biopharma, medtech, manufacturing, insurance
 - reason: One sentence explaining why this story matters and why it was likely missed

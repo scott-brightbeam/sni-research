@@ -82,7 +82,7 @@ For each search result that's a genuine article (not social media, not video, no
   "title": "...",
   "url": "https://...",
   "source": "Publication name",
-  "source_type": "editorial-discover",
+  "source_type": "editorial-sector-search",
   "date_published": "YYYY-MM-DD",
   "date_verified_method": "web-search",
   "date_confidence": "high",

@@ -20,6 +20,8 @@ The daily editorial-discover task (09:00) should have already resolved most stor
 
 ### 3. Generate newsletter draft
 
+The draft must follow the Week 13 published structure: welcome line → tl;dr editorial prose → sector bullets inline → expanded sector analysis → podcast commentary with zero URL overlap. The authoritative prompt pairing is draft-system.md (system) + draft-write.md (user). Do not load editorial-draft.v1.txt.
+
 Follow the `/editorial-draft` skill instructions:
 - Read state, articles, previous newsletter
 - Generate draft with all six sections

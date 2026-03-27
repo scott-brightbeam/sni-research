@@ -28,11 +28,7 @@ Apply these rules **per sector**:
 
 ## Disagreement resolution
 
-When models disagree by more than 2 points on the same article:
-- Read all three rationales
-- Weight the rationale with the most concrete, fact-based reasoning
-- If two models agree and one is an outlier, the majority view wins unless the outlier cites specific facts the others missed
-- Note significant disagreements in your rationale
+Weight the most fact-based rationale when scores disagree. If two of three scorers agree, the majority view wins. If all three disagree, use the score supported by the most specific article evidence.
 
 ## Opus scores
 

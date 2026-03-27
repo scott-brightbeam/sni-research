@@ -17,11 +17,7 @@ Stories from the published reference newsletter below represent **8–9 out of 1
 
 ## Score dimensions
 
-For each article, evaluate these three dimensions as a single composite score (1–10):
-
-1. **Reader interest and relevance** — How interesting and relevant is this to a senior leader in this specific sector? Would they share it with a colleague?
-2. **Impact level** — Does this represent a meaningful development? Funding rounds with named investors and competitive context, regulatory clearances with deployment implications, product launches with customer traction all score higher than vague announcements.
-3. **Source credibility and accessibility** — Is the source credible, specific and readable by a business audience? Stories with concrete data (dollar figures, metrics, named customers) score higher.
+Apply the same five scoring dimensions as the primary vertical scorer (select-score-vertical.md). Your role is independent evaluation — score each article without knowledge of the primary scores. Where your score differs by more than 2 points, explain why with specific article facts.
 
 ## Disagreement requirement
 

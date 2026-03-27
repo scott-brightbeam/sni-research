@@ -48,4 +48,4 @@ Respond as JSON:
 }
 ```
 
-**Only include articles scoring 5 or above** in the output. Articles below 5 are clearly below the selection threshold — do not list them. Order by score descending.
+Score every article. Include ALL articles with their scores — do not silently omit low-scoring articles. Mark articles below 5 as 'below threshold' so the downstream selection process can review borderline cases. Order by score descending.

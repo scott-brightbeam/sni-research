@@ -13,11 +13,13 @@ Stories from the published reference newsletter below represent **8–9 out of 1
 
 ## Score dimensions
 
-For each article, evaluate these three dimensions as a single composite score (1–10):
+For each article, evaluate these five dimensions as a single composite score (1–10):
 
 1. **Reader interest and relevance** — How interesting and relevant is this to a senior leader in this specific sector? Would they share it with a colleague?
 2. **Impact level** — Does this represent a meaningful development? Funding rounds with named investors and competitive context, regulatory clearances with deployment implications, product launches with customer traction all score higher than vague announcements.
-3. **Source credibility and accessibility** — Is the source credible, specific and readable by a business audience? Stories with concrete data (dollar figures, metrics, named customers) score higher.
+3. **Structural thesis potential** — Is this evidence of a broader competitive, architectural or market-structure shift within the sector? Or is it just an isolated event?
+4. **Competitive tension** — Are named actors in direct strategic conflict within this sector? Two sides of the same issue both in scope?
+5. **Source credibility and accessibility** — Is the source credible, specific and readable by a business audience? Stories with concrete data (dollar figures, metrics, named customers) score higher.
 
 ## Event grouping
 
