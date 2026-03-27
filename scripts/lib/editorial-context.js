@@ -70,14 +70,14 @@ const BUDGETS = {
   },
   // DRAFT context
   draft: {
-    systemPrompt: 8000,       // Editorial voice + draft instructions
-    stateOverview: 2000,      // Counters, corpus stats
-    themeRegistry: 10000,     // Active themes for synthesis
-    analysisIndex: 12000,     // This week's processed transcripts
-    sectorArticles: 15000,    // Sector article bullets from pipeline
-    previousNewsletter: 8000, // Previous week's published newsletter
-    publishedTracking: 2000,  // Which posts are already published
-    total: 60000,
+    systemPrompt: 10000,      // Editorial voice + draft instructions (expanded with structural template)
+    stateOverview: 3000,      // Counters, corpus stats
+    themeRegistry: 20000,     // Active themes with evidence — more evidence = better synthesis
+    analysisIndex: 25000,     // This week's processed transcripts — full entries, not summaries
+    sectorArticles: 40000,    // Sector articles with snippets — the raw material for the newsletter
+    previousNewsletter: 15000, // Previous week's published newsletter — structural reference
+    publishedTracking: 3000,  // Which posts are already published
+    total: 150000,            // Use the full context window — richer context produces better drafts
   },
   // CHAT context (per-tab)
   chat: {
