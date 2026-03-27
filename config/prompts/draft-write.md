@@ -37,7 +37,7 @@ Select **exactly 12–15 stories** from the research pack. This is a hard ceilin
 - tl;dr + transitions: ~400 words
 - If your planned story count × 180 words average exceeds 3,500 words of body content, cut the weakest story in the largest section.
 
-**Bullet/detail alignment**: Every story in the body must have a corresponding tl;dr bullet. Every tl;dr bullet must have a corresponding body story. No exceptions – the two sections are a 1:1 map of each other.
+**tl;dr/body alignment**: The tl;dr section weaves key stories into narrative prose — not every story needs a 1:1 mapping between tl;dr and body. Stories referenced in the tl;dr prose must appear in the body. Stories in the body that are not in the tl;dr must appear in the sector bullet summaries. The sector bullets capture additional stories not already covered in the tl;dr prose.
 
 **Include** stories that:
 - Change competitive dynamics (M&A, major partnerships, market-repricing events)

@@ -5,11 +5,13 @@ Generate a weekly newsletter draft, run external critique, and revise.
 1. Read `data/editorial/state.json` for themes, analysis entries, and post backlog
 2. Read articles from `data/verified/` for the current week (scan date directories)
 3. Read the previous newsletter from `data/editorial/drafts/` (most recent `draft-session-*-final.md`)
-4. Read `config/prompts/editorial-draft.v1.txt` for structure requirements
-5. Read `config/prompts/editorial-context.v1.txt` for the full editorial voice and writing rules
+4. Read `config/prompts/draft-system.md` for voice, structure and geographic balance
+5. Read `config/prompts/draft-write.md` for story selection and formatting
+6. Read `config/prompts/tl-dr-voice.md` for the tl;dr editorial prose standard
+7. Read `config/prompts/editorial-context.v1.txt` for the full editorial voice and writing rules
 
 Generate the newsletter with these sections:
-- **tl;dr** — three to five bullet executive summary
+- **tl;dr** — narrative editorial prose following `config/prompts/draft-system.md` and `config/prompts/tl-dr-voice.md`
 - **AI & Technology** — general AI developments
 - **Biopharma** — AI in drug discovery, clinical trials, pharma
 - **Medtech** — AI in medical devices, digital health

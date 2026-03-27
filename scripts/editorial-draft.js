@@ -348,7 +348,7 @@ async function main() {
       process.exit(1)
     }
 
-    const themeNames = Object.entries(state.themeRegistry || {}).map(([code, t]) => `${code}: ${t.name}`).join(', ')
+    const themeNames = Object.entries(state.themeRegistry || {}).map(([code, t]) => `${code}: ${t.name}`)
     const critiquePrompt = renderCritiquePrompt(critiqueTemplate, draft, { themes: themeNames, week: opts.session, sectionNames: [] })
     const critiqueSystem = 'You are an editorial reviewer for a weekly AI newsletter targeting senior enterprise leaders. Provide specific, actionable critique.'
     const critiqueResults = await callCritiqueModels(critiquePrompt, { system: critiqueSystem, maxTokens: 4000 })
@@ -420,7 +420,7 @@ async function main() {
     // 8. Load draft generation prompt
     let draftPromptAppend
     try {
-      draftPromptAppend = loadAndRenderPrompt('editorial-draft.v1', { week: String(week) })
+      draftPromptAppend = loadAndRenderPrompt('draft-write', { week: String(week) })
     } catch (promptErr) {
       err(`Failed to load draft prompt: ${promptErr.message}`)
       releaseLock()

@@ -32,6 +32,7 @@ The newsletter is read by executives across biopharma, medtech, manufacturing an
 2. **Coverage volume** (General AI only) — Stories with high media coverage are genuinely important to readers. Use as a supporting signal.
 3. **Breadth and narrative completeness** — Include contrarian angles, composite narrative pairs (e.g., a funding round + a regulatory response), and cross-sector bridges.
 4. **Reader value** — Would a time-poor executive across biopharma, medtech, manufacturing or insurance care about this story? Concrete data, named actors and structural implications score higher.
+5. **Geographic diversity** — The final shortlist must include at least two stories from non-US sources across all sectors combined (EU, UK or Ireland). If this is not achievable on merit, note it in the output.
 
 ## What to cut
 

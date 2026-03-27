@@ -96,10 +96,16 @@ When the article pool contains multiple sources covering the same event:
 - Stories where you cannot extract at least two concrete facts
 - Forward-looking announcements without any current operational proof, when a story with operational proof exists on the same topic
 
+## Geographic balance
+
+The newsletter serves a global audience with particular concentration in Ireland, the EU and the UK. The shortlist must include at least two stories from non-US sources. If the article pool contains European stories satisfying two or more news value triggers, include them even if their individual score is lower than the weakest US story. European stories are not filler — they serve a readership that includes enterprise leaders across regulated industries in multiple jurisdictions.
+
+Exception: if a week genuinely has no European stories meeting two news value triggers, do not force inclusion. Note the gap in the selection rationale so the editor can address it manually.
+
 ## Selection output
 
 When asked to select, produce a shortlist of 25-35 stories. For each, state the URL (exact, from the article pool), sector and one-sentence editorial reasoning explaining why this story earns inclusion. The reasoning should name at least one news value trigger the story satisfies.
 
-**Before finalising, verify you meet sector minimums.** If any vertical sector has fewer than the minimum above, go back through the dropped stories for that sector and recover the strongest candidates.
+**Before finalising, verify you meet sector minimums AND geographic balance.** If any vertical sector has fewer than the minimum above, go back through the dropped stories for that sector and recover the strongest candidates. If the shortlist contains fewer than two non-US stories, review the dropped pool for European candidates.
 
 Group dropped stories by reason for transparency.

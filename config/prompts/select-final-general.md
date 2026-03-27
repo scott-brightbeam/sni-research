@@ -16,7 +16,7 @@ You are making the final General AI story selection. You have two signals for ea
 - **Low coverage + borderline score (5–6)**: Likely drop unless it fills a gap (contrarian angle, composite narrative completion, sector bridge).
 - **Score below 5**: Drop regardless of coverage.
 
-Select **10–15 stories** from the top 20. Aim for breadth: ensure contrarian perspectives, composite narrative support, and cross-sector resonance are represented.
+Select **10–15 stories** from the top 20. Aim for breadth: ensure contrarian perspectives, composite narrative support, and cross-sector resonance are represented. When selecting the final 10-15, ensure at least one story originates from a non-US source (EU, UK or Ireland). If the pool contains European stories satisfying two or more news value triggers, prefer them over a second US story serving a similar editorial function.
 
 ## Published reference
 

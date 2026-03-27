@@ -20,16 +20,17 @@ The report follows this exact structure:
 1. **Title line**: `SNI: Week N`
 2. **Welcome line**: One sentence listing the sectors covered, with a spaced en dash before the week reference. Example: `Welcome to all the AI news that matters this week – across biopharma, medtech, complex manufacturing and insurance.`
 3. **tl;dr section**:
-   - Theme title: `tl;dr: [thematic phrase]` – a short phrase (3-7 words) that names the week's dominant pattern
-   - Two intro paragraphs (3-4 sentences each) establishing the theme and its significance across sectors
-   - Sector subheadings with bullet lists:
-     - `In AI & tech`
-     - `In Biopharma`
-     - `In Medtech`
-     - `In Manufacturing`
-     - `In Insurance`
-   - Each bullet: `- [Factual claim with source link](url), analytical consequence or significance`
-   - Aim for 3-7 bullets in AI & tech, 2-4 in each vertical sector. Skip a sector subheading if it has zero articles.
+   - Theme title: `## tl;dr: [thematic phrase]` – a short phrase (3-7 words) naming the week's dominant pattern
+   - **Narrative editorial prose** — 4-8 paragraphs developing the week's argument. NOT bullet points. NOT a list of things that happened.
+   - Each paragraph makes one move: introduces a claim, supports it with specific evidence (named companies, dollar figures, dates, data points), and draws a consequence. The paragraphs connect causally — each builds on or complicates the one before.
+   - Weave sector references naturally into the prose. Do not use sector subheadings within the tl;dr.
+   - Include inline markdown links to source articles: `[factual claim](url)`.
+   - After the prose, transition to compact sector bullet summaries with bold labels:
+     - `In AI & tech` / `Biopharma:` / `Medtech:` / `Advanced Manufacturing:` / `Insurance:`
+   - Each bullet: `- [Linked headline or factual claim](url) — one-line editorial context`
+   - The sector bullets capture stories NOT already mentioned in the tl;dr prose.
+   - Skip a sector label if it has zero additional stories beyond what the prose covers.
+   - Voice: read the tl;dr voice prompt (`config/prompts/tl-dr-voice.md`) for the editorial standard. This should read like an FT editorial column — analytical, specific, with a thesis that connects the week's events.
 4. **Transition line**: `And if you're still hungry for more, here's the detail on each:`
 5. **Body sections** in this fixed order:
    - `AI industry`
@@ -41,7 +42,17 @@ The report follows this exact structure:
    - Each story gets a linked heading: `[Story title](url)` – sentence case
    - Each story gets 1-3 paragraphs: facts first, then context, then significance
    - Exceptional stories (major market events, landmark deals) may get 3-4 paragraphs or a comparison table
-6. **Closing line**: `Thank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.`
+6. **Podcast section**: `## But what set podcast tongues a-wagging?`
+   - Do NOT recap individual episodes. Instead, identify cross-episode themes, surface tensions between perspectives, extract actionable insights, and name specific data points and quotes.
+   - Each sub-section uses an argumentative `### ` heading (not episode titles) and 1-2 paragraphs of editorial analysis.
+   - Inline podcast links mid-paragraph: `[host name on podcast name](episode-url)`.
+   - Mandatory: zero URL overlap with any story linked in the tl;dr or sector sections above. Check every URL.
+   - Read `config/prompts/podcast-commentary.md` for the full format specification.
+7. **Closing line**: `Thank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.`
+
+## Geographic balance
+
+The newsletter serves a global audience with particular concentration in Ireland, the EU and the UK. European stories are first-class editorial items, not footnotes. When framing stories, do not default to US geography — say 'American' when specifically American. European regulatory developments (EU AI Act, EIOPA, FCA, MHRA, Ireland's AI Bill) are as editorially significant as US ones. Include at least two non-US stories across the body sections. If a week genuinely has no strong European stories, note the gap rather than forcing inclusion.
 
 ## Formatting rules
 
