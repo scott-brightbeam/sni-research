@@ -129,6 +129,8 @@ STRUCTURE (mandatory — match exactly):
 4. Expanded analysis per sector (H2 per sector) — each article gets a paragraph making one claim with evidence and consequence.
 5. Podcast section (H2: "But what set podcast tongues a-wagging?") — 3-4 episodes with H3 titles, inline podcast links, and 1-2 paragraphs of editorial commentary. FRESH CONTENT ONLY — nothing duplicated from the sector sections above. Check every URL: if it appears in any sector bullet or expanded section, that story CANNOT appear in the podcast section.
 
+If any sector has zero articles this week, omit that sector's heading entirely — do not include an empty section or fabricate content. Same for the podcast section: if no podcast episodes were analysed this week, omit it.
+
 VOICE:
 - The tl;dr should read as editorial — someone thinking on paper, connecting themes causally, drawing consequences. Not a briefing document listing things that happened.
 - Every paragraph makes one move. Not five facts compressed into one paragraph.
