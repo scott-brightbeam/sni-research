@@ -26,5 +26,7 @@ Apply ALL writing style rules from the editorial context prompt. UK English, spa
 8. Read `data/editorial/drafts/critique-session-{N}.json`
 9. Synthesise the Gemini and GPT critique — identify the strongest points from each
 10. Generate a revised draft incorporating the critique
-11. Write to `data/editorial/drafts/draft-session-{N}-final.md`
-12. Report: sections written, word count, critique highlights, key changes in revision
+11. Run source-claim verification on the revised draft: for each factual claim, confirm the linked source article actually contains the stated information. Use `config/prompts/draft-source-verify.md`. Flag any UNVERIFIED claims with `[Editorial note: verify]`.
+12. Run the self-review checklist (`config/prompts/self-review.md`) on the revised draft. This catches any prohibited language, formatting violations or structural issues introduced during revision. The draft must pass self-review before finalising.
+13. Write to `data/editorial/drafts/draft-session-{N}-final.md`
+14. Report: sections written, word count, critique highlights, key changes in revision, source verification results (verified/unverified/no-source counts)
