@@ -6,7 +6,7 @@ description: Find and fetch original articles for story references extracted fro
 
 You are resolving story references from the editorial analysis pipeline. Each podcast transcript analysis produces a `stories-session-N.json` file containing news stories mentioned in the episode. Your job is to find the original articles, verify they match, fetch their content, and save them to the article corpus.
 
-**Every story mentioned in our key podcasts has wide coverage. There is no excuse for not finding them.**
+**Most stories from our key podcasts have wide coverage — exhaust all three search tiers before accepting failure. Some stories are podcast-specific anecdotes with no published source; mark those honestly.**
 
 ## Step 1: Find the latest story references
 
@@ -26,7 +26,7 @@ For each story where `url` is null, execute all three tiers before accepting fai
 - If no relevant results, proceed to Tier 2
 
 ### Tier 2 — Alternative search
-Try ALL of the following until one produces a match:
+Try the following sequentially — stop after the first match:
 - **Rephrase:** Search for key entities + event type (e.g. 'OpenAI Sora shutdown' instead of the full headline)
 - **Publication name:** If the transcript mentions the source ('The Guardian reported...', 'according to CNBC...'), search `"publication name" + key terms`
 - **Data point:** If the story contains a specific number ('$1 billion Disney partnership', '60% of hiring managers'), search for that exact figure
@@ -48,16 +48,18 @@ Also try for named authors: `"author name" [topic]`
 
 ## Step 3: Verification — mandatory for every resolved story
 
-After finding an article for a story reference, **dispatch a sub-agent** to verify the match:
+After finding an article for a story reference, **perform the following verification before saving**:
 
-1. Read the found article content
+1. Read the found article content (at least the title and first 500 chars)
 2. Compare it against the story reference's headline and detail
 3. Confirm the article actually covers the referenced story (not a tangentially related piece)
-4. Confirm the publication date is within ±7 days of the transcript date
-5. If verification **passes**: save the article and update the story reference
-6. If verification **fails**: return the story to the search queue with the agent's suggested correction terms and try again
+4. Confirm the publication date is within ±7 days of the transcript date. If dates are unavailable on either side, skip the date check.
+5. Rate the match:
+   - **MATCH**: article covers the referenced story — save it
+   - **PARTIAL**: article covers the topic but not the specific claim — save but note in the story ref
+   - **MISMATCH**: wrong article — re-search with corrected terms (max 2 re-search attempts per story)
 
-The verification agent should report: MATCH (proceed), PARTIAL (article covers the topic but not the specific claim — save but flag), or MISMATCH (wrong article — re-search).
+If a story fails verification twice, mark it as `url: "not-found"` with a note explaining what was tried.
 
 ## Step 4: Save verified articles
 
@@ -86,7 +88,15 @@ For each verified article:
 4. Create directories as needed: `mkdir -p data/verified/{date}/{sector}`
 5. Generate slug: lowercase title, replace non-alphanumeric with hyphens, truncate at 80 chars.
 
-Skip paywalled sites: bloomberg.com, ft.com, wsj.com, thetimes.co.uk, economist.com, hbr.org
+Skip paywalled sites: bloomberg.com, ft.com, wsj.com, thetimes.co.uk, economist.com, hbr.org, nytimes.com, telegraph.co.uk, theatlantic.com
+
+**Sector mapping:** Story references may use `"general-ai"` but the corpus directory is `"general"`. Map accordingly: `general-ai` → `general`, all others match directly.
+
+**Edge cases:**
+- Malformed JSON in stories file → log error, skip file
+- Empty `url` string → treat as unresolved (same as null)
+- No publication date available → skip date check, note in verification
+- `site:` operator may not work in WebSearch → use `"publication name" + key terms` as fallback
 
 ## Step 5: Mark genuinely unfindable stories
 
