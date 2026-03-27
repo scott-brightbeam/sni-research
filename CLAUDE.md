@@ -111,13 +111,12 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 | `com.sni.fetch.plist` | Daily 04:00 | launchd → Bun | Fetch articles (Brave + RSS), score (heuristic) |
 | `com.scott.podcast-pipeline.plist` | 22:00–06:00 (6 runs) | launchd → Python | Monitor podcast RSS, transcribe new episodes |
 | `podcast-import-daily` | Daily 07:00 | Claude Code | Import new podcast digests, update manifest |
-| `editorial-analyse-daily` | Daily 07:30 | Claude Code | Process one unprocessed transcript → state + stories file |
+| `editorial-analyse-daily` | Daily 07:30 | Claude Code | Process all unprocessed transcripts → state + stories file |
 | `editorial-discover` | Daily 09:00 | Claude Code | Three-tier WebSearch for podcast story references + verification |
-| `sector-gap-fill` | Daily 10:00 | Claude Code | Fill underserved sectors via WebSearch |
 | `editorial-headlines` | Daily 10:30 | Claude Code | Broad AI news sweep (US + EU + UK + Ireland), fill corpus gaps |
 | `editorial-wednesday-sweep` | Wednesday 20:00 | Claude Code | Final quality gate: story completeness, headline coverage, sector thresholds |
 | `pipeline-weekly-newsletter` | Thursday 14:00 | Claude Code | Generate newsletter: draft (Opus) → critique (Gemini + GPT) → revision |
-| `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch through report; skips discover) |
+| `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch → score → discover → report → draft). Note: discover stage uses GPT+Gemini (separate from the Claude Code discover at 09:00). May produce duplicate articles. |
 | ~~`com.sni.podcast-import.plist`~~ | ~~07:00~~ | ~~launchd~~ | **Disabled** — replaced by Claude Code `podcast-import-daily` |
 
 ### Daily flow (Mon–Wed)
@@ -127,21 +126,20 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 07:00        Podcast import (Claude Code)  — digests + manifest
 07:30        Editorial analyse             — transcript → state + stories-session-N.json
 09:00        Editorial discover            — three-tier search for podcast stories + verification
-10:00        Sector search                 — fill sector gaps
 10:30        Headlines                     — broad AI news sweep (US + EU + UK + Ireland)
 ```
 
 ### Thursday flow
 ```
 04:00        Brave fetch (launchd)
-13:00        Full pipeline (launchd)       — fetch + score
+13:00        Full pipeline (launchd)       — fetch → score → discover (GPT+Gemini) → report → draft
 14:00        Newsletter pipeline           — draft (Opus) → critique (Gemini + GPT) → revision
 ```
 
 ### Key design decisions (Week 13 post-mortem)
 - **DISCOVER uses three-tier search** with mandatory verification agent — primary search → rephrase → site-specific. Stories from key podcasts have wide coverage; there is no excuse for not finding them.
 - **Headlines skill** fills the gap between RSS/Brave (volume) and DISCOVER (podcast references) — asks "what are the week's biggest AI stories?" including Irish, EU and UK sources.
-- **The tl;dr is editor-written** from a brief, not pipeline-generated. The pipeline produces sector sections and a tl;dr brief (strongest themes, post ideas, data points, narrative threads). The editor writes the tl;dr and podcast sections.
+- **The tl;dr is editor-rewritten.** The pipeline generates a tl;dr draft, but it consistently requires editorial rewriting to achieve the right analytical voice. The pipeline's draft context now includes post backlog, theme cross-connections, and ranked analysis entries as editorial fuel. The editor rewrites the tl;dr and podcast sections from this material.
 - **Draft follows week 13 published structure** — welcome line → tl;dr editorial prose → sector bullets inline → expanded analysis → podcast commentary with zero URL overlap.
 - **Geographic balance is mandatory** — Irish, EU and UK stories are first-class content, not footnotes. The audience is global enterprise leaders.
 - **Date validation at write time** — every article must be within the newsletter window (Friday–Thursday). Reject anything outside.
@@ -151,7 +149,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 - **API server:** `bun --watch web/api/server.js` (port 3900)
 - **Vite dev server:** `cd web/app && bun run dev` (port 5173, proxies `/api` to 3900)
 - **Pipeline ingest server:** `bun scripts/server.js` (port 3847 — rarely needed for UI work)
-- **Tests:** `cd web/api && bun test` (68 tests, 279 assertions)
+- **Tests:** `cd web/api && bun test` (228 tests, 728 assertions)
 - **Build:** `cd web/app && bun run build` (check for 0 errors)
 - **Launch configs:** `.claude/launch.json` has `web-api` and `ingest-server`
 
