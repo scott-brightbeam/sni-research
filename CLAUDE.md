@@ -109,15 +109,42 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 | Job | Schedule | Runner | What |
 |-----|----------|--------|------|
 | `com.sni.fetch.plist` | Daily 04:00 | launchd → Bun | Fetch articles (Brave + RSS), score (heuristic) |
-| `com.scott.podcast-pipeline.plist` | 22:00, 23:00, 00:00, 02:00, 04:00, 06:00 | launchd → Python | Monitor podcast RSS, transcribe new episodes |
-| `podcast-import-daily` | Daily 07:00 | Claude Code scheduled task | Import new podcast digests |
-| `editorial-analyse-daily` | Daily 07:30 | Claude Code scheduled task | Process one unprocessed transcript |
-| `editorial-discover` | Daily 09:00 | Claude Code scheduled task | WebSearch for story references from latest analyse session |
-| `sector-gap-fill` | Daily 10:00 | Claude Code scheduled task | Fill underserved sectors via WebSearch |
-| `editorial-wednesday-sweep` | Wednesday 20:00 | Claude Code scheduled task | Final quality gate before Thursday newsletter |
-| `pipeline-weekly-newsletter` | Thursday 14:00 | Claude Code scheduled task | Generate weekly newsletter |
+| `com.scott.podcast-pipeline.plist` | 22:00–06:00 (6 runs) | launchd → Python | Monitor podcast RSS, transcribe new episodes |
+| `podcast-import-daily` | Daily 07:00 | Claude Code | Import new podcast digests, update manifest |
+| `editorial-analyse-daily` | Daily 07:30 | Claude Code | Process one unprocessed transcript → state + stories file |
+| `editorial-discover` | Daily 09:00 | Claude Code | Three-tier WebSearch for podcast story references + verification |
+| `sector-gap-fill` | Daily 10:00 | Claude Code | Fill underserved sectors via WebSearch |
+| `editorial-headlines` | Daily 10:30 | Claude Code | Broad AI news sweep (US + EU + UK + Ireland), fill corpus gaps |
+| `editorial-wednesday-sweep` | Wednesday 20:00 | Claude Code | Final quality gate: story completeness, headline coverage, sector thresholds |
+| `pipeline-weekly-newsletter` | Thursday 14:00 | Claude Code | Generate newsletter: draft (Opus) → critique (Gemini + GPT) → revision |
 | `com.sni.pipeline.plist` | Thursday 13:00 | launchd → Bun | Full pipeline (fetch through report; skips discover) |
 | ~~`com.sni.podcast-import.plist`~~ | ~~07:00~~ | ~~launchd~~ | **Disabled** — replaced by Claude Code `podcast-import-daily` |
+
+### Daily flow (Mon–Wed)
+```
+22:00–06:00  Podcast pipeline (launchd)    — detect episodes, transcribe
+04:00        Brave fetch (launchd)         — 312 queries, volume sweep
+07:00        Podcast import (Claude Code)  — digests + manifest
+07:30        Editorial analyse             — transcript → state + stories-session-N.json
+09:00        Editorial discover            — three-tier search for podcast stories + verification
+10:00        Sector search                 — fill sector gaps
+10:30        Headlines                     — broad AI news sweep (US + EU + UK + Ireland)
+```
+
+### Thursday flow
+```
+04:00        Brave fetch (launchd)
+13:00        Full pipeline (launchd)       — fetch + score
+14:00        Newsletter pipeline           — draft (Opus) → critique (Gemini + GPT) → revision
+```
+
+### Key design decisions (Week 13 post-mortem)
+- **DISCOVER uses three-tier search** with mandatory verification agent — primary search → rephrase → site-specific. Stories from key podcasts have wide coverage; there is no excuse for not finding them.
+- **Headlines skill** fills the gap between RSS/Brave (volume) and DISCOVER (podcast references) — asks "what are the week's biggest AI stories?" including Irish, EU and UK sources.
+- **The tl;dr is editor-written** from a brief, not pipeline-generated. The pipeline produces sector sections and a tl;dr brief (strongest themes, post ideas, data points, narrative threads). The editor writes the tl;dr and podcast sections.
+- **Draft follows week 13 published structure** — welcome line → tl;dr editorial prose → sector bullets inline → expanded analysis → podcast commentary with zero URL overlap.
+- **Geographic balance is mandatory** — Irish, EU and UK stories are first-class content, not footnotes. The audience is global enterprise leaders.
+- **Date validation at write time** — every article must be within the newsletter window (Friday–Thursday). Reject anything outside.
 
 ## How to run
 

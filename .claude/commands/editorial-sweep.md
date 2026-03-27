@@ -47,16 +47,23 @@ Wednesday evening quality sweep — verify all editorial state is complete befor
 8. **Story reference completeness:**
    - Scan all `data/editorial/stories-session-*.json` from this week
    - Count entries where `url` is null vs resolved vs 'not-found'
-   - For any still null, use WebSearch to find them (same process as /editorial-discover)
+   - For any still null, use the three-tier search from /editorial-discover (primary search → alternative rephrase → direct publication search) with mandatory verification agent
+   - **Every podcast story should have been found by this point.** If stories remain null after three tiers, list them with the search terms that failed so the editor can decide whether to search manually
 
-9. **Sector coverage vs weekly threshold:**
+9. **Major headline coverage check:**
+   - Run /editorial-headlines queries for the current week
+   - Check whether the week's biggest AI stories are in `data/verified/`
+   - Add any significant missing stories (with date window verification)
+   - Include Irish, EU and UK queries alongside US queries
+
+11. **Sector coverage vs weekly threshold:**
    - Count articles per sector for the current week from `data/verified/`
    - Thresholds: general 70 (warn below 50), verticals 21 each (warn below 14)
    - For sectors below warning threshold, run 3-5 WebSearch queries to fill gaps (same process as /editorial-sector-search)
 
-10. If any issues were found and fixed, save state.json with the write-validate-swap pattern (backup first).
+12. If any issues were found and fixed, save state.json with the write-validate-swap pattern (backup first).
 
-11. **Write sweep report** to `data/editorial/sweep-report-{date}.json` including all checks above plus:
+13. **Write sweep report** to `data/editorial/sweep-report-{date}.json` including all checks above plus:
     - `storyRefs: { total, resolved, notFound, stillNull, fixedThisSweep }`
     - `sectorCoverage: { general: N, insurance: N, biopharma: N, medtech: N, manufacturing: N }`
     - `articlesAddedBySweep: N`

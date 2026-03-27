@@ -120,16 +120,34 @@ Number new posts sequentially from the provided nextPost counter.
 Maintain the analytical lens described in the editorial prompt. Filter everything through:
 what does this mean for organisations adopting AI in regulated industries?`,
 
-    draft: `You are operating in DRAFT mode. Produce a complete newsletter draft.
+    draft: `You are operating in DRAFT mode. Produce a complete newsletter draft for Sector News Intelligence (SNI).
 
-The newsletter is Second Nature Intelligence (SNI), published weekly on LinkedIn.
-Structure: tl;dr introduction → AI & tech → Biopharma → Medtech → Manufacturing → Insurance → Podcast analysis section.
+STRUCTURE (mandatory — match exactly):
+1. Welcome line (one sentence)
+2. tl;dr (H2) — 5-6 paragraphs of editorial prose with causal reasoning. NOT bullet points. Each paragraph develops ONE argument with specific evidence.
+3. Sector bullets embedded in flow — "In AI & tech:" then linked bullet headlines, "In Biopharma:" then linked bullets, "In Medtech:", "In Manufacturing:", "In Insurance:" — bold labels within normal text, not separate H2 sections. Each bullet: [linked headline](url) — one line of editorial context.
+4. Expanded analysis per sector (H2 per sector) — each article gets a paragraph making one claim with evidence and consequence.
+5. Podcast section (H2: "But what set podcast tongues a-wagging?") — 3-4 episodes with H3 titles, inline podcast links, and 1-2 paragraphs of editorial commentary. FRESH CONTENT ONLY — nothing duplicated from the sector sections above. Check every URL: if it appears in any sector bullet or expanded section, that story CANNOT appear in the podcast section.
 
-The introduction identifies the week's through-line by synthesising across all sections.
-The podcast section reads as analytical synthesis with cross-episode themes — not episode recaps.
+VOICE:
+- The tl;dr should read as editorial — someone thinking on paper, connecting themes causally, drawing consequences. Not a briefing document listing things that happened.
+- Every paragraph makes one move. Not five facts compressed into one paragraph.
+- UK English throughout. Single quotes. Spaced en-dashes. No Oxford commas.
+- No prohibited language (see editorial prompt for full list).
 
-Apply all writing style rules from the editorial prompt. UK English throughout.
-Evidence before labels. Descriptive not prescriptive. No prohibited structures.`,
+EDITORIAL STATE:
+- The HIGH-PRIORITY POST IDEAS section contains the strongest editorial angles identified from podcast analysis this week. Use these as fuel for the tl;dr — they represent the analytical thinking already done.
+- The THEME CROSS-CONNECTIONS section shows how themes relate. Use these to build narrative threads in the tl;dr rather than listing unrelated stories.
+- The ACTIVE THEMES section shows the evolving analytical framework. The newsletter should reflect these patterns, not just this week's headlines.
+
+GEOGRAPHIC BALANCE:
+- Include Irish, EU and UK stories alongside US stories. The audience is global enterprise leaders.
+- Do not default to US framing. Say 'American' when specifically American.
+- European regulatory developments (EU AI Act, EIOPA, FCA, MHRA, Ireland's AI Bill) are first-class stories, not footnotes.
+
+DATE VALIDATION:
+- Every linked article MUST have a publication date within the newsletter window (Friday to Thursday).
+- If you are unsure of a date, do not include the article.`,
 
     chat: `You are the contextual editorial assistant for the SNI editorial workbench.
 You have access to the editorial state documents and can help with:
@@ -258,13 +276,41 @@ export function buildDraftContext(week, opts = {}) {
   const themeMd = renderSection(state, 'themeRegistry', { active: true })
   sections.push({ label: 'ACTIVE THEMES', content: trimToTokenBudget(themeMd, b.themeRegistry) })
 
-  // 3. This week's analysis index entries
+  // 3. This week's analysis index entries (ranked by post potential)
   const currentSession = counters.nextSession - 1
-  const analysisMd = Object.entries(state.analysisIndex || {})
-    .filter(([, e]) => e.session >= currentSession - 1 && e.status === 'active')
-    .map(([id, e]) => renderAnalysisEntry(id, e))
-    .join('\n\n')
-  sections.push({ label: 'THIS WEEK\'S ANALYSIS', content: trimToTokenBudget(analysisMd, b.analysisIndex) })
+  const potentialRank = { 'very-high': 5, 'high': 4, 'medium-high': 3, 'medium': 2, 'low': 1, 'none': 0 }
+  const weekEntries = Object.entries(state.analysisIndex || {})
+    .filter(([, e]) => e.session >= currentSession - 3 && e.status === 'active')
+    .sort(([, a], [, b]) => (potentialRank[b.postPotential] || 0) - (potentialRank[a.postPotential] || 0))
+  const analysisMd = weekEntries.map(([id, e]) => renderAnalysisEntry(id, e)).join('\n\n')
+  sections.push({ label: 'THIS WEEK\'S ANALYSIS (by editorial potential)', content: trimToTokenBudget(analysisMd, b.analysisIndex) })
+
+  // 3b. High-priority post backlog items (editorial fuel for the tl;dr brief)
+  const activePosts = Object.entries(state.postBacklog || {})
+    .filter(([, p]) => p.status === 'suggested' || p.status === 'approved')
+    .sort(([, a], [, b]) => {
+      const pr = { 'immediate': 4, 'high': 3, 'medium-high': 2, 'medium': 1 }
+      return (pr[b.priority] || 0) - (pr[a.priority] || 0)
+    })
+    .slice(0, 15)
+  if (activePosts.length > 0) {
+    const postMd = activePosts.map(([id, p]) =>
+      `#${id} [${p.priority}] ${p.title}\n  Argument: ${p.coreArgument || ''}\n  Format: ${p.format || '?'} | Sources: ${(p.sourceDocuments || []).join(', ')}`
+    ).join('\n\n')
+    sections.push({ label: 'HIGH-PRIORITY POST IDEAS (editorial fuel)', content: trimToTokenBudget(postMd, 3000) })
+  }
+
+  // 3c. Theme cross-connections (narrative threads for the tl;dr)
+  const connections = []
+  for (const [code, theme] of Object.entries(state.themeRegistry || {})) {
+    if (theme.archived) continue
+    for (const cc of (theme.crossConnections || [])) {
+      connections.push(`${code} ↔ ${cc.theme || cc.toTheme}: ${cc.reasoning || ''}`)
+    }
+  }
+  if (connections.length > 0) {
+    sections.push({ label: 'THEME CROSS-CONNECTIONS (narrative threads)', content: trimToTokenBudget(connections.join('\n'), 2000) })
+  }
 
   // 4. Sector articles (if available)
   if (opts.sectorArticlesDir && existsSync(opts.sectorArticlesDir)) {
