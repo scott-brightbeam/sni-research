@@ -27,7 +27,20 @@ Follow the `/editorial-draft` skill instructions:
 - Generate draft with all six sections
 - Write to `data/editorial/drafts/draft-session-{N}-v1.md`
 
-### 4. Run external critique
+### 4. Pre-critique structural verification
+
+Before spending API tokens on critique, verify the draft meets minimum structural requirements. Read `data/editorial/drafts/draft-session-{N}-v1.md` and check:
+
+1. **tl;dr is prose, not bullets** — the section after `## tl;dr:` must be paragraphs, not a bulleted list. If it's bullets, stop and regenerate.
+2. **All five sector labels present** — `In AI & tech`, `Biopharma:`, `Medtech:`, `Advanced Manufacturing:`, `Insurance:` (skip any sector with zero stories)
+3. **Podcast section exists** — `## But what set podcast tongues a-wagging?` with at least 2 sub-sections
+4. **Podcast URLs don't duplicate sector URLs** — extract all markdown links from both sections, check for overlap. If any URL appears in both, flag it.
+5. **Geographic balance** — at least 2 stories from non-US sources across all sections. If missing, flag for the editor.
+6. **Word count** — tl;dr should be 400-800 words. Total draft 2,500-4,000 words. Flag if outside range.
+
+If checks 1-3 fail, regenerate the draft before proceeding. If checks 4-6 fail, note the issues but proceed — the critique can address them.
+
+### 5. Run external critique
 
 `bun scripts/editorial-draft.js --critique-only --session {N}`
 This runs Gemini + GPT critique pair (no Anthropic needed).
