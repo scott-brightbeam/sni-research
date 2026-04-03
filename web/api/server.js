@@ -63,8 +63,10 @@ app.use('*', async (c, next) => {
 })
 
 // --- Middleware: CORS ---
+// In production with same-origin serving, CORS_ORIGIN is empty — use request origin.
+// In dev, CORS_ORIGIN is 'http://localhost:5173' (Vite proxy).
 app.use('*', cors({
-  origin: config.CORS_ORIGIN,
+  origin: config.CORS_ORIGIN || ((origin) => origin),
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type'],
   credentials: true,
@@ -267,13 +269,10 @@ app.post('/api/subscriptions/fetch', async (c) => {
   return c.json(triggerFetch(body))
 })
 
-// --- API 404 catch-all (before static file handler) ---
+// --- API 404 catch-all ---
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404))
 
-// --- 404 for everything else (dev mode, or non-static paths in prod) ---
-app.notFound((c) => c.json({ error: 'Not found' }, 404))
-
-// --- Static files in production ---
+// --- Static files in production (must be AFTER API routes, BEFORE notFound) ---
 if (config.isProduction) {
   const { serveStatic } = await import('hono/bun')
   const distDir = resolve(import.meta.dir, '../app/dist')
@@ -284,6 +283,9 @@ if (config.isProduction) {
     return c.html(html)
   })
 }
+
+// --- 404 for everything else (dev mode, or non-static paths in prod) ---
+app.notFound((c) => c.json({ error: 'Not found' }, 404))
 
 // --- Start server ---
 const server = Bun.serve({

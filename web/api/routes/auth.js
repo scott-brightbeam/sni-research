@@ -103,6 +103,7 @@ export async function callback(c) {
     picture: payload.picture,
   })
     .setProtectedHeader({ alg: 'HS256' })
+    .setIssuer('sni-research')
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
     .sign(secret)

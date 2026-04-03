@@ -1,4 +1,15 @@
 FROM oven/bun:1.3.9-alpine AS base
+
+# --- Stage 1: Build frontend ---
+FROM base AS frontend-build
+WORKDIR /build
+COPY web/app/package.json web/app/bun.lock* ./web/app/
+RUN cd web/app && bun install --frozen-lockfile
+COPY web/app/ ./web/app/
+RUN cd web/app && bun run build
+
+# --- Stage 2: Production image ---
+FROM base AS production
 WORKDIR /app
 
 # Install API dependencies
@@ -8,11 +19,8 @@ RUN cd web/api && bun install --frozen-lockfile --production
 # Copy API code
 COPY web/api/ ./web/api/
 
-# Copy script libraries used by API routes (draft-parser, dedup originals kept for reference)
-# The API now uses its own copies in web/api/lib/
-
-# Copy pre-built frontend (built locally or in CI)
-COPY web/app/dist/ ./web/app/dist/
+# Copy built frontend from stage 1
+COPY --from=frontend-build /build/web/app/dist/ ./web/app/dist/
 
 # Copy config (read-only in cloud)
 COPY config/ ./config/

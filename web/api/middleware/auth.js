@@ -17,7 +17,7 @@ export async function authMiddleware(c, next) {
   const path = c.req.path
 
   // Skip auth for public paths and static files
-  if (PUBLIC_PATHS.some(p => path.startsWith(p)) || !path.startsWith('/api/')) {
+  if (PUBLIC_PATHS.includes(path) || !path.startsWith('/api/')) {
     return next()
   }
 
@@ -34,7 +34,7 @@ export async function authMiddleware(c, next) {
 
   try {
     const secret = new TextEncoder().encode(config.SESSION_SECRET)
-    const { payload } = await jwtVerify(match[1], secret)
+    const { payload } = await jwtVerify(match[1], secret, { issuer: 'sni-research' })
 
     // Check domain if configured
     if (config.AUTH_DOMAIN && !payload.sub.endsWith(`@${config.AUTH_DOMAIN}`)) {
@@ -46,8 +46,20 @@ export async function authMiddleware(c, next) {
     // CSRF protection for mutating requests in production
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method) && config.isProduction) {
       const origin = c.req.header('origin')
-      if (origin && !origin.startsWith(config.CORS_ORIGIN)) {
-        return c.json({ error: 'Invalid origin' }, 403)
+      const referer = c.req.header('referer')
+      const fetchMode = c.req.header('sec-fetch-mode')
+      // Browser requests always send Sec-Fetch-Mode; its presence means this is
+      // a browser request that must have a valid Origin or Referer.
+      if (fetchMode) {
+        if (!origin && !referer) {
+          return c.json({ error: 'Missing origin' }, 403)
+        }
+        const check = origin || referer
+        // For same-origin production (empty CORS_ORIGIN), verify the request
+        // comes from the same host. For cross-origin dev, check CORS_ORIGIN.
+        if (config.CORS_ORIGIN && !check.startsWith(config.CORS_ORIGIN)) {
+          return c.json({ error: 'Invalid origin' }, 403)
+        }
       }
     }
 

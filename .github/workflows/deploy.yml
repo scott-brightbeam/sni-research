@@ -16,15 +16,11 @@ jobs:
         env:
           SNI_TEST_MODE: '1'
 
-  build-and-deploy:
+  deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.3.9'
-      - run: cd web/app && bun install && bun run build
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - run: flyctl deploy --remote-only
         env:
