@@ -1,0 +1,30 @@
+app = "sni-research"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3900"
+  SNI_PIPELINE_ENABLED = "false"
+
+[http_service]
+  internal_port = 3900
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "sni_data"
+  destination = "/app/data"
+  initial_size = "3gb"
+
+[checks]
+  [checks.health]
+    port = 3900
+    type = "http"
+    interval = "15s"
+    timeout = "5s"
+    path = "/api/health"

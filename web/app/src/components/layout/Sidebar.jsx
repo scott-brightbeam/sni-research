@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import './Sidebar.css'
 
 const NAV_ITEMS = [
@@ -22,6 +23,8 @@ const ICONS = {
 
 // editorialStatus and notificationCount are wired in Phase E2 via useEditorialStatus/useNotifications hooks
 export default function Sidebar({ status, editorialStatus = null, notificationCount = 0 }) {
+  const { user, logout } = useAuth()
+
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
@@ -47,6 +50,13 @@ export default function Sidebar({ status, editorialStatus = null, notificationCo
       </div>
 
       <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-user">
+            {user.picture && <img src={user.picture} alt="" className="user-avatar" />}
+            <span className="user-name">{user.name || user.email}</span>
+            <button onClick={logout} className="logout-btn">Sign out</button>
+          </div>
+        )}
         <div className="sidebar-status-item">
           <span className="status-dot status-ok" />
           <span className="status-text">

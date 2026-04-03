@@ -1,9 +1,10 @@
-import { readdirSync, readFileSync, existsSync } from 'fs'
-import { join, resolve } from 'path'
+import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
+import { join } from 'path'
 import { walkArticleDir } from '../lib/walk.js'
 import { getISOWeek } from '../lib/week.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 
 export async function getStatus() {
   const lastFullRunAt = getLastFullRunAt()
@@ -97,6 +98,11 @@ function getArticleCounts(fullRunCutoff) {
   const weekByDateBySector = {}
   let weekTotal = 0
 
+  // Count articles added (scraped) today, not published today
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  let addedToday = 0
+
   walkArticleDir('verified', (raw, { date, sector }) => {
     // All-time counts
     byDate[date] = (byDate[date] || 0) + 1
@@ -104,6 +110,11 @@ function getArticleCounts(fullRunCutoff) {
     if (!byDateBySector[date]) byDateBySector[date] = {}
     byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
     total++
+
+    // Articles added today: scraped_at starts with today's date
+    if (raw.scraped_at && raw.scraped_at.startsWith(today)) {
+      addedToday++
+    }
 
     // Week counts: only articles scraped after last full pipeline run
     if (fullRunCutoff && raw.scraped_at && raw.scraped_at > fullRunCutoff) {
@@ -115,9 +126,8 @@ function getArticleCounts(fullRunCutoff) {
     }
   })
 
-  const today = new Date().toISOString().split('T')[0]
   return {
-    today: byDate[today] || 0,
+    today: addedToday,
     total,
     byDate,
     bySector,
@@ -200,56 +210,81 @@ function getRecentErrors() {
   return errors.slice(-20)
 }
 
-function getPodcastImport() {
-  const runsDir = join(ROOT, 'output/runs')
-  if (!existsSync(runsDir)) return null
+export function getPodcastImport() {
+  const podcastDir = join(ROOT, 'data/podcasts')
+  if (!existsSync(podcastDir)) return null
 
-  const files = readdirSync(runsDir)
-    .filter(f => f.startsWith('podcast-import-') && f.endsWith('.json'))
-    .sort()
-
-  if (files.length === 0) return null
-
-  const lastFile = files[files.length - 1]
+  // Count episodes this week by scanning date directories directly
+  // (more robust than relying on manifest.json which can get corrupted)
+  const now = new Date()
+  const currentWeek = getISOWeek(now)
+  const currentYear = now.getFullYear()
+  let episodesThisWeek = 0
+  let latestDigestTime = null
 
   try {
-    const data = JSON.parse(readFileSync(join(runsDir, lastFile), 'utf-8'))
+    const dirs = readdirSync(podcastDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    for (const dateDir of dirs) {
+      const d = new Date(dateDir + 'T12:00:00Z')
+      if (isNaN(d.getTime())) continue
+      const isThisWeek = getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
 
-    // Count episodes for current week from manifest
-    let episodesThisWeek = 0
-    const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-    const manifestBakPath = join(ROOT, 'data/podcasts/manifest.json.bak')
-
-    // Try manifest.json, then .bak fallback
-    let manifestFile = null
-    if (existsSync(manifestPath)) manifestFile = manifestPath
-    else if (existsSync(manifestBakPath)) manifestFile = manifestBakPath
-
-    if (manifestFile) {
+      // Scan for .digest.json files in source subdirectories
+      const datePath = join(podcastDir, dateDir)
       try {
-        const manifest = JSON.parse(readFileSync(manifestFile, 'utf-8'))
-        const now = new Date()
-        const currentWeek = getISOWeek(now)
-        const currentYear = now.getFullYear()
-
-        // Manifest is a dict keyed by filename — extract values
-        const episodes = Array.isArray(manifest) ? manifest : Object.values(manifest)
-        episodesThisWeek = episodes.filter(ep => {
-          const dateStr = ep.date || ep.date_published
-          if (!dateStr) return false
-          const d = new Date(dateStr + 'T12:00:00Z')
-          return getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
-        }).length
-      } catch { /* ignore manifest parse errors */ }
+        const sources = readdirSync(datePath)
+        for (const source of sources) {
+          const sourcePath = join(datePath, source)
+          try {
+            const files = readdirSync(sourcePath)
+            const digests = files.filter(f => f.endsWith('.digest.json'))
+            if (isThisWeek) episodesThisWeek += digests.length
+          } catch { /* not a directory, skip */ }
+        }
+      } catch { /* skip */ }
     }
 
-    return {
-      lastRun: data.completedAt || data.startedAt || null,
-      episodesThisWeek,
-      storiesGapFilled: data.storiesGapFilled ?? data.stories_gap_filled ?? 0,
-      warnings: data.warnings || [],
+    // Find last import time from most recently modified date directory
+    const sortedDirs = dirs.sort().reverse()
+    for (const dateDir of sortedDirs) {
+      const datePath = join(podcastDir, dateDir)
+      try {
+        const stat = statSync(datePath)
+        latestDigestTime = stat.mtime.toISOString()
+        break
+      } catch { /* skip */ }
     }
-  } catch {
-    return null
+  } catch { /* ignore read errors */ }
+
+  // Also check run files for storiesGapFilled and warnings
+  let storiesGapFilled = 0
+  let warnings = []
+  const runsDir = join(ROOT, 'output/runs')
+  if (existsSync(runsDir)) {
+    const runFiles = readdirSync(runsDir)
+      .filter(f => f.startsWith('podcast-import-') && f.endsWith('.json'))
+      .sort()
+
+    if (runFiles.length > 0) {
+      try {
+        const data = JSON.parse(readFileSync(join(runsDir, runFiles[runFiles.length - 1]), 'utf-8'))
+        storiesGapFilled = data.storiesGapFilled ?? data.stories_gap_filled ?? 0
+        warnings = data.warnings || []
+        // Use run file timestamp if newer
+        const runTime = data.completedAt || data.startedAt
+        if (runTime && (!latestDigestTime || runTime > latestDigestTime)) {
+          latestDigestTime = runTime
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  if (episodesThisWeek === 0 && !latestDigestTime) return null
+
+  return {
+    lastRun: latestDigestTime,
+    episodesThisWeek,
+    storiesGapFilled,
+    warnings,
   }
 }

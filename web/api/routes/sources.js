@@ -1,8 +1,9 @@
 import { readFileSync, readdirSync, existsSync } from 'fs'
 import { join } from 'path'
+import config from '../lib/config.js'
 
-const DATA_DIR = join(import.meta.dir, '../../../data')
-const RUNS_DIR = join(import.meta.dir, '../../../output/runs')
+const DATA_DIR = join(config.ROOT, 'data')
+const RUNS_DIR = join(config.ROOT, 'output/runs')
 
 export async function getOverview() {
   const runs = loadAllRuns()

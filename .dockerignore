@@ -1,0 +1,17 @@
+data/
+logs/
+output/
+node_modules/
+.git/
+.env
+*.lock
+*.tmp
+*.bak
+web/app/node_modules/
+web/app/src/
+docs/
+*.plist
+.claude/
+DATA_LAYER_AUDIT.md
+SNI-Prompt-System-Evaluation-Part2.docx
+SNI-Prompt-System-Evaluation-Report.docx

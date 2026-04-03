@@ -6,10 +6,11 @@
  */
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { estimateTokens } from './context.js'
+import config from './config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const TRANSCRIPT_DIR = process.env.HOME
   ? join(process.env.HOME, 'Desktop/Podcast Transcripts')
   : null  // callers must guard — no hardcoded fallback

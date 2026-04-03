@@ -1,9 +1,10 @@
 import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, renameSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import yaml from 'js-yaml'
 import { validateOffLimits, validateSources, validateSectors } from '../lib/config-validator.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 
 const CONFIGS = {
   'off-limits': { file: 'off-limits.yaml', validate: validateOffLimits },

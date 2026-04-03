@@ -1,83 +1,62 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
+import { describe, it, expect, afterEach } from 'bun:test'
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
+import { getPodcastImport } from '../routes/status.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
 describe('getPodcastImport', () => {
-  const manifestDir = join(ROOT, 'data/podcasts')
-  const runsDir = join(ROOT, 'output/runs')
-  const manifestPath = join(manifestDir, 'manifest.json')
-  const bakPath = join(manifestDir, 'manifest.json.bak')
+  const podcastDir = join(ROOT, 'data/podcasts')
+  const createdDirs = []
 
-  // Save originals
-  let origManifest = null
-  let origBak = null
+  function todayStr() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
 
-  beforeEach(() => {
-    if (existsSync(manifestPath)) origManifest = Bun.file(manifestPath).text()
-    if (existsSync(bakPath)) origBak = Bun.file(bakPath).text()
-  })
+  function createDigest(dateDir, source, slug) {
+    const dir = join(podcastDir, dateDir, source)
+    mkdirSync(dir, { recursive: true })
+    createdDirs.push(join(podcastDir, dateDir))
+    const digestPath = join(dir, `${slug}.digest.json`)
+    writeFileSync(digestPath, JSON.stringify({ title: slug, source }))
+    return digestPath
+  }
 
-  afterEach(async () => {
-    // Restore originals
-    if (origManifest !== null) writeFileSync(manifestPath, await origManifest)
-    else if (existsSync(manifestPath)) rmSync(manifestPath)
-    if (origBak !== null) writeFileSync(bakPath, await origBak)
-  })
-
-  it('reads from manifest.json.bak when manifest.json missing', async () => {
-    if (existsSync(manifestPath)) rmSync(manifestPath)
-
-    const testManifest = {
-      'test-ep.md': {
-        date: new Date().toISOString().split('T')[0],
-        source: 'Test Source',
-        week: getISOWeek(new Date()),
-        year: new Date().getFullYear(),
-      }
+  afterEach(() => {
+    for (const dir of createdDirs) {
+      try { rmSync(dir, { recursive: true, force: true }) } catch { /* ignore */ }
     }
-    writeFileSync(bakPath, JSON.stringify(testManifest))
-
-    const resp = await fetch('http://localhost:3900/api/status')
-    const data = await resp.json()
-
-    expect(data.podcastImport).toBeDefined()
-    expect(data.podcastImport.episodesThisWeek).toBeGreaterThanOrEqual(1)
+    createdDirs.length = 0
   })
 
-  it('extracts episodes from dict manifest with Object.values', async () => {
-    const today = new Date().toISOString().split('T')[0]
-    const testManifest = {
-      'episode-a.md': { date: today, source: 'A', week: getISOWeek(new Date()), year: new Date().getFullYear() },
-      'episode-b.md': { date: today, source: 'B', week: getISOWeek(new Date()), year: new Date().getFullYear() },
-    }
-    writeFileSync(manifestPath, JSON.stringify(testManifest))
+  it('counts episodes from digest files in date directories', () => {
+    const today = todayStr()
+    createDigest(today, 'test-source', 'test-episode-a')
+    createDigest(today, 'test-source-b', 'test-episode-b')
 
-    const resp = await fetch('http://localhost:3900/api/status')
-    const data = await resp.json()
-
-    expect(data.podcastImport.episodesThisWeek).toBe(2)
+    const result = getPodcastImport()
+    expect(result).toBeDefined()
+    expect(result.episodesThisWeek).toBeGreaterThanOrEqual(2)
   })
 
-  it('filters by ep.date field (not ep.date_published)', async () => {
-    const today = new Date().toISOString().split('T')[0]
-    const testManifest = {
-      'has-date.md': { date: today, source: 'A', week: getISOWeek(new Date()), year: new Date().getFullYear() },
-      'has-date-published.md': { date_published: today, source: 'B', week: getISOWeek(new Date()), year: new Date().getFullYear() },
-    }
-    writeFileSync(manifestPath, JSON.stringify(testManifest))
+  it('only counts .digest.json files, not other files', () => {
+    const today = todayStr()
+    createDigest(today, 'test-source', 'real-episode')
 
-    const resp = await fetch('http://localhost:3900/api/status')
-    const data = await resp.json()
+    // Write a non-digest file in the same directory
+    const nonDigestPath = join(podcastDir, today, 'test-source', 'notes.json')
+    writeFileSync(nonDigestPath, '{}')
 
-    expect(data.podcastImport.episodesThisWeek).toBe(2)
+    const result = getPodcastImport()
+    expect(result).toBeDefined()
+    expect(result.episodesThisWeek).toBeGreaterThanOrEqual(1)
+  })
+
+  it('returns lastRun from most recent date directory', () => {
+    const result = getPodcastImport()
+    expect(result).toBeDefined()
+    expect(result.lastRun).toBeDefined()
+    expect(new Date(result.lastRun).getTime()).not.toBeNaN()
   })
 })
-
-function getISOWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
-}

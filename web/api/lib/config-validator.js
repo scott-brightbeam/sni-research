@@ -17,11 +17,12 @@ export function validateOffLimits(data) {
       throw validationError(`"${key}" must be an array`)
     }
     for (const entry of value) {
-      if (!entry.company || typeof entry.company !== 'string') {
-        throw validationError(`Each entry in "${key}" must have a "company" string`)
-      }
-      if (!entry.topic || typeof entry.topic !== 'string') {
-        throw validationError(`Each entry in "${key}" must have a "topic" string`)
+      // Two valid formats: { company, topic } or { url } (auto-extracted exclusions)
+      const hasCompanyTopic = entry.company && typeof entry.company === 'string'
+        && entry.topic && typeof entry.topic === 'string'
+      const hasUrl = entry.url && typeof entry.url === 'string'
+      if (!hasCompanyTopic && !hasUrl) {
+        throw validationError(`Each entry in "${key}" must have either { company, topic } or { url }`)
       }
     }
   }

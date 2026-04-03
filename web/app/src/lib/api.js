@@ -1,8 +1,22 @@
+// Guard against multiple simultaneous 401 redirects from polling hooks
+let _authRedirecting = false
+
 export async function apiFetch(path, opts = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     ...opts
   })
+  if (res.status === 401 && !path.startsWith('/api/auth/')) {
+    if (!_authRedirecting) {
+      _authRedirecting = true
+      window.location.href = '/login'
+    }
+    const err = new Error('Session expired')
+    err.status = 401
+    err._authRedirect = true
+    throw err
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }))
     const err = new Error(body.error || `API ${res.status}`)
@@ -20,6 +34,7 @@ export async function apiStream(path, body, signal) {
   const res = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(body),
     signal,
   })

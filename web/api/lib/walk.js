@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
-import { join, resolve, basename } from 'path'
+import { join, basename } from 'path'
+import config from './config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const SAFE_PARAM = /^[\w-]+$/
 
 export function validateParam(value, name) {

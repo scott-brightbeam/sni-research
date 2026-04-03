@@ -1,23 +1,42 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, appendFileSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getClient } from '../lib/claude.js'
 import { assembleContext, estimateTokens } from '../lib/context.js'
 import { estimateCost, formatCost, DEFAULT_MODEL, MODELS } from '../lib/pricing.js'
 import { getISOWeek } from '../lib/week.js'
 import { listPublished, getPublished } from './published.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const COPILOT_DIR = join(ROOT, 'data/copilot')
-const DAILY_TOKEN_CEILING = 500_000
+const DAILY_TOKEN_CEILING = config.TOKEN_CEILING
 
-// In-memory daily usage counter (resets on server restart)
-let _dailyUsage = { date: '', inputTokens: 0, outputTokens: 0 }
+const DAILY_USAGE_PATH = join(COPILOT_DIR, 'daily-usage.json')
+
+// Persist daily usage to disk so it survives server restarts
+function loadDailyUsage() {
+  if (!existsSync(DAILY_USAGE_PATH)) return { date: '', inputTokens: 0, outputTokens: 0 }
+  try {
+    return JSON.parse(readFileSync(DAILY_USAGE_PATH, 'utf-8'))
+  } catch { return { date: '', inputTokens: 0, outputTokens: 0 } }
+}
+
+let _dailyUsage = loadDailyUsage()
 
 function today() { return new Date().toISOString().slice(0, 10) }
 
 function resetDailyIfNeeded() {
   if (_dailyUsage.date !== today()) {
     _dailyUsage = { date: today(), inputTokens: 0, outputTokens: 0 }
+  }
+}
+
+function persistDailyUsage() {
+  try {
+    ensureDir(COPILOT_DIR)
+    writeFileSync(DAILY_USAGE_PATH, JSON.stringify(_dailyUsage))
+  } catch (err) {
+    console.error('[chat] Failed to persist daily usage:', err.message)
   }
 }
 
@@ -46,6 +65,18 @@ function writeThreadIndex(week, threads) {
   writeFileSync(join(dir, 'threads.json'), JSON.stringify(threads, null, 2))
 }
 
+// Serialise thread index writes to prevent read-modify-write races
+let _threadQueue = Promise.resolve()
+function withThreadLock(fn) {
+  let release
+  const acquire = new Promise(resolve => { release = resolve })
+  const prev = _threadQueue
+  _threadQueue = acquire
+  return prev.then(async () => {
+    try { return await fn() } finally { release() }
+  })
+}
+
 export async function listThreads({ week }) {
   if (!week) week = getISOWeek()
   return readThreadIndex(week)
@@ -53,24 +84,26 @@ export async function listThreads({ week }) {
 
 export async function createThread({ week, name }) {
   if (!week) week = getISOWeek()
-  const id = generateId()
-  const now = new Date().toISOString()
-  const thread = {
-    id,
-    name: name || `New thread`,
-    created: now,
-    updated: now,
-    messageCount: 0,
-    totalInputTokens: 0,
-    totalOutputTokens: 0,
-    estimatedCost: 0,
-  }
+  return withThreadLock(() => {
+    const id = generateId()
+    const now = new Date().toISOString()
+    const thread = {
+      id,
+      name: name || `New thread`,
+      created: now,
+      updated: now,
+      messageCount: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      estimatedCost: 0,
+    }
 
-  const threads = readThreadIndex(week)
-  threads.push(thread)
-  writeThreadIndex(week, threads)
+    const threads = readThreadIndex(week)
+    threads.push(thread)
+    writeThreadIndex(week, threads)
 
-  return { id: thread.id, name: thread.name }
+    return { id: thread.id, name: thread.name }
+  })
 }
 
 export async function renameThread({ id, name, week }) {
@@ -88,15 +121,17 @@ export async function renameThread({ id, name, week }) {
   }
   if (!week) throw Object.assign(new Error('Thread not found'), { status: 404 })
 
-  const threads = readThreadIndex(week)
-  const thread = threads.find(t => t.id === id)
-  if (!thread) throw Object.assign(new Error('Thread not found'), { status: 404 })
+  return withThreadLock(() => {
+    const threads = readThreadIndex(week)
+    const thread = threads.find(t => t.id === id)
+    if (!thread) throw Object.assign(new Error('Thread not found'), { status: 404 })
 
-  thread.name = name
-  thread.updated = new Date().toISOString()
-  writeThreadIndex(week, threads)
+    thread.name = name
+    thread.updated = new Date().toISOString()
+    writeThreadIndex(week, threads)
 
-  return { id: thread.id, name: thread.name }
+    return { id: thread.id, name: thread.name }
+  })
 }
 
 export async function getHistory({ week, thread }) {
@@ -279,15 +314,16 @@ export async function handleChat(req) {
     return new Response(JSON.stringify({
       type: 'error', code: 'ANTHROPIC_DISABLED',
       message: 'Editorial chat has moved to Claude Code.'
-    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'http://localhost:5173' } })
+    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': config.CORS_ORIGIN } })
   }
   const msgId = `msg_${generateId()}`
   const userMsgId = `msg_${generateId()}`
   const now = new Date().toISOString()
 
-  // Return SSE stream
+  // Return SSE stream — manual CORS headers required because SSE responses
+  // are raw Response objects whose headers cannot be modified by middleware
   const corsHeaders = {
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Origin': config.CORS_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
   }
 
@@ -384,21 +420,24 @@ export function _appendMessage(week, threadId, message) {
 }
 
 export function _updateThreadStats(week, threadId, inputTokens, outputTokens, model) {
-  const threads = readThreadIndex(week)
-  const thread = threads.find(t => t.id === threadId)
-  if (!thread) return
-  thread.messageCount += 2 // user + assistant
-  thread.totalInputTokens += inputTokens
-  thread.totalOutputTokens += outputTokens
-  thread.estimatedCost = estimateCost(model, thread.totalInputTokens, thread.totalOutputTokens)
-  thread.updated = new Date().toISOString()
-  writeThreadIndex(week, threads)
+  return withThreadLock(() => {
+    const threads = readThreadIndex(week)
+    const thread = threads.find(t => t.id === threadId)
+    if (!thread) return
+    thread.messageCount += 2 // user + assistant
+    thread.totalInputTokens += inputTokens
+    thread.totalOutputTokens += outputTokens
+    thread.estimatedCost = estimateCost(model, thread.totalInputTokens, thread.totalOutputTokens)
+    thread.updated = new Date().toISOString()
+    writeThreadIndex(week, threads)
+  })
 }
 
 export function _recordDailyUsage(inputTokens, outputTokens) {
   resetDailyIfNeeded()
   _dailyUsage.inputTokens += inputTokens
   _dailyUsage.outputTokens += outputTokens
+  persistDailyUsage()
 }
 
 export function _checkDailyCeiling() {
@@ -413,9 +452,11 @@ export function _checkDailyCeiling() {
 }
 
 export function _autoNameThread(week, threadId, firstMessage) {
-  const threads = readThreadIndex(week)
-  const thread = threads.find(t => t.id === threadId)
-  if (!thread || thread.name !== 'New thread') return
-  thread.name = firstMessage.slice(0, 50).replace(/\n/g, ' ').trim() || 'New thread'
-  writeThreadIndex(week, threads)
+  return withThreadLock(() => {
+    const threads = readThreadIndex(week)
+    const thread = threads.find(t => t.id === threadId)
+    if (!thread || thread.name !== 'New thread') return
+    thread.name = firstMessage.slice(0, 50).replace(/\n/g, ' ').trim() || 'New thread'
+    writeThreadIndex(week, threads)
+  })
 }

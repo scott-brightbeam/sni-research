@@ -1,8 +1,9 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join, resolve, basename } from 'path'
+import { join, basename } from 'path'
 import { getWeekDateRange } from './week.js'
+import config from './config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 
 const COPILOT_SYSTEM = `You are an editorial analyst for Sector News Intelligence (SNI), a weekly newsletter covering AI news across five sectors: general AI, biopharma, medtech, manufacturing, and insurance.
 

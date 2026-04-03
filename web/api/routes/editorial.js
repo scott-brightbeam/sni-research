@@ -1,9 +1,11 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, unlinkSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
+import config from '../lib/config.js'
+import { withStateLock } from '../lib/state-lock.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 function editorialDir() {
   return process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
 }
@@ -95,6 +97,9 @@ function checkLock(stage) {
 }
 
 function spawnStage(script) {
+  if (!config.PIPELINE_ENABLED) {
+    throw Object.assign(new Error('Pipeline execution disabled on this server'), { status: 403 })
+  }
   const scriptPath = join(ROOT, script)
   if (!existsSync(scriptPath)) {
     throw Object.assign(new Error(`Script not found: ${script}`), { status: 500 })
@@ -105,9 +110,16 @@ function spawnStage(script) {
     console.log(`[editorial] TEST MODE — skipping spawn of ${script}`)
     return { pid: -1, exited: Promise.resolve(0) }
   }
+  // Sanitise subprocess environment — only pass safe variables.
+  // Pipeline scripts load their own API keys via loadEnvKey() from .env.
+  const safeEnv = Object.fromEntries(
+    ['PATH', 'HOME', 'USER', 'SHELL', 'TERM', 'LANG', 'NODE_ENV', 'SNI_TEST_MODE']
+      .filter(k => process.env[k])
+      .map(k => [k, process.env[k]])
+  )
   const proc = Bun.spawn(['bun', scriptPath], {
     cwd: ROOT,
-    env: { ...process.env },
+    env: safeEnv,
     stdout: 'inherit',
     stderr: 'inherit',
   })
@@ -520,7 +532,6 @@ export async function postTriggerTrack() {
 const VALID_STATUSES = ['suggested', 'approved', 'in-progress', 'published', 'rejected', 'archived']
 
 export async function putBacklogStatus(id, body) {
-  guardAgainstPipelineWrite()
   if (!body || !body.status) {
     throw Object.assign(new Error('status is required'), { status: 400 })
   }
@@ -528,85 +539,88 @@ export async function putBacklogStatus(id, body) {
     throw Object.assign(new Error(`Invalid status: ${body.status}. Must be one of: ${VALID_STATUSES.join(', ')}`), { status: 400 })
   }
 
-  const state = getState()
-  if (!state) {
-    throw Object.assign(new Error('No editorial state found'), { status: 404 })
-  }
+  return withStateLock(() => {
+    guardAgainstPipelineWrite()
+    const state = getState()
+    if (!state) {
+      throw Object.assign(new Error('No editorial state found'), { status: 404 })
+    }
 
-  const post = state.postBacklog?.[id]
-  if (!post) {
-    throw Object.assign(new Error(`Post ${id} not found in backlog`), { status: 404 })
-  }
+    const post = state.postBacklog?.[id]
+    if (!post) {
+      throw Object.assign(new Error(`Post ${id} not found in backlog`), { status: 404 })
+    }
 
-  post.status = body.status
-  if (body.status === 'published') {
-    post.publishedDate = new Date().toISOString().split('T')[0]
-  }
+    post.status = body.status
+    if (body.status === 'published') {
+      post.publishedDate = new Date().toISOString().split('T')[0]
+    }
 
-  try {
-    writeState(state)
-  } catch (err) {
-    throw Object.assign(
-      new Error(`Failed to save status change for post ${id}: ${err.message}`),
-      { status: 500 }
-    )
-  }
-  return { ok: true, id, status: body.status }
+    try {
+      writeState(state)
+    } catch (err) {
+      throw Object.assign(
+        new Error(`Failed to save status change for post ${id}: ${err.message}`),
+        { status: 500 }
+      )
+    }
+    return { ok: true, id, status: body.status }
+  })
 }
 
 // ── PUT /api/editorial/analysis/:id/archive ─────────────────
 
 export async function putAnalysisArchive(id, body) {
-  guardAgainstPipelineWrite()
-
   if (!/^\d+$/.test(id)) {
     throw Object.assign(new Error('id must be numeric'), { status: 400 })
   }
 
-  const state = getState()
-  if (!state) {
-    throw Object.assign(new Error('No editorial state found'), { status: 404 })
-  }
+  return withStateLock(() => {
+    guardAgainstPipelineWrite()
+    const state = getState()
+    if (!state) {
+      throw Object.assign(new Error('No editorial state found'), { status: 404 })
+    }
 
-  const entry = state.analysisIndex?.[id]
-  if (!entry) {
-    throw Object.assign(new Error(`Analysis entry ${id} not found`), { status: 404 })
-  }
+    const entry = state.analysisIndex?.[id]
+    if (!entry) {
+      throw Object.assign(new Error(`Analysis entry ${id} not found`), { status: 404 })
+    }
 
-  entry.archived = body?.archived !== false
-  writeState(state)
-  return { ok: true, id, archived: entry.archived }
+    entry.archived = body?.archived !== false
+    writeState(state)
+    return { ok: true, id, archived: entry.archived }
+  })
 }
 
 // ── PUT /api/editorial/themes/:code/archive ─────────────────
 
 export async function putThemeArchive(code, body) {
-  guardAgainstPipelineWrite()
-
   if (!/^T\d+$/.test(code)) {
     throw Object.assign(new Error('code must match T{number} (e.g. T01)'), { status: 400 })
   }
 
-  const state = getState()
-  if (!state) {
-    throw Object.assign(new Error('No editorial state found'), { status: 404 })
-  }
+  return withStateLock(() => {
+    guardAgainstPipelineWrite()
+    const state = getState()
+    if (!state) {
+      throw Object.assign(new Error('No editorial state found'), { status: 404 })
+    }
 
-  const theme = state.themeRegistry?.[code]
-  if (!theme) {
-    throw Object.assign(new Error(`Theme ${code} not found`), { status: 404 })
-  }
+    const theme = state.themeRegistry?.[code]
+    if (!theme) {
+      throw Object.assign(new Error(`Theme ${code} not found`), { status: 404 })
+    }
 
-  theme.archived = body?.archived !== false
-  writeState(state)
-  return { ok: true, code, archived: theme.archived }
+    theme.archived = body?.archived !== false
+    writeState(state)
+    return { ok: true, code, archived: theme.archived }
+  })
 }
 
 // ── POST /api/editorial/decisions ───────────────────────────
 
 export async function postDecision(body) {
-  guardAgainstPipelineWrite()
-
   if (!body?.title || typeof body.title !== 'string' || !body.title.trim()) {
     throw Object.assign(new Error('title is required'), { status: 400 })
   }
@@ -614,47 +628,51 @@ export async function postDecision(body) {
     throw Object.assign(new Error('decision is required'), { status: 400 })
   }
 
-  const state = getState()
-  if (!state) {
-    throw Object.assign(new Error('No editorial state found'), { status: 404 })
-  }
+  return withStateLock(() => {
+    guardAgainstPipelineWrite()
+    const state = getState()
+    if (!state) {
+      throw Object.assign(new Error('No editorial state found'), { status: 404 })
+    }
 
-  if (!Array.isArray(state.decisionLog)) state.decisionLog = []
+    if (!Array.isArray(state.decisionLog)) state.decisionLog = []
 
-  const session = Math.max(1, (state.counters?.nextSession || 1) - 1)
-  const sessionDecisions = state.decisionLog.filter(d => d.session === session)
-  const id = `${session}.${sessionDecisions.length + 1}`
+    const session = Math.max(1, (state.counters?.nextSession || 1) - 1)
+    const sessionDecisions = state.decisionLog.filter(d => d.session === session)
+    const id = `${session}.${sessionDecisions.length + 1}`
 
-  state.decisionLog.push({
-    id,
-    session,
-    title: body.title.trim(),
-    decision: body.decision.trim(),
-    reasoning: (body.reasoning || '').trim(),
+    state.decisionLog.push({
+      id,
+      session,
+      title: body.title.trim(),
+      decision: body.decision.trim(),
+      reasoning: (body.reasoning || '').trim(),
+    })
+
+    writeState(state)
+    return { ok: true, id, session }
   })
-
-  writeState(state)
-  return { ok: true, id, session }
 }
 
 // ── PUT /api/editorial/decisions/:id/archive ────────────────
 
 export async function putDecisionArchive(id, body) {
-  guardAgainstPipelineWrite()
+  return withStateLock(() => {
+    guardAgainstPipelineWrite()
+    const state = getState()
+    if (!state) {
+      throw Object.assign(new Error('No editorial state found'), { status: 404 })
+    }
 
-  const state = getState()
-  if (!state) {
-    throw Object.assign(new Error('No editorial state found'), { status: 404 })
-  }
+    const decision = (state.decisionLog || []).find(d => d.id === id)
+    if (!decision) {
+      throw Object.assign(new Error(`Decision ${id} not found`), { status: 404 })
+    }
 
-  const decision = (state.decisionLog || []).find(d => d.id === id)
-  if (!decision) {
-    throw Object.assign(new Error(`Decision ${id} not found`), { status: 404 })
-  }
-
-  decision.archived = body?.archived !== false
-  writeState(state)
-  return { ok: true, id, archived: decision.archived }
+    decision.archived = body?.archived !== false
+    writeState(state)
+    return { ok: true, id, archived: decision.archived }
+  })
 }
 
 // ── POST /api/editorial/chat ──────────────────────────────
@@ -729,11 +747,13 @@ export async function postEditorialChat(body, req) {
     return new Response(JSON.stringify({
       type: 'error', code: 'ANTHROPIC_DISABLED',
       message: 'Editorial chat has moved to Claude Code.'
-    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'http://localhost:5173' } })
+    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': config.CORS_ORIGIN } })
   }
 
+  // Manual CORS headers required because SSE responses are raw Response objects
+  // whose headers cannot be modified by middleware
   const corsHeaders = {
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Origin': config.CORS_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
   }
 

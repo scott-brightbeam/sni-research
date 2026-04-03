@@ -46,7 +46,7 @@ describe('getArticle', () => {
 })
 
 describe('podcast-articles integration', () => {
-  const podcastDir = join(ROOT, 'data/podcast-articles/2026-03-20/general-ai')
+  const podcastDir = join(ROOT, 'data/podcast-articles/2029-01-01/general-ai')
   let cleanupDir = false
 
   beforeAll(() => {
@@ -60,11 +60,11 @@ describe('podcast-articles integration', () => {
       url: 'https://example.com/podcast/ep1',
       source: 'Test Podcast',
       sector: 'general-ai',
-      date_published: '2026-03-20',
+      date_published: '2029-01-01',
       snippet: 'A discussion about AI developments',
       score: 0.85,
       keywords_matched: ['artificial intelligence'],
-      scraped_at: '2026-03-20T10:00:00Z',
+      scraped_at: '2029-01-01T10:00:00Z',
     }))
 
     writeFileSync(join(podcastDir, 'podcast-test-article-2.json'), JSON.stringify({
@@ -72,31 +72,31 @@ describe('podcast-articles integration', () => {
       url: 'https://example.com/podcast/ep2',
       source: 'Test Podcast 2',
       sector: 'general-ai',
-      date_published: '2026-03-20',
+      date_published: '2029-01-01',
       snippet: 'More AI news from podcasts',
       score: 0.7,
       keywords_matched: ['machine learning'],
-      scraped_at: '2026-03-20T11:00:00Z',
+      scraped_at: '2029-01-01T11:00:00Z',
     }))
   })
 
   afterAll(() => {
     if (cleanupDir) {
-      try { rmSync(join(ROOT, 'data/podcast-articles/2026-03-20'), { recursive: true }) } catch { /* ok */ }
+      try { rmSync(join(ROOT, 'data/podcast-articles/2029-01-01'), { recursive: true }) } catch { /* ok */ }
       // Clean up the date dir if empty
       try { rmSync(join(ROOT, 'data/podcast-articles'), { recursive: true }) } catch { /* ok */ }
     }
   })
 
   it('includes podcast-articles in getArticles results', async () => {
-    const { articles } = await getArticles({ date: '2026-03-20' })
+    const { articles } = await getArticles({ date: '2029-01-01' })
     const podcastArticle = articles.find(a => a.slug === 'podcast-test-article')
     expect(podcastArticle).toBeDefined()
     expect(podcastArticle.title).toBe('AI Podcast Episode Discussion')
   })
 
   it('sets source_type to podcast-extract for podcast articles', async () => {
-    const { articles } = await getArticles({ date: '2026-03-20' })
+    const { articles } = await getArticles({ date: '2029-01-01' })
     const podcastArticles = articles.filter(a => a.slug?.startsWith('podcast-test-article'))
     expect(podcastArticles.length).toBeGreaterThanOrEqual(2)
     for (const a of podcastArticles) {
@@ -105,7 +105,7 @@ describe('podcast-articles integration', () => {
   })
 
   it('podcast articles have required fields', async () => {
-    const { articles } = await getArticles({ date: '2026-03-20' })
+    const { articles } = await getArticles({ date: '2029-01-01' })
     const podcastArticle = articles.find(a => a.slug === 'podcast-test-article')
     expect(podcastArticle).toBeDefined()
     expect(podcastArticle).toHaveProperty('title')
@@ -117,11 +117,11 @@ describe('podcast-articles integration', () => {
   })
 
   it('filters podcast articles by sector', async () => {
-    const { articles } = await getArticles({ sector: 'general-ai', date: '2026-03-20' })
+    const { articles } = await getArticles({ sector: 'general-ai', date: '2029-01-01' })
     const podcastArticle = articles.find(a => a.slug === 'podcast-test-article')
     expect(podcastArticle).toBeDefined()
 
-    const { articles: otherArticles } = await getArticles({ sector: 'biopharma', date: '2026-03-20' })
+    const { articles: otherArticles } = await getArticles({ sector: 'biopharma', date: '2029-01-01' })
     const noPodcast = otherArticles.find(a => a.slug === 'podcast-test-article')
     expect(noPodcast).toBeUndefined()
   })

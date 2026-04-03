@@ -1,10 +1,11 @@
 import { readFileSync, existsSync, readdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { spawn } from 'child_process'
 import yaml from 'js-yaml'
 import { validateParam } from '../lib/walk.js'
+import appConfig from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = appConfig.ROOT
 
 export function getSubscriptions() {
   const configPath = join(ROOT, 'config/subscriptions.yaml')
@@ -42,7 +43,7 @@ export function getSubscriptions() {
   return { sources }
 }
 
-export function saveCredentials(body) {
+export async function saveCredentials(body) {
   const { sources } = body || {}
   if (!Array.isArray(sources)) {
     const err = new Error('sources array required')
@@ -50,17 +51,25 @@ export function saveCredentials(body) {
     throw err
   }
 
-  // Write credentials via the credential store (spawns Node for ESM compatibility)
-  const proc = Bun.spawnSync({
-    cmd: ['node', '--input-type=module', '-e', `
-      import { saveCredentials } from './scripts/lib/credential-store.js';
-      saveCredentials(JSON.parse(process.argv[1]));
-    `, JSON.stringify(sources)],
+  // Write credentials via the credential store. Uses stdin for JSON data
+  // to avoid embedding user-controlled content in script arguments.
+  const script = `
+    import { readFileSync } from 'fs';
+    import { saveCredentials } from './scripts/lib/credential-store.js';
+    const data = JSON.parse(readFileSync('/dev/stdin', 'utf-8'));
+    saveCredentials(data);
+  `
+  const proc = Bun.spawn({
+    cmd: ['node', '--input-type=module', '-e', script],
     cwd: ROOT,
+    stdin: 'pipe',
   })
 
-  if (proc.exitCode !== 0) {
-    console.error('credential-store stderr:', proc.stderr?.toString())
+  proc.stdin.write(JSON.stringify(sources))
+  proc.stdin.end()
+  const exitCode = await proc.exited
+
+  if (exitCode !== 0) {
     const err = new Error('Failed to save credentials')
     err.status = 500
     throw err

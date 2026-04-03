@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getClient } from '../lib/claude.js'
 import { DEFAULT_MODEL } from '../lib/pricing.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const PUB_DIR = join(ROOT, 'output/published')
 
 const WEEK_RE = /^week-\d+$/

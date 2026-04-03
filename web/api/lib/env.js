@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
+import config from './config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 
 export function loadEnvKey(key) {
   if (process.env[key]) return process.env[key]

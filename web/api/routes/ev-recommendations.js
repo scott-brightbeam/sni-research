@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const RECS_PATH = join(ROOT, 'data/editorial/ev-recommendations.json')
 const PENDING_PATH = join(ROOT, 'data/editorial/sources-pending.json')
 

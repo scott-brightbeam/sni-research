@@ -1,8 +1,9 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { validateParam } from '../lib/walk.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 
 /**
  * Scan data/podcasts/ directories for .digest.json files.

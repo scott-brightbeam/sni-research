@@ -1,9 +1,10 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { walkArticleDir, validateParam } from '../lib/walk.js'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
-const INGEST_URL = 'http://127.0.0.1:3847'
+const ROOT = config.ROOT
+const INGEST_URL = config.INGEST_URL
 
 export async function getArticles({ sector, date, dateFrom, dateTo, search, limit, offset } = {}) {
   const allMatched = []

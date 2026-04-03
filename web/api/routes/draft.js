@@ -1,14 +1,16 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { getISOWeek } from '../lib/week.js'
-import { parseDraftSections } from '../../../scripts/lib/draft-parser.js'
-import { textSimilarity, loadThresholds, contentMatch } from '../../../scripts/lib/dedup.js'
+import { parseDraftSections } from '../lib/draft-parser.js'
+import { textSimilarity, loadThresholds, contentMatch } from '../lib/dedup.js'
 import { getClient } from '../lib/claude.js'
 import yaml from 'js-yaml'
+import config from '../lib/config.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = config.ROOT
 const OUTPUT = join(ROOT, 'output')
 const OVERLAP_CACHE_DIR = join(OUTPUT, 'overlap-cache')
+const EDITORIAL_DRAFTS = join(ROOT, 'data/editorial/drafts')
 
 function readJsonSafe(path) {
   if (!existsSync(path)) return null
@@ -47,15 +49,58 @@ function getCachedSections(archPath, weekNumber) {
   return sections
 }
 
+/**
+ * Scan data/editorial/drafts/ for session-based drafts.
+ * Returns a map: weekNum -> { path, session, isFinal }
+ * Prefers -final over -v1; highest session number wins ties.
+ */
+function getEditorialDraftWeeks() {
+  if (!existsSync(EDITORIAL_DRAFTS)) return {}
+
+  const files = readdirSync(EDITORIAL_DRAFTS)
+    .filter(f => /^draft-session-\d+-(final|v\d+)\.md$/.test(f))
+
+  const map = {}
+
+  for (const f of files) {
+    const sessionMatch = f.match(/draft-session-(\d+)/)
+    if (!sessionMatch) continue
+    const session = parseInt(sessionMatch[1])
+    const isFinal = f.includes('-final.')
+    const filePath = join(EDITORIAL_DRAFTS, f)
+
+    try {
+      const firstLine = readFileSync(filePath, 'utf-8').split('\n')[0]
+      const weekMatch = firstLine.match(/^#\s+SNI:\s+Week\s+(\d+)/)
+      if (!weekMatch) continue
+      const weekNum = parseInt(weekMatch[1])
+
+      const existing = map[weekNum]
+      if (!existing ||
+          (isFinal && !existing.isFinal) ||
+          (isFinal === existing.isFinal && session > existing.session)) {
+        map[weekNum] = { path: filePath, session, isFinal }
+      }
+    } catch { continue }
+  }
+
+  return map
+}
+
 function getAvailableWeeks() {
   const weeks = new Set()
 
-  // Weeks with draft files
+  // Weeks with draft files in output/
   if (existsSync(OUTPUT)) {
     for (const f of readdirSync(OUTPUT)) {
       const m = f.match(/^draft-week-(\d+)\.md$/)
       if (m) weeks.add(parseInt(m[1]))
     }
+  }
+
+  // Weeks with editorial pipeline drafts in data/editorial/drafts/
+  for (const weekNum of Object.keys(getEditorialDraftWeeks())) {
+    weeks.add(parseInt(weekNum))
   }
 
   // Weeks with verified articles (same logic as status.js)
@@ -88,8 +133,18 @@ export async function getDraft({ week } = {}) {
     weekNum = candidates.length > 0 ? candidates[candidates.length - 1] : available[available.length - 1]
   }
 
-  const draftPath = join(OUTPUT, `draft-week-${weekNum}.md`)
-  const hasDraft = existsSync(draftPath)
+  const outputPath = join(OUTPUT, `draft-week-${weekNum}.md`)
+  let draftPath = outputPath
+  let hasDraft = existsSync(outputPath)
+
+  // Fall back to editorial pipeline drafts if no output/ copy exists
+  if (!hasDraft) {
+    const editorialMap = getEditorialDraftWeeks()
+    if (editorialMap[weekNum]) {
+      draftPath = editorialMap[weekNum].path
+      hasDraft = true
+    }
+  }
 
   const draft = hasDraft ? readFileSync(draftPath, 'utf-8') : null
   const review = readJsonSafe(join(OUTPUT, `review-week-${weekNum}.json`))
@@ -111,8 +166,14 @@ export async function saveDraft({ week } = {}, body = {}) {
 
   const weekNum = parseInt(week)
   const draftPath = join(OUTPUT, `draft-week-${weekNum}.md`)
+
+  // Allow saving even if no output/ copy exists yet — the editorial pipeline
+  // may have generated the draft in data/editorial/drafts/ instead
   if (!existsSync(draftPath)) {
-    throw Object.assign(new Error(`Draft for week ${weekNum} not found`), { status: 404 })
+    const editorialMap = getEditorialDraftWeeks()
+    if (!editorialMap[weekNum]) {
+      throw Object.assign(new Error(`Draft for week ${weekNum} not found`), { status: 404 })
+    }
   }
 
   if (body.draft === undefined || body.draft === null || typeof body.draft !== 'string') {
