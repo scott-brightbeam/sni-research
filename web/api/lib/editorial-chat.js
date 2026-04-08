@@ -696,6 +696,32 @@ Label each draft clearly with its format name. Present all three for selection.\
         sections.push('\n### Source Documents\n_No source references provided. Select a post, theme, or entry to draft and source documents will be loaded automatically._\n')
       }
 
+      // Recent analysis entries — the editorial intelligence the AI needs for drafting
+      const draftEntries = Object.entries(state.analysisIndex || {})
+        .sort(([a], [b]) => Number(b) - Number(a))
+      if (draftEntries.length > 0) {
+        // If source refs mention a specific podcast source, prioritise entries from that source
+        const refSources = (sourceRefs || [])
+          .filter(r => r.type === 'transcript')
+          .map(r => (r.filename || '').replace(/^\d{4}-\d{2}-\d{2}-/, '').split('-').slice(0, 3).join('-').toLowerCase())
+          .filter(Boolean)
+
+        const prioritised = refSources.length > 0
+          ? [
+            ...draftEntries.filter(([, e]) => refSources.some(s => (e.source || '').toLowerCase().replace(/\s+/g, '-').includes(s))),
+            ...draftEntries.filter(([, e]) => !refSources.some(s => (e.source || '').toLowerCase().replace(/\s+/g, '-').includes(s))),
+          ]
+          : draftEntries
+
+        sections.push(`\n### Analysis Index (${draftEntries.length} entries, newest first)\n`)
+        for (const [id, entry] of prioritised) {
+          const themes = (entry.themes || []).join(', ')
+          const line = `- **#${id}**: ${entry.title} (${entry.source || '?'}, T${entry.tier || '?'}) — ${entry.postPotential || '?'} potential${themes ? ` [${themes}]` : ''}`
+          if (estimateTokens(sections.join('\n') + line) > budget * 0.6) break
+          sections.push(line)
+        }
+      }
+
       // Theme summaries for context
       const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
       sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
