@@ -2,6 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { useEditorialChat } from '../hooks/useEditorialChat'
 import './EditorialChat.css'
 
+const TOOL_LABELS = {
+  get_analysis_entry: 'Fetching entry',
+  get_theme_detail: 'Fetching theme',
+  get_backlog_item: 'Fetching post',
+  search_editorial: 'Searching',
+}
+
 const TAB_LABELS = {
   state: 'Analysis',
   themes: 'Themes',
@@ -181,6 +188,15 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
         {messages.map(msg => (
           <div key={msg.id} className={`chat-message chat-${msg.role}`}>
             <div className="message-role">{msg.role === 'user' ? 'You' : 'AI'}</div>
+            {msg.toolCalls?.length > 0 && (
+              <div className="tool-calls">
+                {msg.toolCalls.map((tc, i) => (
+                  <span key={i} className={`tool-indicator ${tc.status}`}>
+                    {tc.status === 'running' ? '⟳' : '✓'} {TOOL_LABELS[tc.name] || tc.name}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="message-content">{msg.content || (loading && msg.role === 'assistant' ? '...' : '')}</div>
             {msg.contextTokens && (
               <div className="message-meta">~{msg.contextTokens} context tokens</div>

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, unlin
 import { join } from 'path'
 import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
+import { DRAFT_TOOLS, executeTool } from '../lib/editorial-tools.js'
 import config from '../lib/config.js'
 import { withStateLock } from '../lib/state-lock.js'
 
@@ -776,30 +777,122 @@ export async function postEditorialChat(body, req) {
           ? 'claude-opus-4-6'
           : 'claude-sonnet-4-20250514'
 
-        const response = await client.messages.create({
-          model: modelId,
-          max_tokens: model === 'opus' ? 4096 : 2048,
-          system: getEditorialSystemPrompt(),
-          messages: sdkMessages,
-          stream: true,
-        })
+        // Draft mode: enable tool use so the model can fetch editorial detail on demand
+        const isDraftMode = activeTab === 'draft'
+        const MAX_TOOL_ROUNDS = 5
 
-        for await (const event of response) {
+        // Load editorial state for tool execution (only needed in draft mode)
+        let editorialState = null
+        if (isDraftMode) {
+          const statePath = join(config.ROOT, 'data/editorial/state.json')
+          try {
+            editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
+          } catch { editorialState = {} }
+        }
+
+        let roundMessages = [...sdkMessages]
+        let toolRound = 0
+
+        while (true) {
           if (abort.signal.aborted) break
 
-          if (event.type === 'content_block_delta' && event.delta?.text) {
-            fullText += event.delta.text
-            send({ type: 'delta', text: event.delta.text })
+          const response = await client.messages.create({
+            model: modelId,
+            max_tokens: model === 'opus' ? 4096 : 2048,
+            system: getEditorialSystemPrompt(),
+            messages: roundMessages,
+            stream: true,
+            ...(isDraftMode && toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
+          })
+
+          // Collect content blocks for this round (needed for tool_use responses)
+          const contentBlocks = []
+          let currentToolBlock = null
+          let toolInputJson = ''
+          let stopReason = null
+
+          for await (const event of response) {
+            if (abort.signal.aborted) break
+
+            // Text deltas — stream immediately to browser
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              fullText += event.delta.text
+              send({ type: 'delta', text: event.delta.text })
+            }
+
+            // Tool use block starting
+            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+              currentToolBlock = { type: 'tool_use', id: event.content_block.id, name: event.content_block.name, input: {} }
+              toolInputJson = ''
+            }
+
+            // Tool input JSON accumulating
+            if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
+              toolInputJson += event.delta.partial_json
+            }
+
+            // Content block finished
+            if (event.type === 'content_block_stop') {
+              if (currentToolBlock) {
+                try { currentToolBlock.input = JSON.parse(toolInputJson || '{}') } catch { currentToolBlock.input = {} }
+                contentBlocks.push(currentToolBlock)
+                currentToolBlock = null
+                toolInputJson = ''
+              }
+            }
+
+            // Text block starting (track for contentBlocks)
+            if (event.type === 'content_block_start' && event.content_block?.type === 'text') {
+              // Will be captured via text_delta above; also record for round messages
+            }
+
+            // Message-level stop reason
+            if (event.type === 'message_delta') {
+              stopReason = event.delta?.stop_reason
+            }
           }
 
-          if (event.type === 'message_stop') {
-            send({
-              type: 'done',
-              text: fullText,
-              contextTokens: tokenEstimate,
-              tab: activeTab,
+          // If the model didn't request tools, or we've been aborted, we're done
+          if (stopReason !== 'tool_use' || abort.signal.aborted) {
+            send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab })
+            break
+          }
+
+          // Tool use round — execute each tool call
+          toolRound++
+
+          // Build assistant message with all content blocks (text + tool_use)
+          const assistantContent = []
+          // Include any text the model produced before the tool call
+          if (fullText) {
+            assistantContent.push({ type: 'text', text: fullText })
+          }
+          for (const block of contentBlocks) {
+            assistantContent.push(block)
+          }
+
+          const toolResults = []
+          for (const block of contentBlocks.filter(b => b.type === 'tool_use')) {
+            send({ type: 'tool_call', name: block.name, input: block.input })
+            const result = executeTool(block.name, block.input, editorialState)
+            send({ type: 'tool_result', name: block.name, preview: (result || '').slice(0, 200) })
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content: result,
             })
           }
+
+          // Append assistant + tool results for next round
+          roundMessages = [
+            ...roundMessages,
+            { role: 'assistant', content: assistantContent },
+            { role: 'user', content: toolResults },
+          ]
+
+          // Reset fullText for the continuation (text from tool-use rounds was pre-tool)
+          // The model will generate new text after processing tool results
+          fullText = ''
         }
       } catch (err) {
         send({ type: 'error', error: err.message })

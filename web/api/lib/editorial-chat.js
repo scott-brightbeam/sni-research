@@ -6,7 +6,7 @@
  */
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 import config from './config.js'
 
@@ -79,7 +79,7 @@ function readJSON(path) {
  *
  * Transcript naming convention: YYYY-MM-DD-source-slug-title.md
  */
-function findTranscriptByMeta(source, date) {
+export function findTranscriptByMeta(source, date) {
   if (!source || !existsSync(TRANSCRIPT_DIR)) return null
   try {
     const files = readdirSync(TRANSCRIPT_DIR).filter(f => f.endsWith('.md'))
@@ -147,7 +147,7 @@ function parseFuzzyDate(str) {
  * Safely read a file, ensuring the resolved path stays within the expected directory.
  * Returns file content or null if path traversal detected or file not found.
  */
-function safeReadFile(dir, filename) {
+export function safeReadFile(dir, filename) {
   if (!dir) return null  // TRANSCRIPT_DIR may be null if $HOME unset
   const resolvedDir = resolve(dir) + '/'
   const resolved = resolve(dir, filename)
@@ -696,50 +696,27 @@ Label each draft clearly with its format name. Present all three for selection.\
         sections.push('\n### Source Documents\n_No source references provided. Select a post, theme, or entry to draft and source documents will be loaded automatically._\n')
       }
 
-      // Recent analysis entries — the editorial intelligence the AI needs for drafting
+      // One-line indexes — the model uses tools to fetch full detail on demand
       const draftEntries = Object.entries(state.analysisIndex || {})
         .sort(([a], [b]) => Number(b) - Number(a))
-      if (draftEntries.length > 0) {
-        // If source refs mention a specific podcast source, prioritise entries from that source
-        const refSources = (sourceRefs || [])
-          .filter(r => r.type === 'transcript')
-          .map(r => (r.filename || '').replace(/^\d{4}-\d{2}-\d{2}-/, '').split('-').slice(0, 3).join('-').toLowerCase())
-          .filter(Boolean)
-
-        const prioritised = refSources.length > 0
-          ? [
-            ...draftEntries.filter(([, e]) => refSources.some(s => (e.source || '').toLowerCase().replace(/\s+/g, '-').includes(s))),
-            ...draftEntries.filter(([, e]) => !refSources.some(s => (e.source || '').toLowerCase().replace(/\s+/g, '-').includes(s))),
-          ]
-          : draftEntries
-
-        sections.push(`\n### Analysis Index (${draftEntries.length} entries, newest first)\n`)
-        for (const [id, entry] of prioritised) {
-          const themes = (entry.themes || []).join(', ')
-          const line = `- **#${id}**: ${entry.title} (${entry.source || '?'}, T${entry.tier || '?'}) — ${entry.postPotential || '?'} potential${themes ? ` [${themes}]` : ''}`
-          if (estimateTokens(sections.join('\n') + line) > budget * 0.6) break
-          sections.push(line)
-        }
+      sections.push(`\n### Analysis Index (${draftEntries.length} entries — use get_analysis_entry tool for full detail)\n`)
+      for (const [id, e] of draftEntries) {
+        const themes = (e.themes || []).join(',')
+        sections.push(`- #${id}: ${e.title} (${e.source || '?'}, T${e.tier || '?'}) ${e.postPotential || '?'}${themes ? ` [${themes}]` : ''}`)
       }
 
-      // Theme summaries for context
       const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
-      sections.push(`\n### Theme Registry (${draftThemes.length} active)\n`)
-      for (const [code, theme] of draftThemes) {
-        const connections = (theme.crossConnections || []).map(c => c.theme).join(', ')
-        sections.push(`- **${code}**: ${theme.name} (${theme.documentCount || 0} docs)${connections ? ` — connects: ${connections}` : ''}`)
+      sections.push(`\n### Themes (${draftThemes.length} — use get_theme_detail tool for evidence)\n`)
+      for (const [code, t] of draftThemes) {
+        sections.push(`- ${code}: ${t.name} (${t.documentCount || 0} docs)`)
       }
 
-      // Active backlog for cross-reference
       const draftBacklog = Object.entries(state.postBacklog || {})
         .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
         .sort(([a], [b]) => Number(b) - Number(a))
-        .slice(0, 10)
-      if (draftBacklog.length > 0) {
-        sections.push(`\n### Active Backlog\n`)
-        for (const [id, post] of draftBacklog) {
-          sections.push(`- #${id}: **${post.title}** [${post.format || '?'}]\n  ${post.coreArgument || ''}`)
-        }
+      sections.push(`\n### Post Backlog (${draftBacklog.length} — use get_backlog_item tool for detail)\n`)
+      for (const [id, p] of draftBacklog) {
+        sections.push(`- #${id}: ${p.title} [${p.status}] (${p.format || '?'})`)
       }
       break
     }
@@ -810,7 +787,7 @@ export function trimEditorialHistory(messages, budget = HISTORY_BUDGET) {
 
 // ── Formatters ───────────────────────────────────────────
 
-function formatAnalysisEntry(id, entry) {
+export function formatAnalysisEntry(id, entry) {
   const lines = [`### #${id}: ${entry.title}`]
   lines.push(`Source: ${entry.source} · Host: ${entry.host || 'N/A'} · Tier: ${entry.tier} · Session: ${entry.session}`)
   if (entry.themes?.length) lines.push(`Themes: ${entry.themes.join(', ')}`)
@@ -820,7 +797,7 @@ function formatAnalysisEntry(id, entry) {
   return lines.join('\n')
 }
 
-function formatTheme(code, theme) {
+export function formatTheme(code, theme) {
   const lines = [`### ${code}: ${theme.name}`]
   lines.push(`Documents: ${theme.documentCount} · Last updated: ${theme.lastUpdated || 'N/A'}`)
   const recentEvidence = (theme.evidence || []).slice(-2)
@@ -834,7 +811,7 @@ function formatTheme(code, theme) {
   return lines.join('\n')
 }
 
-function formatPost(id, post) {
+export function formatPost(id, post) {
   const lines = [`### #${id}: ${post.title || post.workingTitle || '(untitled)'}`]
   lines.push(`Status: ${post.status} · Priority: ${post.priority || 'N/A'} · Format: ${post.format || 'N/A'}`)
   if (post.coreArgument) lines.push(`Core argument: ${post.coreArgument}`)

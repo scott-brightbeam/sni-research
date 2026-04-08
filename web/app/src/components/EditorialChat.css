@@ -230,6 +230,28 @@
   color: var(--cloudy);
 }
 
+/* ── Tool call indicators ──────────────────────────────── */
+
+.tool-calls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tool-indicator {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface-secondary, rgba(255, 255, 255, 0.05));
+  color: var(--text-muted, var(--cloudy));
+}
+
+.tool-indicator.running {
+  color: var(--accent);
+}
+
 /* ── Error state ────────────────────────────────────────── */
 
 .editorial-chat-error {

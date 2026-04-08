@@ -92,6 +92,28 @@ export function useEditorialChat(tab = 'state') {
               m.id === assistantId ? { ...m, content: fullText } : m
             )
           }))
+        } else if (data.type === 'tool_call') {
+          setThreads(prev => ({
+            ...prev,
+            [effectiveTab]: (prev[effectiveTab] || []).map(m =>
+              m.id === assistantId
+                ? { ...m, toolCalls: [...(m.toolCalls || []), { name: data.name, status: 'running' }] }
+                : m
+            )
+          }))
+        } else if (data.type === 'tool_result') {
+          setThreads(prev => ({
+            ...prev,
+            [effectiveTab]: (prev[effectiveTab] || []).map(m => {
+              if (m.id !== assistantId) return m
+              const calls = (m.toolCalls || []).map(tc =>
+                tc.name === data.name && tc.status === 'running'
+                  ? { ...tc, status: 'done', preview: data.preview }
+                  : tc
+              )
+              return { ...m, toolCalls: calls }
+            })
+          }))
         } else if (data.type === 'done') {
           setThreads(prev => ({
             ...prev,
