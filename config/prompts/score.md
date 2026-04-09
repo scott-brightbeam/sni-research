@@ -18,6 +18,7 @@ Include articles where:
 - The story covers capital markets, analyst commentary or investor sentiment that is CAUSED BY AI disruption or AI competitive dynamics (e.g., sell-offs triggered by AI displacement fears, buy ratings based on AI valuation gaps, market reactions to AI policy decisions)
 - The story covers infrastructure, platforms or supply chain components that are part of the AI value chain — even if the article does not mention AI explicitly (e.g., gene therapy delivery platforms that complement AI-driven drug discovery, semiconductor supply chain reshoring driven by AI compute demand, chip manufacturing that serves AI accelerators)
 - The story covers geopolitical or trade decisions whose significance depends on AI competitive dynamics (e.g., model access decisions, chip export controls, data sovereignty)
+- AI governance, safety, or policy moves by frontier labs or industry bodies — fellowships, safety commitments, responsible scaling policies, industry alliances, model evaluation frameworks. These signal where the industry is heading and directly affect enterprise AI adoption risk
 
 Exclude articles where:
 - AI is mentioned only as passing context in an unrelated story

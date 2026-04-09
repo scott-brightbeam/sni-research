@@ -176,6 +176,13 @@ search_queries:
     - "AI agent failure hallucination reliability {month} {year}"
     - "prompt injection AI security vulnerability {month} {year}"
     - "AI model poisoning data integrity {month} {year}"
+    - "AI model distillation theft intellectual property {month} {year}"
+    - "AI sandbox escape containment alignment safety {month} {year}"
+    # Major company moves (ChatGPT) — acquisitions, policy, consumer
+    - "OpenAI acquisition partnership investment {month} {year}"
+    - "Anthropic partnership acquisition deal {month} {year}"
+    - "Google AI product launch consumer feature {month} {year}"
+    - "AI industry alliance cooperation forum {month} {year}"
     # Platform & distribution (ChatGPT + Gemini)
     - "agentic AI autonomous workflow enterprise {month} {year}"
     # Dropped: "vibe coding internal software generation" — 0 saves, overlaps with productive L1 "vibe coding enterprise software" (6 saves)
@@ -186,6 +193,18 @@ search_queries:
     - "AI healthcare regulation medical device software {month} {year}"
     - "AI insurance regulation solvency risk {month} {year}"
     - "labour market AI policy universal basic income {month} {year}"
+    # Frontier lab releases & announcements (migrated from sources.yaml general_search_queries)
+    - "OpenAI new model release announcement {month} {year}"
+    - "Anthropic Claude release announcement {month} {year}"
+    - "Google DeepMind AI announcement {month} {year}"
+    - "Meta AI model release {month} {year}"
+    - "Mistral AI model release {month} {year}"
+    - "xAI Grok release {month} {year}"
+    - "AWS Bedrock new AI service {month} {year}"
+    - "Azure OpenAI new feature {month} {year}"
+    - "AI safety incident containment alignment {month} {year}"
+    - "foundation model benchmark evaluation release {month} {year}"
+    - "hyperscaler AI enterprise announcement {month} {year}"
 
   layer4_enabled: true  # Toggle for daily experiment
   # Layer 4 uses same queries as layer1 but with {date} instead of {month} {year}
