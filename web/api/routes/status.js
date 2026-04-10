@@ -21,6 +21,9 @@ export async function getStatus() {
 }
 
 async function getIngestHealth() {
+  // In test mode, short-circuit the 2-second fetch timeout. Tests don't run
+  // the ingest server and shouldn't pay the timeout cost on every call.
+  if (process.env.SNI_TEST_MODE === '1') return { online: false }
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 2000)
