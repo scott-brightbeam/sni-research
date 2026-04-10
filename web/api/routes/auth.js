@@ -12,10 +12,25 @@ const GOOGLE_JWKS = createRemoteJWKSet(
 )
 
 /**
+ * Get the public origin for redirect URIs, honouring proxy headers.
+ * Behind Fly.io (and most TLS-terminating proxies), c.req.url reports http://
+ * even though the public request was https://. We rebuild the origin from
+ * X-Forwarded-Proto and X-Forwarded-Host when present.
+ */
+function getPublicOrigin(c) {
+  const forwardedProto = c.req.header('x-forwarded-proto')
+  const forwardedHost = c.req.header('x-forwarded-host') || c.req.header('host')
+  if (config.isProduction && forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+  return new URL(c.req.url).origin
+}
+
+/**
  * GET /api/auth/login — redirect to Google OAuth consent screen
  */
 export async function login(c) {
-  const origin = new URL(c.req.url).origin
+  const origin = getPublicOrigin(c)
   const redirectUri = `${origin}/api/auth/callback`
 
   // CSRF protection: generate random state, store in short-lived cookie
@@ -64,7 +79,7 @@ export async function callback(c) {
     return c.json({ error: 'Invalid OAuth state — possible CSRF attack' }, 403)
   }
 
-  const origin = new URL(c.req.url).origin
+  const origin = getPublicOrigin(c)
   const redirectUri = `${origin}/api/auth/callback`
 
   // Exchange code for tokens

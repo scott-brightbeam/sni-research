@@ -21,6 +21,13 @@ primary_region = "lhr"
   destination = "/app/data"
   initial_size = "3gb"
 
+# 256MB (the default) is OOM-killed by getStatus walking 4576 articles.
+# 1024MB gives comfortable headroom for the in-memory article scan and SSE
+# streaming. Bump to 2048mb if we add more in-memory state later.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+
 [checks]
   [checks.health]
     port = 3900

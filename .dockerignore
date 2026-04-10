@@ -1,17 +1,23 @@
+# Runtime data and artefacts
 data/
 logs/
 output/
 node_modules/
+web/app/node_modules/
+web/app/dist/
+
+# Source control + secrets
 .git/
 .env
-*.lock
 *.tmp
 *.bak
-web/app/node_modules/
-web/app/src/
+
+# Out-of-scope trees
 docs/
 *.plist
 .claude/
 DATA_LAYER_AUDIT.md
 SNI-Prompt-System-Evaluation-Part2.docx
 SNI-Prompt-System-Evaluation-Report.docx
+# NOTE: do NOT exclude web/app/src/ — the Dockerfile builds the frontend FROM source.
+# NOTE: do NOT exclude *.lock — bun install --frozen-lockfile needs bun.lock files.
