@@ -1,0 +1,30 @@
+# Known hallucinated podcast names that must NEVER appear in a draft.
+#
+# Seeded from Week 15 (April 2026) incident where the draft fabricated
+# references to podcasts and hosts that do not exist in the SNI pipeline.
+# The verifier's Check 5 fails any draft mentioning these names as a
+# permanent regression test.
+#
+# Add new entries when a hallucination is discovered — the failure
+# becomes a test fixture for future runs.
+
+blocked_names:
+  # Week 15 (Apr 2026) hallucinations
+  - "The AI Exchange"
+  - "Stratechery podcast"
+  - "Sinica Podcast"
+  - "Insurance Innovators Podcast"
+  - "InsureTech Connect podcast"
+  - "InsureTech Connect"
+  - "The Insurance Innovators"
+
+blocked_host_podcast_pairs:
+  # These specific host + podcast combinations have been fabricated in the past
+  - host: "Gary Marcus"
+    podcast: "The AI Exchange"
+  - host: "Ben Thompson"
+    podcast: "Stratechery podcast"
+  - host: "Brad Sheehan"
+    podcast: "The Insurance Innovators Podcast"
+  - host: "Caribou Honig"
+    podcast: "InsureTech Connect"

@@ -210,6 +210,28 @@ function getRecentErrors() {
   return errors.slice(-20)
 }
 
+/**
+ * Read the verification-failed sentinel flag written by editorial-verify-draft.js
+ * when a draft fails the hallucination gate. Used by the dashboard to warn Scott.
+ */
+export function getVerificationStatus() {
+  const flagPath = join(ROOT, 'data/editorial/drafts/VERIFICATION-FAILED.flag')
+  if (!existsSync(flagPath)) {
+    return { failed: false }
+  }
+  try {
+    const flag = JSON.parse(readFileSync(flagPath, 'utf-8'))
+    return {
+      failed: true,
+      failedAt: flag.failedAt || null,
+      week: flag.week || null,
+      reportPath: flag.reportPath || null,
+    }
+  } catch {
+    return { failed: true, parseError: true }
+  }
+}
+
 export function getPodcastImport() {
   const podcastDir = join(ROOT, 'data/podcasts')
   if (!existsSync(podcastDir)) return null

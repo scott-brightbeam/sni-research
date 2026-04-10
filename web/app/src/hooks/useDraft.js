@@ -72,6 +72,9 @@ export function useDraft(initialWeek = null) {
     evaluate: data?.evaluate ?? null,
     week: data?.week ?? week,
     availableWeeks: data?.availableWeeks ?? [],
+    verified: data?.verified ?? false,
+    verifiedAt: data?.verifiedAt ?? null,
+    verificationStatus: data?.verificationStatus ?? 'unknown',
     // State
     loading,
     error,

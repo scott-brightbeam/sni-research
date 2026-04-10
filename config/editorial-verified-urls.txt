@@ -1,0 +1,11 @@
+# Editorial override list — URLs that the verifier should accept as valid
+# even when they're not in data/verified/ or data/podcasts/.
+#
+# Use this SPARINGLY. Each entry should have a one-line comment explaining why.
+# Format: one URL per line, comments start with #
+#
+# This file is committed to git so override decisions have history.
+
+# Week 15 — Big Technology podcast: Substack URL in digest is dead (404).
+# Manually verified Apple Podcasts URL as alternative. Digest needs updating.
+https://podcasts.apple.com/us/podcast/more-openai-executive-drama-is-siri-seriously-broken/id1522960417?i=1000759868281

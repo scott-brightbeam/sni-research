@@ -5,7 +5,7 @@ import { resolve } from 'path'
 import config from './lib/config.js'
 
 // --- Route handler imports ---
-import { getStatus } from './routes/status.js'
+import { getStatus, getVerificationStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated, getPublications, manualIngest } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory, handleCheckOverlap } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
@@ -95,6 +95,7 @@ app.get('/api/health', (c) => c.json({ status: 'ok', port: config.PORT }))
 
 // --- Status ---
 app.get('/api/status', async (c) => c.json(await getStatus()))
+app.get('/api/status/verification', async (c) => c.json(getVerificationStatus()))
 
 // --- Articles ---
 app.get('/api/articles', async (c) => c.json(await getArticles(c.req.query())))

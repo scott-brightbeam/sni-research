@@ -25,6 +25,7 @@ export default function Draft({ embedded = false }) {
   const {
     draft, review, links, evaluate,
     week, availableWeeks,
+    verified, verifiedAt, verificationStatus,
     loading, error, saving, saveError, savedAt, dirty,
     setDraft, save, goToWeek,
   } = useDraft()
@@ -129,6 +130,20 @@ export default function Draft({ embedded = false }) {
 
   return (
     <div className={embedded ? 'draft-embedded' : 'draft-page'}>
+      {/* ── Verification banner ─────────────────────────── */}
+      {draft && !verified && verificationStatus !== 'verified' && (
+        <div className={`verification-banner verification-banner-${verificationStatus}`}>
+          {verificationStatus === 'stale' && (
+            <>⚠ This draft has been edited since verification. Re-run <code>scripts/editorial-verify-draft.js</code> before publishing.</>
+          )}
+          {verificationStatus === 'invalid-sidecar' && (
+            <>⚠ Verification sidecar exists but cannot be parsed. Re-run the verifier.</>
+          )}
+          {(verificationStatus === 'unverified' || verificationStatus === 'unknown') && (
+            <>⚠ This draft has not passed the hallucination verifier. Do not publish until verification passes.</>
+          )}
+        </div>
+      )}
       {/* ── Three-zone toolbar ─────────────────────────── */}
       <div className="draft-toolbar">
         <div className="toolbar-left">

@@ -2,6 +2,34 @@
    Draft page — three-zone toolbar + tabbed right panel
    ═══════════════════════════════════════════════════════════ */
 
+/* ── Verification banner ─────────────────────────────────── */
+
+.verification-banner {
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-radius: var(--radius);
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.verification-banner code {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  background: var(--code-bg);
+  border-radius: 3px;
+}
+
+.verification-banner-stale {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: var(--warning-border);
+}
+
 /* ── Three-zone toolbar ──────────────────────────────────── */
 
 .draft-toolbar {

@@ -4,7 +4,7 @@ The tl;dr is the most-read section of the newsletter. It must read like a Financ
 
 ## Structure
 
-4-8 paragraphs of editorial prose. Not bullet points. Not a list of things that happened. Each paragraph makes one move:
+5-8 paragraphs of editorial prose. Not bullet points. Not a list of things that happened. Each paragraph makes one move:
 
 1. **Opens with a concrete claim** — names a company, a dollar figure, a date, or a data point
 2. **Develops the argument** — explains why this matters, what it reveals, what it connects to
@@ -23,7 +23,7 @@ The paragraphs connect causally. Each one builds on, complicates, or inverts the
 ## Anti-patterns
 
 - No bullet-point summaries within the tl;dr prose
-- No 'In AI & tech:' subheadings within the prose (those come after, in the sector bullets)
+- No sector subheadings within the prose (sector bullets come after the prose)
 - No list-of-things structure ('Three things happened this week: first...')
 - No false contrast ('Not X but Y', 'Less about X, more about Y')
 - No hollow intensifiers ('incredibly', 'fundamentally', 'truly')
@@ -31,28 +31,24 @@ The paragraphs connect causally. Each one builds on, complicates, or inverts the
 
 ## After the prose
 
-Transition to compact sector bullet summaries:
-- Bold sector labels: `In AI & tech` / `Biopharma:` / `Medtech:` / `Advanced Manufacturing:` / `Insurance:`
-- Each bullet: `- [Linked headline](url) — one-line editorial context`
-- These bullets capture stories NOT already mentioned in the tl;dr prose
-- Skip a sector label if it has zero additional stories
+After the last tl;dr paragraph, insert the transition line exactly:
 
-## Worked example (Week 13)
+`Here's everything else worth reading this week:`
 
-The following is the published Week 13 tl;dr — use it as the calibration target for voice, structure and analytical depth:
+Then proceed to the sector bullet sections as specified in `config/prompts/draft-system.md` — H3 sector headings with linked headline bullets. Do not put sector labels inside the tl;dr prose.
 
----
+## Worked example (Week 15 — the lean format)
 
-Jensen Huang popped up to emphasise that data centres should now be thought of as token factories. 'Every token has value, and it brings different kinds of value.' Azeem Azhar's personal usage went from 150,000 tokens per day in summer 2024 to 870 million in a single day this week — a 5,800x increase.
-
-Perhaps that decision was finally dragged over the line after Disney walked away from its $1 billion partnership. OpenAI shut down Sora entirely, and Altman told staff he would be stepping back from day-to-day product decisions. The product division was renamed 'AGI Deployment'. If you weren't watching it unfold you could be forgiven for thinking it was the plot of a movie.
-
-But Sam Altman likely consoled himself that OpenAI isn't the only tech business in open retreat. After a New Mexico court found Meta and YouTube liable for serving addictive content to minors — with a $375m penalty for Meta — Microsoft quietly walked back several Copilot AI features, citing low usage and performance issues. Apple, meanwhile, is quietly on course to pull in over $1 billion this year in App Store commissions from ChatGPT, Grok, Claude and Gemini downloads alone.
-
-In other tech sector news:
-
-The EU backed delays to key AI Act deadlines, pushing back high-risk system compliance and watermarking rules. Only 8 of 27 member states have designated enforcement contacts with fewer than five months until the general obligations take effect.
+The following is the published Week 15 tl;dr — use it as the calibration target for voice, structure and analytical depth. Note the lean narrative style, the direct voice, and the absence of subheadings inside the prose.
 
 ---
 
-Note how this example: names specific companies and people, includes dollar figures, uses chronological narrative, weaves sector references naturally, draws implications without announcing them, and maintains a confident editorial voice throughout.
+Last week it was the regulators. This week, governments and courts drew hard boundaries around AI. And companies caught on the wrong side will be feeling the consequences.
+
+The most dramatic case was Anthropic. A federal appeals court in Washington declined to block the Pentagon's designation of Anthropic as a national security supply-chain risk, meaning the company that builds Claude – perhaps today's most capable frontier model – is currently blacklisted from American defence procurement. The ruling arrived just as Anthropic paused the release of Claude Mythos – after the model escaped a sandbox, emailed researchers to celebrate and posted details of its exploits on the web.
+
+Fails were also evident for arch rival OpenAI, which halted its UK Stargate data-centre project amid regulatory friction and energy-price concerns. It seems that Britain's planning and energy regimes are imposing real impediments on its AI infrastructure ambition.
+
+---
+
+Note how this example: names specific companies and people, uses chronological narrative, draws implications without announcing them, and maintains a confident editorial voice throughout. The paragraphs are medium-length (80-150 words each) and connect causally.

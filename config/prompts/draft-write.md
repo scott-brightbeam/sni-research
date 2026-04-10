@@ -19,25 +19,31 @@ These are the most commonly violated rules. Check every instance before finalisi
 
 This week's theme: **{{theme}}**
 
-Use this theme to frame the tl;dr intro, connect stories across sectors in the body section opening paragraphs and give the reader a coherent lens on the week. The theme phrase should appear in the tl;dr title and be echoed naturally in at least two body sections.
+Use this theme to frame the tl;dr opening and connect stories across sectors within the prose. The theme phrase should appear in the tl;dr heading and be echoed naturally at least once more within the prose.
 
 ## Story selection — hard limits
 
-Select **exactly 12–15 stories** from the research pack. This is a hard ceiling – do not write 16 or more stories under any circumstances, even if the research pack contains 30+ articles. Count your stories before you begin writing. If you have more than 15, cut until you reach 15. Fewer stories with deeper analysis always beats more stories with shallow coverage.
+Select **18-30 total story references** (across tl;dr prose + sector bullets). Count carefully before writing. The format is lean: a tl;dr prose section that weaves in 5-10 named stories, then five sector sections of 3-5 bullet stories each.
 
-**Sector allocation** (must sum to 12–15 total):
-- AI & tech: 4–6 stories
-- Each vertical sector: 2–3 stories
-- If a vertical has only 1 article, include it. If zero, skip it.
+**Sector allocation** (sector bullets only — tl;dr prose is additional):
+- AI & tech: 3-5 bullet stories
+- Biopharma: 3-5 bullet stories
+- Medtech: 3-5 bullet stories
+- Advanced manufacturing: 3-5 bullet stories
+- Insurance: 3-5 bullet stories
 
-**Word budget check** — verify before writing:
-- Total report target: 3,000–4,000 words. Do not exceed 4,000.
-- AI & tech body: 800–1,500 words
-- Each vertical body: 300–700 words
-- tl;dr + transitions: ~400 words
-- If your planned story count × 180 words average exceeds 3,500 words of body content, cut the weakest story in the largest section.
+**Minimum 3 per sector.** If a sector has fewer than 3 qualifying stories, include what is available and add one sentence above the bullets noting thin coverage for the week. Never skip a sector heading.
 
-**tl;dr/body alignment**: The tl;dr section weaves key stories into narrative prose — not every story needs a 1:1 mapping between tl;dr and body. Stories referenced in the tl;dr prose must appear in the body. Stories in the body that are not in the tl;dr must appear in the sector bullet summaries. The sector bullets capture additional stories not already covered in the tl;dr prose.
+**Maximum 5 per sector.** Rank by editorial strength and cut the weakest if over.
+
+**Total word budget (non-negotiable):** 1,800-2,800 words. Fail boundary: <1,500 or >3,500.
+
+- tl;dr prose: 500-800 words
+- Sector bullets: 80-150 words per sector (roughly 25-40 words per bullet — one linked headline + one sentence of context)
+- Podcast section: 400-600 words
+- Structural lines (welcome, transition, closing): ~80 words
+
+**tl;dr/bullet alignment:** Stories woven into the tl;dr prose should NOT be repeated in the sector bullets. The sector bullets capture stories that did not make it into the prose. Together they cover the week.
 
 **Include** stories that:
 - Change competitive dynamics (M&A, major partnerships, market-repricing events)
@@ -56,7 +62,7 @@ When in doubt, ask: would a senior executive at a $1bn+ company change a decisio
 
 ## Analytical framework
 
-For every story in the body, your analysis must answer at least one of these questions:
+**For the tl;dr prose**: each paragraph should answer at least one of these questions about the stories it weaves in:
 
 1. **What changed?** Not what was announced – what shifted in competitive position, market structure or strategic options?
 2. **Who benefits and who loses?** Name the winners and losers. If a funding round gives company X a data advantage, name the competitors who now lack that advantage.
@@ -64,13 +70,20 @@ For every story in the body, your analysis must answer at least one of these que
 4. **What does the structure reveal?** Deal terms, pricing models, equity warrants, performance conditions – these reveal power dynamics that press releases obscure.
 5. **How does this connect to the theme?** Every story should visibly reinforce the week's thesis. If a story doesn't connect, either find the connection or cut the story.
 
+**For the sector bullets**: one sentence of context per story. The context sentence should answer EXACTLY ONE of the questions above — typically "what changed" or "who benefits". Do not cram all analysis into a single bullet. The bullet is a pointer, not a mini-essay.
+
 **Do not** write generic significance statements like 'reflects a broader trend', 'signals commitment to AI', 'positions competitively', 'could accelerate adoption'. These are empty. Replace them with the specific competitive dynamic the story reveals.
 
 ## Sector order
 
-Sectors appear in this fixed order in both the tl;dr and body: {{sector_order}}
+Sectors appear in this fixed order:
+1. AI & tech
+2. Biopharma
+3. Medtech
+4. Advanced manufacturing
+5. Insurance
 
-If a sector has zero articles, include a one-sentence note in the body section acknowledging the quiet week. Skip that sector's subheading in the tl;dr bullets entirely.
+Always use `### {sector}:` as the H3 heading. If a sector has fewer than 3 qualifying stories, include what is available and add one sentence above the bullets noting thin coverage. Never skip a sector heading entirely.
 
 ## Research pack
 

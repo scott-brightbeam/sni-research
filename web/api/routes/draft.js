@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { createHash } from 'crypto'
 import { getISOWeek } from '../lib/week.js'
 import { parseDraftSections } from '../lib/draft-parser.js'
 import { textSimilarity, loadThresholds, contentMatch } from '../lib/dedup.js'
@@ -147,6 +148,32 @@ export async function getDraft({ week } = {}) {
   }
 
   const draft = hasDraft ? readFileSync(draftPath, 'utf-8') : null
+
+  // Check for .verified sidecar — the hallucination gate's proof of pass.
+  // If missing: draft is unverified (legacy or hand-edited). If sha256 mismatch:
+  // the content has been modified since verification (stale verification).
+  let verified = false
+  let verifiedAt = null
+  let verificationStatus = 'unverified'
+  if (draft && draftPath) {
+    const sidecarPath = draftPath + '.verified'
+    if (existsSync(sidecarPath)) {
+      try {
+        const sidecar = JSON.parse(readFileSync(sidecarPath, 'utf-8'))
+        const hash = createHash('sha256').update(draft).digest('hex')
+        if (sidecar.source_draft_sha256 === hash) {
+          verified = true
+          verifiedAt = sidecar.verifiedAt
+          verificationStatus = 'verified'
+        } else {
+          verificationStatus = 'stale'
+        }
+      } catch {
+        verificationStatus = 'invalid-sidecar'
+      }
+    }
+  }
+
   const review = readJsonSafe(join(OUTPUT, `review-week-${weekNum}.json`))
   const links = readJsonSafe(join(OUTPUT, `links-week-${weekNum}.json`))
   const evaluate = readJsonSafe(join(OUTPUT, `evaluate-week-${weekNum}.json`))
@@ -158,6 +185,9 @@ export async function getDraft({ week } = {}) {
     links,
     evaluate,
     availableWeeks: available,
+    verified,
+    verifiedAt,
+    verificationStatus,
   }
 }
 

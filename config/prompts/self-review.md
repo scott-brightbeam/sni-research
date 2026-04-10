@@ -37,20 +37,24 @@ Scan every word and phrase in the draft against this list. Flag exact matches in
 
 Check the draft contains these elements in order:
 
-- Title line matching `SNI: Week N`
-- Welcome line: one sentence listing sectors, with spaced en dash before week reference
-- tl;dr section:
-  - Theme title: `tl;dr: [phrase]` (3-7 words)
-  - Two intro paragraphs (3-4 sentences each)
-  - Sector subheadings: `In AI & tech`, `In Biopharma`, `In Medtech`, `In Manufacturing`, `In Insurance`
-  - Bullets under each subheading with format `- [Claim](url), consequence`
-- Transition line: `And if you're still hungry for more, here's the detail on each:`
-- Body sections in this fixed order: `AI industry`, `Biopharma`, `MedTech and digital health`, `Complex manufacturing`, `Insurance`
-  - Each section: opening paragraph (2-4 sentences) + story subsections
-  - Each story: linked heading `[Title](url)` + 1-3 paragraphs
+- `# SNI: Week N` on line 1
+- Welcome line with exact phrasing: `Welcome to all the AI news that matters this week – across tech, biopharma, medtech, advanced manufacturing and insurance. The wins, the fails and the somewhere in-betweens.`
+- `## tl;dr: [3-7 word theme]` H2 heading
+- tl;dr prose: 5-8 paragraphs, no sub-headings, no bullets — this is narrative editorial writing
+- Transition line exactly: `Here's everything else worth reading this week:`
+- Five H3 sector headings in fixed order:
+  - `### AI & tech:`
+  - `### Biopharma:`
+  - `### Medtech:`
+  - `### Advanced manufacturing:`
+  - `### Insurance:`
+- Each sector section has 3-5 bullet stories
+- Each bullet format: `- [Headline](url): one sentence of context.`
+  - The headline MUST be a markdown link. No bold markup. The separator is a colon.
+- Podcast section: `## But what set podcast tongues a-wagging?` with 3-4 podcast items
 - Closing line starting with `Thank you for reading`
 
-Flag any missing element, out-of-order section or incorrect heading text.
+Flag any missing element, out-of-order section or incorrect heading text. The sector minimum is 3 stories — flag any sector with fewer than 3 bullets. Flag any bullet that does NOT begin with a markdown-linked headline followed by a colon.
 
 ### 3. Formatting rules
 
@@ -69,7 +73,7 @@ Check for:
 
 ### 4. Link presence
 
-Every story in the body must contain at least one inline markdown link `[text](url)`. Every tl;dr bullet must have a linked claim portion. Flag any story or bullet with zero links.
+Every sector bullet MUST begin with a linked headline in the form `[Headline](url):`. Flag any bullet without this pattern. The tl;dr prose should contain inline links on factual claims where possible. The podcast section must have inline podcast links for every referenced episode.
 
 ### 5. Unsupported claims
 
@@ -77,11 +81,11 @@ Flag any factual assertion (a specific number, date, deal term, company action) 
 
 ### 6. Word count
 
-Count words in the draft. Flag if below 2,800 or above 4,200 (soft boundaries around the 3,000-4,000 target).
+Count words in the draft. Target 1,800-2,800. Fail boundary: flag if below 1,500 or above 3,500.
 
 ### 7. Missing sectors
 
-Flag any of the five body sections that is entirely absent. Note: a sector may be intentionally skipped if zero articles existed, but should still be flagged for the editor's attention.
+Flag any of the five H3 sector headings that is absent. A sector heading is NEVER optional — it must always appear. If a sector has fewer than 3 qualifying stories, the heading still appears with a note about thin coverage above the available bullets.
 
 ## Draft to review
 

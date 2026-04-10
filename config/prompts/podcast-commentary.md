@@ -2,6 +2,20 @@
 
 The podcast section is the editorial voice of the newsletter — original analysis, not episode recap.
 
+## MANDATORY PRE-FLIGHT (read this first)
+
+Before writing a single word of the podcast section:
+
+1. Read `data/podcasts/manifest.json` and list every entry where `week === {current week}`
+2. For each matching entry, read the digest at `digestPath` to get the host name, exact podcast title, summary, and `url` / `episodeUrl`
+3. Write down the list of available podcasts for this week. This is your whitelist.
+
+**Every podcast reference in the section MUST come from this list.** The host name must match a digest. The podcast name must match a digest's `source` field. The episode URL must match the digest's `url` or `episodeUrl` field.
+
+If you cannot produce an argumentative section from the available digests, write a shorter section, drop a sub-heading, or write a single paragraph disclaimer. **Never invent references.** A post-write verifier (`scripts/editorial-verify-draft.js`) blocks drafts containing unverifiable podcast references — this is not a judgement call. Either the reference is in the whitelist or the draft fails.
+
+Known blocked references (seeded from the Week 15 2026 incident): The AI Exchange, Stratechery podcast, Sinica Podcast, Insurance Innovators Podcast, InsureTech Connect podcast. Do not cite these even if they seem to fit — they are not in the SNI pipeline.
+
 ## Section heading
 
 ```

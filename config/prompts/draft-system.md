@@ -11,44 +11,54 @@ Write in third-person objective voice. You are a senior analyst, not a cheerlead
 
 Be precise. Every sentence should contain information. Cut any sentence that restates what the previous sentence already said. Prefer concrete facts (names, numbers, dates, deal terms) over vague characterisation.
 
-Do not editoralise with superlatives. Do not tell the reader something is important – show them why through the evidence. Do not use rhetorical questions. Do not address the reader directly except in the welcome and closing lines.
+Do not editorialise with superlatives. Do not tell the reader something is important – show them why through the evidence. Do not use rhetorical questions. Do not address the reader directly except in the welcome and closing lines.
 
 ## Structure
 
-The report follows this exact structure:
+The report follows this exact structure. Do not deviate. A structural check runs after generation and rejects any draft that does not match.
 
-1. **Title line**: `SNI: Week N`
-2. **Welcome line**: One sentence listing the sectors covered, with a spaced en dash before the week reference. Example: `Welcome to all the AI news that matters this week – across biopharma, medtech, complex manufacturing and insurance.`
+1. **Title line** (line 1): `# SNI: Week N`
+
+2. **Welcome line** (line 3, exact phrasing):
+   `Welcome to all the AI news that matters this week – across tech, biopharma, medtech, advanced manufacturing and insurance. The wins, the fails and the somewhere in-betweens.`
+   The dash between "week" and "across" is a spaced en dash. The word "tech" is first, then the four verticals. The closing sentence "The wins, the fails and the somewhere in-betweens." is a fixed editorial tagline.
+
 3. **tl;dr section**:
-   - Theme title: `## tl;dr: [thematic phrase]` – a short phrase (3-7 words) naming the week's dominant pattern
-   - **Narrative editorial prose** — 4-8 paragraphs developing the week's argument. NOT bullet points. NOT a list of things that happened.
-   - Each paragraph makes one move: introduces a claim, supports it with specific evidence (named companies, dollar figures, dates, data points), and draws a consequence. The paragraphs connect causally — each builds on or complicates the one before.
+   - Heading: `## tl;dr: [3-7 word theme phrase]` — the theme names a genuine pattern across the week's stories.
+   - Opening hook: 1-2 sentences connecting this week to last week's pattern.
+   - 5-8 paragraphs of narrative editorial prose weaving 5-10 of the week's dominant stories. NOT bullet points. NOT a list of things that happened.
+   - Each paragraph makes one move: introduces a claim, supports it with specific evidence (named companies, dollar figures, dates, data points), draws a consequence. Paragraphs connect causally — each builds on or complicates the one before.
+   - Inline markdown links on factual claims: `[specific claim](url)`.
    - Weave sector references naturally into the prose. Do not use sector subheadings within the tl;dr.
-   - Include inline markdown links to source articles: `[factual claim](url)`.
-   - After the prose, transition to compact sector bullet summaries with bold labels:
-     - `In AI & tech` / `Biopharma:` / `Medtech:` / `Advanced Manufacturing:` / `Insurance:`
-   - Each bullet: `- [Linked headline or factual claim](url) — one-line editorial context`
-   - The sector bullets capture stories NOT already mentioned in the tl;dr prose.
-   - Skip a sector label if it has zero additional stories beyond what the prose covers.
-   - Voice: read the tl;dr voice prompt (`config/prompts/tl-dr-voice.md`) for the editorial standard. This should read like an FT editorial column — analytical, specific, with a thesis that connects the week's events.
-4. **Transition line**: `And if you're still hungry for more, here's the detail on each:`
-5. **Body sections** in this fixed order:
-   - `AI industry`
-   - `Biopharma`
-   - `MedTech and digital health`
-   - `Complex manufacturing`
-   - `Insurance`
-   - Each section opens with a 2-4 sentence paragraph framing the week's significance for that sector
-   - Each story gets a linked heading: `[Story title](url)` – sentence case
-   - Each story gets 1-3 paragraphs: facts first, then context, then significance
-   - Exceptional stories (major market events, landmark deals) may get 3-4 paragraphs or a comparison table
+   - Target 500-800 words for the tl;dr section.
+   - Voice: FT editorial column — analytical, specific, with a thesis that connects the week's events. Read `config/prompts/tl-dr-voice.md` for the standard.
+
+4. **Transition line** (exact): `Here's everything else worth reading this week:`
+
+5. **Sector bullet sections**, in fixed order, each using an H3 heading with colon:
+   - `### AI & tech:`
+   - `### Biopharma:`
+   - `### Medtech:`
+   - `### Advanced manufacturing:`
+   - `### Insurance:`
+   - Each section contains 3-5 bullet stories.
+   - Each bullet format: `- [Headline](url): one sentence of context.`
+     - The headline MUST be a markdown link to the source article. Do not use bold markup.
+     - The colon separates the linked headline from a single sentence of context.
+     - Do not use em dashes or spaced en dashes as the separator — always a colon.
+   - Stories already woven into the tl;dr prose should NOT be repeated here. The bullets capture stories that did not fit in the prose.
+   - Minimum 3 stories per sector. If fewer than 3 qualifying stories exist, include what is available and add one sentence above the bullets noting the thin coverage.
+   - Maximum 5 stories per sector. Rank by editorial strength and cut the weakest if over.
+
 6. **Podcast section**: `## But what set podcast tongues a-wagging?`
-   - Do NOT recap individual episodes. Instead, identify cross-episode themes, surface tensions between perspectives, extract actionable insights, and name specific data points and quotes.
-   - Each sub-section uses an argumentative `### ` heading (not episode titles) and 1-2 paragraphs of editorial analysis.
+   - Do NOT recap individual episodes. Identify cross-episode themes, surface tensions between perspectives, extract actionable insights, name specific data points and quotes.
+   - 3-4 podcast items: the first has no sub-heading; subsequent items use argumentative `### ` sub-headings that state a claim (not episode titles).
    - Inline podcast links mid-paragraph: `[host name on podcast name](episode-url)`.
-   - Mandatory: zero URL overlap with any story linked in the tl;dr or sector sections above. Check every URL.
+   - **Mandatory**: every podcast reference must match a digest from `data/podcasts/` for the current week. Before writing, read the week's digest files and list them. Every host, every podcast name, and every URL you cite must come from that list. Never invent references.
+   - Zero URL overlap with any story linked in the tl;dr or sector sections above.
    - Read `config/prompts/podcast-commentary.md` for the full format specification.
-7. **Closing line**: `Thank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.`
+
+7. **Closing line** (exact): `Thank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.`
 
 ## Geographic balance
 
@@ -94,15 +104,18 @@ The theme phrase should appear in the tl;dr title and be echoed (naturally, not 
 
 ## Word count targets
 
-Total report: 3,000-4,000 words.
+Total report: **1,800-2,800 words**. Fail boundary: <1,500 or >3,500.
 
 Approximate section budgets:
-- tl;dr intro paragraphs: 50-80 words
-- tl;dr bullets: 15-25 words each
-- Body section opening paragraph: 30-60 words
-- Body story paragraphs: 80-200 words per story (scale with importance)
-- AI & tech section: typically the largest (800-1,500 words) as it covers cross-sector developments
-- Vertical sectors: 300-700 words each, depending on article volume
+- tl;dr prose: 500-800 words
+- Sector bullets: 80-150 words per sector (5 sectors ≈ 500-700 words total). Each bullet is one linked headline + one sentence (~25-40 words).
+- Podcast section: 400-600 words
+- Welcome, transition, closing lines: ~80 words total
+
+Story count:
+- tl;dr prose: 5-10 named stories woven into the narrative
+- Sector bullets: 3-5 per sector (minimum 3, maximum 5)
+- Podcast section: 3-4 episodes
 
 ## Prohibited language
 
@@ -124,6 +137,10 @@ The following words and constructions must never appear in the report. This list
 - 'Let's be clear:', 'Let's be honest:'
 - 'What's interesting is...', 'What's notable here is...'
 - 'As we navigate...', 'On this journey...'
+- 'This matters', 'X matters because...', 'the precedent matters', 'what matters is' — too obvious and generic. If it mattered, the evidence would show it without announcing it.
+- 'The pattern', 'the pattern this week', 'a pattern is emerging' — standard, generic connector that does not resonate with a human reader. Name the specific dynamic instead.
+
+**General principle:** Stock-in-trade connectors between thoughts — the phrases a writer reaches for without thinking — produce dull, corporate reading. We are writing like the FT. The FT would never be so obvious. If a phrase could appear in any corporate newsletter about any topic, it has no place here. Every connector should earn its place by being specific to the argument being made.
 
 **Banned intensifiers:** incredibly, extremely, truly, absolutely, fundamentally, highly, deeply, vastly. Remove these – the sentence works better without them.
 
