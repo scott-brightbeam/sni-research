@@ -53,7 +53,18 @@ export function useArticles(filters = {}) {
         }
       } catch { /* ignore polling errors */ }
     }, 15000)
-    return () => clearInterval(interval)
+
+    // Refetch on tab visibility. Background tabs get their setInterval
+    // throttled by the browser, so a tab that was hidden overnight can show
+    // state from many hours ago when Scott returns to it. visibilitychange
+    // fires immediately on the first tab focus and forces a fresh load.
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [load])
 
   return { articles, total, loading, error, reload: load, lastUpdated }

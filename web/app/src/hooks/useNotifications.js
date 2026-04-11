@@ -48,7 +48,21 @@ export function useNotifications(pollIntervalMs = 60000) {
       if (failCountRef.current >= 5) return
       load()
     }, pollIntervalMs)
-    return () => clearInterval(interval)
+
+    // Refetch on tab visibility — background tabs get their timers throttled,
+    // so this guarantees fresh notifications the moment the tab regains focus.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        failCountRef.current = 0 // reset failure count so polling resumes
+        load()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [load, pollIntervalMs])
 
   const dismiss = useCallback(async (id) => {

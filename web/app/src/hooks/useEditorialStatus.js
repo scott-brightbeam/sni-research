@@ -55,9 +55,17 @@ export function useEditorialStatus(interval = 3000) {
     }
     scheduleNext()
 
+    // Force a fresh fetch on tab visibility — background tab throttling can
+    // stretch setTimeout delays to several minutes, leaving the UI out of date.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchStatus()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       mountedRef.current = false
       clearTimeout(timerRef.current)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [fetchStatus, interval])
 

@@ -62,6 +62,19 @@ app.use('*', async (c, next) => {
   }
 })
 
+// --- Middleware: no-cache on API responses ---
+// Without this, browsers (and any intermediate proxies) fall back to heuristic
+// caching, which can keep stale JSON in the tab indefinitely after data changes.
+// Scott reported Week 16 data not showing up on Fly even though the live API
+// endpoints had already refreshed to include 10 April articles — the only
+// remaining failure mode was client-side caching of a prior response.
+app.use('/api/*', async (c, next) => {
+  await next()
+  c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+  c.res.headers.set('Pragma', 'no-cache')
+  c.res.headers.set('Expires', '0')
+})
+
 // --- Middleware: CORS ---
 // In production with same-origin serving, CORS_ORIGIN is empty — use request origin.
 // In dev, CORS_ORIGIN is 'http://localhost:5173' (Vite proxy).
