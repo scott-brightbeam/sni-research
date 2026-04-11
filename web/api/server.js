@@ -294,6 +294,32 @@ const server = Bun.serve({
   fetch: app.fetch,
 })
 
+// --- Warm the dashboard caches in the background after startup ---
+// On Fly's persistent volume, walking 4576+ verified articles synchronously
+// takes 30-60 seconds and blocks the event loop. If the first user request
+// triggers this, the health check fails and the machine restarts before the
+// cache can populate. Warming on startup means the first user request hits
+// a primed cache. The stale-while-revalidate pattern in the route handlers
+// then absorbs every refresh after this one.
+//
+// We delay slightly so the server can pass its initial health check before
+// the heavy work starts. All three walks run in parallel — the yields in
+// walkArticleDirAsync let the health check endpoint run between file reads.
+setTimeout(async () => {
+  console.log('[startup] Warming caches...')
+  const t0 = Date.now()
+  const warm = (name, fn) =>
+    fn()
+      .then(() => console.log(`[startup]   ${name} warmed in ${Date.now() - t0}ms`))
+      .catch(err => console.error(`[startup]   ${name} warm failed: ${err.message}`))
+  await Promise.all([
+    warm('status', () => getStatus()),
+    warm('articles', () => getArticles({})),
+    warm('podcasts', () => handleGetPodcasts({})),
+  ])
+  console.log(`[startup] All caches warmed in ${Date.now() - t0}ms`)
+}, 2000)
+
 // --- Graceful shutdown ---
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down...')

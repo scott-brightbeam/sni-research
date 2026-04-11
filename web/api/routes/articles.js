@@ -1,16 +1,24 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { walkArticleDir, validateParam } from '../lib/walk.js'
+import { walkArticleDir, walkArticleDirAsync, validateParam } from '../lib/walk.js'
 import config from '../lib/config.js'
 
 const ROOT = config.ROOT
 const INGEST_URL = config.INGEST_URL
 
-export async function getArticles({ sector, date, dateFrom, dateTo, search, limit, offset } = {}) {
-  const allMatched = []
+// Stale-while-revalidate cache for the full article corpus. Walking 4576
+// articles on Fly's persistent volume takes ~16s+ per full scan. 5-minute TTL,
+// serve stale during refresh, filter + paginate in-memory per request.
+// Tests skip the cache (they create fixtures between calls and expect fresh reads).
+const ARTICLES_CACHE_TTL_MS = 5 * 60_000
+let _articlesCache = null
+let _articlesCacheAt = 0
+let _articlesInflight = null
 
-  function collectArticle(raw, { date: d, sector: s, slug }, sourceType) {
-    const article = {
+function buildCollector() {
+  const all = []
+  const collect = (raw, { date: d, sector: s, slug }, sourceType) => {
+    all.push({
       slug,
       title: raw.title,
       url: raw.url,
@@ -24,34 +32,93 @@ export async function getArticles({ sector, date, dateFrom, dateTo, search, limi
       keywords_matched: raw.keywords_matched || [],
       scraped_at: raw.scraped_at,
       source_type: sourceType || raw.source_type,
-    }
+    })
+  }
+  return { all, collect }
+}
 
-    if (search) {
-      const hay = `${article.title} ${article.source} ${article.snippet}`.toLowerCase()
-      if (!hay.includes(search.toLowerCase())) return
-    }
+async function loadAllArticles(walkerOpts = {}) {
+  const { all, collect } = buildCollector()
+  await walkArticleDirAsync('verified', (raw, meta) => collect(raw, meta, raw.source_type), walkerOpts)
+  await walkArticleDirAsync('podcast-articles', (raw, meta) => collect(raw, meta, 'podcast-extract'), walkerOpts)
+  // Newest first — sort once, filter + paginate per request
+  all.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || '')
+    || (b.scraped_at || '').localeCompare(a.scraped_at || ''))
+  return all
+}
 
-    allMatched.push(article)
+async function refreshArticlesCache() {
+  try {
+    const result = await loadAllArticles()
+    _articlesCache = result
+    _articlesCacheAt = Date.now()
+    return result
+  } finally {
+    _articlesInflight = null
+  }
+}
+
+async function getAllArticlesCached() {
+  if (process.env.SNI_TEST_MODE === '1') return loadAllArticles()
+
+  const now = Date.now()
+
+  // Fresh cache
+  if (_articlesCache && (now - _articlesCacheAt) < ARTICLES_CACHE_TTL_MS) {
+    return _articlesCache
   }
 
-  walkArticleDir('verified', (raw, meta) => {
-    collectArticle(raw, meta, raw.source_type)
-  }, { sector, date, dateFrom, dateTo })
+  // Stale cache: return stale now, refresh in background
+  if (_articlesCache) {
+    if (!_articlesInflight) {
+      _articlesInflight = refreshArticlesCache()
+      _articlesInflight.catch(err => console.error('[articles] background refresh failed:', err.message))
+    }
+    return _articlesCache
+  }
 
-  walkArticleDir('podcast-articles', (raw, meta) => {
-    collectArticle(raw, meta, 'podcast-extract')
-  }, { sector, date, dateFrom, dateTo })
+  // Cold start
+  if (!_articlesInflight) {
+    _articlesInflight = refreshArticlesCache()
+  }
+  return _articlesInflight
+}
 
-  // Newest first — sort by date_published descending, then scraped_at as tiebreaker
-  allMatched.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || '')
-    || (b.scraped_at || '').localeCompare(a.scraped_at || ''))
+export function invalidateArticlesCache() {
+  _articlesCache = null
+  _articlesCacheAt = 0
+}
+
+export async function getArticles({ sector, date, dateFrom, dateTo, search, limit, offset } = {}) {
+  // Two paths:
+  // - Cache on (production): load the full corpus once per TTL, filter in memory
+  // - Cache off (tests): walk with filters passed through so we skip irrelevant
+  //   date directories. Avoids re-scanning 4576 articles for every test call.
+  const useCache = process.env.SNI_TEST_MODE !== '1'
+  const all = useCache
+    ? await getAllArticlesCached()
+    : await loadAllArticles({ sector, date, dateFrom, dateTo })
+
+  const searchLower = search ? search.toLowerCase() : null
+  const matched = all.filter(a => {
+    if (sector && a.sector !== sector) return false
+    const pubDate = a.date_published
+    if (date && pubDate !== date) return false
+    if (dateFrom && pubDate && pubDate < dateFrom) return false
+    if (dateTo && pubDate && pubDate > dateTo) return false
+    if (searchLower) {
+      const hay = `${a.title || ''} ${a.source || ''} ${a.snippet || ''}`.toLowerCase()
+      if (!hay.includes(searchLower)) return false
+    }
+    return true
+  })
 
   const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
   const off = Math.max(parseInt(offset) || 0, 0)
 
   return {
-    articles: allMatched.slice(off, off + lim),
-    total: allMatched.length,
+    articles: matched.slice(off, off + lim),
+    total: matched.length,
     limit: lim,
     offset: off,
   }
@@ -81,7 +148,7 @@ export async function getArticle(date, sector, slug) {
 export async function getFlaggedArticles() {
   const articles = []
 
-  walkArticleDir('review', (raw, { date, sector, slug, sectorPath }) => {
+  await walkArticleDirAsync('review', (raw, { date, sector, slug, sectorPath }) => {
     const reasonPath = join(sectorPath, `${slug}-reason.txt`)
     const reason = existsSync(reasonPath)
       ? readFileSync(reasonPath, 'utf-8').trim()

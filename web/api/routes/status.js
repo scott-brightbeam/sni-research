@@ -1,23 +1,85 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { join } from 'path'
-import { walkArticleDir } from '../lib/walk.js'
+import { walkArticleDir, walkArticleDirAsync } from '../lib/walk.js'
 import { getISOWeek } from '../lib/week.js'
 import config from '../lib/config.js'
 
 const ROOT = config.ROOT
 
-export async function getStatus() {
+// Stale-while-revalidate cache for getStatus(). The full computation walks
+// 4576+ verified articles synchronously, which blocks the event loop for tens
+// of seconds on Fly's persistent volume. Three strategies stack:
+//   1. 5-minute TTL (articles change at most a few times per hour)
+//   2. SWR — serve stale immediately, refresh in background, so only the very
+//      first request after startup pays the cold-walk cost
+//   3. Startup warm in server.js pre-populates the cache before accepting
+//      traffic, so that first cold walk happens outside the user's request path
+const STATUS_CACHE_TTL_MS = 5 * 60_000
+let _statusCache = null
+let _statusCacheAt = 0
+let _statusInflight = null
+
+async function computeStatus() {
   const lastFullRunAt = getLastFullRunAt()
   return {
     lastRun: getLastRun(),
     lastFullRunAt,
-    articles: getArticleCounts(lastFullRunAt),
+    articles: await getArticleCountsAsync(lastFullRunAt),
     availableWeeks: getAvailableWeeks(),
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
     ingestServer: await getIngestHealth(),
     podcastImport: getPodcastImport(),
   }
+}
+
+async function refreshStatusCache() {
+  try {
+    const result = await computeStatus()
+    _statusCache = result
+    _statusCacheAt = Date.now()
+    return result
+  } finally {
+    _statusInflight = null
+  }
+}
+
+export async function getStatus() {
+  // Tests create fixtures between calls and expect fresh reads; skip the cache.
+  if (process.env.SNI_TEST_MODE === '1') return computeStatus()
+
+  const now = Date.now()
+
+  // Fresh cache: return immediately
+  if (_statusCache && (now - _statusCacheAt) < STATUS_CACHE_TTL_MS) {
+    return _statusCache
+  }
+
+  // Stale cache: return stale now, refresh in background. Keeps the dashboard
+  // responsive while the walk runs. The cache updates on completion.
+  if (_statusCache) {
+    if (!_statusInflight) {
+      _statusInflight = refreshStatusCache()
+      _statusInflight.catch(err => console.error('[status] background refresh failed:', err.message))
+    }
+    return _statusCache
+  }
+
+  // Cold start: block on the walk. Startup warm in server.js usually pays this
+  // cost before accepting real traffic. Concurrent cold callers share one walk.
+  if (!_statusInflight) {
+    _statusInflight = refreshStatusCache()
+  }
+  return _statusInflight
+}
+
+/**
+ * Force-clear the status cache. Used by mutation endpoints (manual ingest,
+ * archive toggle) to ensure the next dashboard read is fresh.
+ */
+export function invalidateStatusCache() {
+  _statusCache = null
+  _statusCacheAt = 0
 }
 
 async function getIngestHealth() {
@@ -90,56 +152,76 @@ function getLastRun() {
 }
 
 function getArticleCounts(fullRunCutoff) {
+  const acc = createCountsAccumulator(fullRunCutoff)
+  walkArticleDir('verified', (raw, ctx) => acc.add(raw, ctx))
+  return acc.result()
+}
+
+/**
+ * Async version of getArticleCounts that yields the event loop every 50
+ * articles via walkArticleDirAsync. Use this from request handlers to avoid
+ * blocking the health check while walking 4576+ articles.
+ */
+async function getArticleCountsAsync(fullRunCutoff) {
+  const acc = createCountsAccumulator(fullRunCutoff)
+  await walkArticleDirAsync('verified', (raw, ctx) => acc.add(raw, ctx))
+  return acc.result()
+}
+
+/**
+ * Shared accumulator for sync + async counters. Single source of truth for
+ * the per-article math; the only difference between the two callers is whether
+ * the walker yields between files.
+ */
+function createCountsAccumulator(fullRunCutoff) {
   const byDate = {}
   const bySector = {}
   const byDateBySector = {}
   let total = 0
 
-  // Week-filtered counts (articles scraped after last full pipeline run)
   const weekByDate = {}
   const weekBySector = {}
   const weekByDateBySector = {}
   let weekTotal = 0
 
-  // Count articles added (scraped) today, not published today
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   let addedToday = 0
 
-  walkArticleDir('verified', (raw, { date, sector }) => {
-    // All-time counts
-    byDate[date] = (byDate[date] || 0) + 1
-    bySector[sector] = (bySector[sector] || 0) + 1
-    if (!byDateBySector[date]) byDateBySector[date] = {}
-    byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
-    total++
-
-    // Articles added today: scraped_at starts with today's date
-    if (raw.scraped_at && raw.scraped_at.startsWith(today)) {
-      addedToday++
-    }
-
-    // Week counts: only articles scraped after last full pipeline run
-    if (fullRunCutoff && raw.scraped_at && raw.scraped_at > fullRunCutoff) {
-      weekByDate[date] = (weekByDate[date] || 0) + 1
-      weekBySector[sector] = (weekBySector[sector] || 0) + 1
-      if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
-      weekByDateBySector[date][sector] = (weekByDateBySector[date][sector] || 0) + 1
-      weekTotal++
-    }
-  })
-
   return {
-    today: addedToday,
-    total,
-    byDate,
-    bySector,
-    byDateBySector,
-    weekArticles: {
-      total: weekTotal,
-      byDate: weekByDate,
-      bySector: weekBySector,
-      byDateBySector: weekByDateBySector,
+    add(raw, { date, sector }) {
+      byDate[date] = (byDate[date] || 0) + 1
+      bySector[sector] = (bySector[sector] || 0) + 1
+      if (!byDateBySector[date]) byDateBySector[date] = {}
+      byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
+      total++
+
+      if (raw.scraped_at && raw.scraped_at.startsWith(today)) {
+        addedToday++
+      }
+
+      if (fullRunCutoff && raw.scraped_at && raw.scraped_at > fullRunCutoff) {
+        weekByDate[date] = (weekByDate[date] || 0) + 1
+        weekBySector[sector] = (weekBySector[sector] || 0) + 1
+        if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
+        weekByDateBySector[date][sector] = (weekByDateBySector[date][sector] || 0) + 1
+        weekTotal++
+      }
+    },
+    result() {
+      return {
+        today: addedToday,
+        total,
+        byDate,
+        bySector,
+        byDateBySector,
+        weekArticles: {
+          total: weekTotal,
+          byDate: weekByDate,
+          bySector: weekBySector,
+          byDateBySector: weekByDateBySector,
+        },
+      }
     },
   }
 }

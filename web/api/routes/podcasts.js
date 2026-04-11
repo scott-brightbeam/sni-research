@@ -1,30 +1,51 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { validateParam } from '../lib/walk.js'
 import config from '../lib/config.js'
 
 const ROOT = config.ROOT
 
+// Stale-while-revalidate cache for the full podcast list. Scanning 140+ digest
+// files on Fly's persistent volume blocks the event loop for several seconds.
+// 5-minute TTL, serve stale during refresh, async yields keep the dashboard
+// responsive during the walk itself.
+const PODCASTS_CACHE_TTL_MS = 5 * 60_000
+let _podcastsCache = null
+let _podcastsCacheAt = 0
+let _podcastsInflight = null
+
+const YIELD_EVERY = 50
+const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve))
+const yieldsEnabled = () => process.env.SNI_TEST_MODE !== '1'
+
 /**
  * Scan data/podcasts/ directories for .digest.json files.
  * Used as fallback when manifest.json does not exist.
+ * Yields the event loop every 50 files to keep health checks responsive.
  */
-function scanDigestFiles() {
+async function scanDigestFiles() {
   const podcastsDir = join(ROOT, 'data/podcasts')
   if (!existsSync(podcastsDir)) return []
 
   const episodes = []
   const dateDirs = readdirSync(podcastsDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()
 
+  let processed = 0
   for (const dateDir of dateDirs) {
     const datePath = join(podcastsDir, dateDir)
     let sourceDirs
-    try { sourceDirs = readdirSync(datePath) } catch { continue }
+    try {
+      if (!statSync(datePath).isDirectory()) continue
+      sourceDirs = readdirSync(datePath)
+    } catch { continue }
 
     for (const sourceDir of sourceDirs) {
       const sourcePath = join(datePath, sourceDir)
       let files
-      try { files = readdirSync(sourcePath) } catch { continue }
+      try {
+        if (!statSync(sourcePath).isDirectory()) continue
+        files = readdirSync(sourcePath)
+      } catch { continue }
 
       for (const file of files) {
         if (!file.endsWith('.digest.json')) continue
@@ -45,6 +66,8 @@ function scanDigestFiles() {
             digest,
           })
         } catch { /* skip malformed digest */ }
+        processed++
+        if (yieldsEnabled() && processed % YIELD_EVERY === 0) await yieldToEventLoop()
       }
     }
   }
@@ -52,31 +75,27 @@ function scanDigestFiles() {
   return episodes
 }
 
-export async function handleGetPodcasts(query) {
-  const { week } = query
+export function invalidatePodcastsCache() {
+  _podcastsCache = null
+  _podcastsCacheAt = 0
+}
+
+async function loadAllEpisodes() {
   const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-
-  let episodes
-
   if (existsSync(manifestPath)) {
-    // Use manifest when available (keyed by filename per PRD §5.1)
     let manifest
     try {
       manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     } catch {
-      return { week: week || null, episodes: [], lastRun: null }
+      return []
     }
-
-    let entries = Array.isArray(manifest)
+    const entries = Array.isArray(manifest)
       ? manifest
       : Object.entries(manifest).map(([filename, entry]) => ({ filename, ...entry }))
 
-    if (week) {
-      const weekNum = parseInt(week, 10)
-      entries = entries.filter(e => e.week === weekNum)
-    }
-
-    episodes = entries.map(entry => {
+    const episodes = []
+    let processed = 0
+    for (const entry of entries) {
       let digest = null
       if (entry.digestPath) {
         const digestFullPath = join(ROOT, entry.digestPath)
@@ -86,15 +105,60 @@ export async function handleGetPodcasts(query) {
           } catch { /* skip malformed */ }
         }
       }
-      return { ...entry, archived: digest?.archived || entry.archived || false, digest }
-    })
-  } else {
-    // Fallback: scan digest files directly
-    episodes = scanDigestFiles()
-    if (week) {
-      const weekNum = parseInt(week, 10)
-      episodes = episodes.filter(e => e.week === weekNum)
+      episodes.push({ ...entry, archived: digest?.archived || entry.archived || false, digest })
+      processed++
+      if (yieldsEnabled() && processed % YIELD_EVERY === 0) await yieldToEventLoop()
     }
+    return episodes
+  }
+  // Fallback: scan digest files directly (also async)
+  return await scanDigestFiles()
+}
+
+async function refreshPodcastsCache() {
+  try {
+    const result = await loadAllEpisodes()
+    _podcastsCache = result
+    _podcastsCacheAt = Date.now()
+    return result
+  } finally {
+    _podcastsInflight = null
+  }
+}
+
+async function getAllEpisodesCached() {
+  if (process.env.SNI_TEST_MODE === '1') return loadAllEpisodes()
+
+  const now = Date.now()
+
+  // Fresh cache
+  if (_podcastsCache && (now - _podcastsCacheAt) < PODCASTS_CACHE_TTL_MS) {
+    return _podcastsCache
+  }
+
+  // Stale cache: return stale now, refresh in background
+  if (_podcastsCache) {
+    if (!_podcastsInflight) {
+      _podcastsInflight = refreshPodcastsCache()
+      _podcastsInflight.catch(err => console.error('[podcasts] background refresh failed:', err.message))
+    }
+    return _podcastsCache
+  }
+
+  // Cold start
+  if (!_podcastsInflight) {
+    _podcastsInflight = refreshPodcastsCache()
+  }
+  return _podcastsInflight
+}
+
+export async function handleGetPodcasts(query) {
+  const { week } = query
+  let episodes = await getAllEpisodesCached()
+
+  if (week) {
+    const weekNum = parseInt(week, 10)
+    episodes = episodes.filter(e => e.week === weekNum)
   }
 
   // Find the latest podcast-import run summary
