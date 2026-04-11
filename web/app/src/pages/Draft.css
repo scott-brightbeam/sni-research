@@ -209,6 +209,32 @@ button.btn-secondary.has-overlap-results {
   font-size: 14px;
 }
 
+.draft-empty-verification {
+  flex-direction: column;
+  padding: 48px 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.draft-empty-verification .draft-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.draft-empty-verification .draft-empty-body {
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.draft-empty-verification code {
+  background: var(--surface-secondary, rgba(255,255,255,0.05));
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
 /* ── Right panel (tabbed) ────────────────────────────────── */
 
 .draft-right-panel {

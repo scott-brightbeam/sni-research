@@ -21,6 +21,10 @@ primary_region = "lhr"
   destination = "/app/data"
   initial_size = "3gb"
 
+# NOTE: /app/output is NOT a separate volume — Fly machines only support one
+# mount point. Instead, the Dockerfile symlinks /app/output → /app/data/output
+# at container startup, so draft files persist on the same volume.
+
 # 256MB (the default) is OOM-killed by getStatus walking 4576 articles.
 # 1024MB gives comfortable headroom for the in-memory article scan and SSE
 # streaming. Bump to 2048mb if we add more in-memory state later.

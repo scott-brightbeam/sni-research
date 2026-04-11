@@ -61,10 +61,13 @@ export default function Draft({ embedded = false }) {
   const excl = useExclusions(week)
   const overlap = useOverlapCheck(week)
 
+  // Zero out word count when the draft is blocked behind verification —
+  // the content exists on disk but we deliberately don't reveal details
+  // about it (length, issue count) until the verifier has passed.
   const wordCount = useMemo(() => {
-    if (!draft) return 0
+    if (!draft || verificationStatus === 'unverified' || verificationStatus === 'unknown') return 0
     return draft.trim().split(/\s+/).filter(Boolean).length
-  }, [draft])
+  }, [draft, verificationStatus])
 
   const linkMap = useMemo(() => {
     if (!links?.results) return {}
@@ -94,7 +97,15 @@ export default function Draft({ embedded = false }) {
 
   const recentlySaved = savedAt && Date.now() - savedAt < 2000
   const saveLabel = saving ? 'Saving...' : recentlySaved ? 'Saved' : 'Save'
-  const hasDraft = draft !== null && draft !== undefined
+  // "Unverified" drafts — those that have never passed the hallucination gate
+  // — are hidden entirely rather than shown with a warning banner. Scott's
+  // instruction was explicit: we should not see a draft until it has passed.
+  // Stale (edited since last verification) and invalid-sidecar states still
+  // show the content with a banner, because the editor needs the body to
+  // iterate from and the user just needs to re-run the verifier afterwards.
+  const isBlockedByVerification =
+    verificationStatus === 'unverified' || verificationStatus === 'unknown'
+  const hasDraft = draft !== null && draft !== undefined && !isBlockedByVerification
 
   function handleExportDraft() {
     if (!hasDraft) return
@@ -130,17 +141,15 @@ export default function Draft({ embedded = false }) {
 
   return (
     <div className={embedded ? 'draft-embedded' : 'draft-page'}>
-      {/* ── Verification banner ─────────────────────────── */}
-      {draft && !verified && verificationStatus !== 'verified' && (
+      {/* ── Verification banner: only shown for stale / invalid-sidecar.
+          Unverified drafts are hidden entirely via the empty-state below. */}
+      {draft && !isBlockedByVerification && !verified && verificationStatus !== 'verified' && (
         <div className={`verification-banner verification-banner-${verificationStatus}`}>
           {verificationStatus === 'stale' && (
             <>⚠ This draft has been edited since verification. Re-run <code>scripts/editorial-verify-draft.js</code> before publishing.</>
           )}
           {verificationStatus === 'invalid-sidecar' && (
             <>⚠ Verification sidecar exists but cannot be parsed. Re-run the verifier.</>
-          )}
-          {(verificationStatus === 'unverified' || verificationStatus === 'unknown') && (
-            <>⚠ This draft has not passed the hallucination verifier. Do not publish until verification passes.</>
           )}
         </div>
       )}
@@ -164,7 +173,7 @@ export default function Draft({ embedded = false }) {
         </div>
 
         <div className="toolbar-centre">
-          {review && (
+          {review && !isBlockedByVerification && (
             <button
               className={`review-pill ${reviewPass ? 'pass' : 'fail'}`}
               onClick={() => setShowFlags(f => !f)}
@@ -173,7 +182,9 @@ export default function Draft({ embedded = false }) {
               {reviewPass ? 'Pass' : `${reviewIssueCount} issue${reviewIssueCount !== 1 ? 's' : ''}`}
             </button>
           )}
-          <span className="word-count-badge">{wordCount.toLocaleString()} words</span>
+          {!isBlockedByVerification && (
+            <span className="word-count-badge">{wordCount.toLocaleString()} words</span>
+          )}
         </div>
 
         <div className="toolbar-right">
@@ -192,6 +203,7 @@ export default function Draft({ embedded = false }) {
           </button>
           <button
             className={`btn btn-ghost btn-md draft-publish-btn${showPublished ? ' active' : ''}`}
+            disabled={!hasDraft}
             onClick={() => setShowPublished(!showPublished)}
           >
             {pub.published ? 'Published ✓' : 'Publish'}
@@ -266,7 +278,19 @@ export default function Draft({ embedded = false }) {
         </div>
       ) : (
         <div className="draft-panes">
-          <div className="draft-empty-state">No draft found for week {week}</div>
+          {isBlockedByVerification ? (
+            <div className="draft-empty-state draft-empty-verification">
+              <div className="draft-empty-title">Week {week} draft pending verification</div>
+              <div className="draft-empty-body">
+                This draft has not passed the hallucination verifier, so it is not shown here.
+                Run <code>bun scripts/editorial-verify-draft.js</code> against{' '}
+                <code>data/editorial/drafts/draft-session-{'<N>'}-v2.md</code> to produce{' '}
+                <code>output/draft-week-{week}.md</code> and its <code>.verified</code> sidecar.
+              </div>
+            </div>
+          ) : (
+            <div className="draft-empty-state">No draft found for week {week}</div>
+          )}
         </div>
       )}
 

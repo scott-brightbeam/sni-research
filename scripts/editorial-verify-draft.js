@@ -891,12 +891,15 @@ export function checkStructure(draft) {
   }
 
   // Word count
+  // Word count range: 1250 floor accommodates the lean single-sentence bullet
+  // format (Week 15 final was ~1435 words). 3500 ceiling catches runaway
+  // expansion back toward the old long-form body sections.
   const wordCount = draft.trim().split(/\s+/).length
-  if (wordCount < 1500 || wordCount > 3500) {
+  if (wordCount < 1250 || wordCount > 3500) {
     violations.push({
       severity: 'fail',
       check: 'structure',
-      message: `Word count ${wordCount} outside range [1500, 3500]`,
+      message: `Word count ${wordCount} outside range [1250, 3500]`,
     })
   }
 

@@ -25,7 +25,9 @@ COPY --from=frontend-build /build/web/app/dist/ ./web/app/dist/
 # Copy config (read-only in cloud)
 COPY config/ ./config/
 
-# Data directory mounted as persistent volume
+# Data directory mounted as persistent volume. Fly machines only support ONE
+# volume per VM, so drafts (which live in /app/output) are folded into the same
+# volume via a symlink created at container startup, after the mount is in place.
 VOLUME /app/data
 
 ENV NODE_ENV=production
@@ -35,4 +37,8 @@ EXPOSE 3900
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD bun -e "fetch('http://localhost:3900/api/health').then(r => process.exit(r.ok ? 0 : 1))"
 
-CMD ["bun", "web/api/server.js"]
+# mkdir is idempotent on the volume; ln -sfn replaces any existing symlink
+# (but will fail loudly if a plain directory was left at /app/output — which
+# should never happen because nothing in the image build step creates it).
+# exec ensures SIGTERM reaches bun directly for graceful shutdown.
+CMD ["sh", "-c", "mkdir -p /app/data/output && ln -sfn /app/data/output /app/output && exec bun web/api/server.js"]
