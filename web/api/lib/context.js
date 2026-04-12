@@ -1,6 +1,11 @@
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join, resolve, basename } from 'path'
+import { readFileSync, existsSync } from 'fs'
+import { join, resolve } from 'path'
 import { getWeekDateRange } from './week.js'
+import { getDb } from './db.js'
+import { getArticles, getArticle as getArticleByKey } from './article-queries.js'
+// Available for buildPodcastContext / buildEditorialContext when those functions are added:
+// import { getEpisodes } from './podcast-queries.js'
+// import * as eq from './editorial-queries.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
@@ -73,62 +78,15 @@ export function trimHistory(messages, tokenBudget) {
   return kept
 }
 
-export function loadArticlesForWeek(week, year) {
+export async function loadArticlesForWeek(week, year) {
   const { start, end } = getWeekDateRange(week, year)
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  const articles = []
-  const verifiedDir = join(ROOT, 'data/verified')
-
-  if (!existsSync(verifiedDir)) return articles
-
-  for (const dateDir of readdirSync(verifiedDir).sort()) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDir)) continue
-    const d = new Date(dateDir)
-    if (d < startDate || d > endDate) continue
-
-    const datePath = join(verifiedDir, dateDir)
-    if (!statSync(datePath).isDirectory()) continue
-
-    for (const sector of readdirSync(datePath)) {
-      const sectorPath = join(datePath, sector)
-      if (!statSync(sectorPath).isDirectory()) continue
-
-      for (const f of readdirSync(sectorPath).filter(f => f.endsWith('.json'))) {
-        try {
-          const raw = JSON.parse(readFileSync(join(sectorPath, f), 'utf-8'))
-          articles.push({
-            title: raw.title || basename(f, '.json'),
-            source: raw.source || 'Unknown',
-            sector,
-            date_published: raw.date_published || dateDir,
-            snippet: raw.snippet || '',
-            score: raw.score || 0,
-            slug: basename(f, '.json'),
-            date: dateDir,
-          })
-        } catch { /* skip malformed */ }
-      }
-    }
-  }
-
+  const { articles } = await getArticles(getDb(), { dateFrom: start, dateTo: end, limit: 200 })
   return articles
 }
 
-export function loadArticleFullText(date, sector, slug) {
-  const mdPath = join(ROOT, 'data/verified', date, sector, `${slug}.md`)
-  const jsonPath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-
-  let text = ''
-  if (existsSync(mdPath)) {
-    text = readFileSync(mdPath, 'utf-8')
-  } else if (existsSync(jsonPath)) {
-    try {
-      const raw = JSON.parse(readFileSync(jsonPath, 'utf-8'))
-      text = raw.full_text || raw.snippet || ''
-    } catch { /* skip */ }
-  }
-  return text
+export async function loadArticleFullText(date, sector, slug) {
+  const article = await getArticleByKey(getDb(), date, sector, slug)
+  return article?.full_text ?? article?.snippet ?? ''
 }
 
 export function loadPins(week) {
@@ -148,7 +106,7 @@ export function buildPinContext(pins) {
   return lines.join('\n')
 }
 
-export function assembleContext({ week, year, threadHistory, articleRef, ephemeral, draftContext }) {
+export async function assembleContext({ week, year, threadHistory, articleRef, ephemeral, draftContext }) {
   const TOKEN_BUDGET = 28000  // leave 2k for response
   let used = 0
 
@@ -161,14 +119,14 @@ export function assembleContext({ week, year, threadHistory, articleRef, ephemer
   if (ephemeral && draftContext) {
     contextBlock = `## Current Draft\n\n${draftContext}`
   } else {
-    const articles = loadArticlesForWeek(week, year)
+    const articles = await loadArticlesForWeek(week, year)
     contextBlock = buildArticleContext(articles, 30)
   }
 
   // 3. Article injection
   let injectedArticle = ''
   if (articleRef) {
-    const fullText = loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
+    const fullText = await loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
     if (fullText) {
       injectedArticle = `\n## Full Article: ${articleRef.slug}\n\n${fullText.slice(0, 8000)}\n`
     }

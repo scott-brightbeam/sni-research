@@ -1,3 +1,4 @@
+import { getDb, migrateSchema } from './lib/db.js'
 import { getStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
@@ -7,6 +8,18 @@ import { getConfig, putConfig } from './routes/config.js'
 import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 
 const PORT = 3900
+
+// ---------------------------------------------------------------------------
+// DB migration on startup
+// ---------------------------------------------------------------------------
+const db = getDb()
+await migrateSchema(db)
+console.log('[startup] DB schema migrated')
+
+if (process.env.FLY_MACHINE_ID) {
+  await db.sync()
+  console.log('[startup] Embedded replica synced')
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
