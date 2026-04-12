@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure fly CLI is on PATH — launchd doesn't inherit shell profile
+export PATH="/Users/scott/.fly/bin:$PATH"
+
 # Push local data to Fly.io cloud server.
 #
 # Approach: tar locally, upload via fly ssh sftp (reliable for binary blobs),
