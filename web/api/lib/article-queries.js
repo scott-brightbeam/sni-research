@@ -127,23 +127,25 @@ export async function upsertArticle(db, article) {
  * @returns {Promise<{articles: object[], total: number, limit: number, offset: number}>}
  */
 export async function getArticles(db, { sector, date, dateFrom, dateTo, search, limit = 100, offset = 0 } = {}) {
-  // FTS search path
+  // Search path — uses LIKE for reliability (libsql#1811: parameterised FTS5
+  // MATCH crashes in embedded replica mode). LIKE is fast enough for ~10K articles.
   if (search) {
+    const pattern = `%${search}%`
     const countResult = await db.execute({
-      sql: `SELECT COUNT(*) AS cnt FROM articles_fts
-            JOIN articles ON articles.id = articles_fts.rowid
-            WHERE articles_fts MATCH ? AND articles.deleted_at IS NULL`,
-      args: [search],
+      sql: `SELECT COUNT(*) AS cnt FROM articles
+            WHERE deleted_at IS NULL
+            AND (title LIKE ? OR source LIKE ? OR snippet LIKE ?)`,
+      args: [pattern, pattern, pattern],
     })
     const total = Number(countResult.rows[0].cnt)
 
     const result = await db.execute({
-      sql: `SELECT ${LIST_FIELDS_QUALIFIED} FROM articles_fts
-            JOIN articles ON articles.id = articles_fts.rowid
-            WHERE articles_fts MATCH ? AND articles.deleted_at IS NULL
-            ORDER BY rank
+      sql: `SELECT ${LIST_FIELDS} FROM articles
+            WHERE deleted_at IS NULL
+            AND (title LIKE ? OR source LIKE ? OR snippet LIKE ?)
+            ORDER BY date_published DESC, scraped_at DESC
             LIMIT ? OFFSET ?`,
-      args: [search, limit, offset],
+      args: [pattern, pattern, pattern, limit, offset],
     })
 
     return { articles: result.rows, total, limit, offset }
@@ -322,20 +324,23 @@ export async function getArticleCounts(db, { scrapedSince } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * Full-text search via FTS5.
+ * Search articles by title, source, or snippet.
+ * Uses LIKE instead of FTS5 MATCH to avoid libsql#1811 (parameterised MATCH
+ * crashes in embedded replica mode). LIKE is fast enough for ~10K articles.
  * @param {import('@libsql/client').Client} db
- * @param {string} query - FTS5 MATCH expression
+ * @param {string} query - search term
  * @param {number} [limit=50]
  * @returns {Promise<object[]>}
  */
 export async function searchArticles(db, query, limit = 50) {
+  const pattern = `%${query}%`
   const result = await db.execute({
-    sql: `SELECT ${LIST_FIELDS_QUALIFIED} FROM articles_fts
-          JOIN articles ON articles.id = articles_fts.rowid
-          WHERE articles_fts MATCH ? AND articles.deleted_at IS NULL
-          ORDER BY rank
+    sql: `SELECT ${LIST_FIELDS} FROM articles
+          WHERE deleted_at IS NULL
+          AND (title LIKE ? OR source LIKE ? OR snippet LIKE ?)
+          ORDER BY date_published DESC
           LIMIT ?`,
-    args: [query, limit],
+    args: [pattern, pattern, pattern, limit],
   })
   return result.rows
 }

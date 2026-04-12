@@ -3,6 +3,10 @@ import { join, resolve } from 'path'
 import { getDb } from '../lib/db.js'
 import * as eq from '../lib/editorial-queries.js'
 import { getISOWeek } from '../lib/week.js'
+import { getClient } from '../lib/claude.js'
+import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
+import { DRAFT_TOOLS, executeTool } from '../lib/editorial-tools.js'
+import config from '../lib/config.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
@@ -633,4 +637,209 @@ export async function putDecisionArchive(id, body) {
   const archived = body?.archived !== false ? 1 : 0
   await eq.setDecisionArchived(db, id, archived)
   return { ok: true, id, archived: !!archived }
+}
+
+// ── Editorial Chat (streaming SSE) ─────────────────────
+
+export async function postEditorialChat(body, req) {
+  const { message, tab, history, injectContext, model, sourceRefs } = body
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    throw Object.assign(new Error('message is required'), { status: 400 })
+  }
+
+  const activeTab = tab || 'state'
+
+  // Only build context on first message per tab (lazy injection)
+  let context = null
+  let tokenEstimate = 0
+  if (injectContext !== false) {
+    const ctx = buildEditorialContext(activeTab, null, Array.isArray(sourceRefs) ? sourceRefs : null)
+    context = ctx.context
+    tokenEstimate = ctx.tokenEstimate
+  }
+
+  const trimmedHistory = trimEditorialHistory(history || [])
+
+  // Build messages array
+  const sdkMessages = []
+  if (context && trimmedHistory.length === 0) {
+    sdkMessages.push({
+      role: 'user',
+      content: `Here is the current editorial state for context:\n\n${context}\n\n---\n\n${message.trim()}`
+    })
+  } else if (context) {
+    sdkMessages.push({
+      role: 'user',
+      content: `Here is the current editorial state for context:\n\n${context}`
+    })
+    sdkMessages.push({
+      role: 'assistant',
+      content: 'I\'ve reviewed the editorial state. What would you like to discuss?'
+    })
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message.trim() })
+  } else {
+    for (const msg of trimmedHistory) {
+      sdkMessages.push({ role: msg.role, content: msg.content })
+    }
+    sdkMessages.push({ role: 'user', content: message.trim() })
+  }
+
+  const abort = new AbortController()
+  if (req.signal?.aborted) {
+    abort.abort()
+  } else if (req.signal) {
+    req.signal.addEventListener('abort', () => abort.abort(), { once: true })
+  }
+
+  const client = getClient()
+  if (!client) {
+    return new Response(JSON.stringify({
+      type: 'error', code: 'ANTHROPIC_DISABLED',
+      message: 'Editorial chat has moved to Claude Code.'
+    }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': config.CORS_ORIGIN } })
+  }
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': config.CORS_ORIGIN,
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder()
+      const send = (data) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch (err) {
+          if (err.message?.includes('close') || err.message?.includes('enqueue')) return
+          console.error('[editorial-chat] SSE send failed:', err.message, data?.type)
+        }
+      }
+
+      let fullText = ''
+
+      try {
+        const modelId = model === 'opus'
+          ? 'claude-opus-4-6'
+          : 'claude-sonnet-4-20250514'
+
+        const isDraftMode = activeTab === 'draft'
+        const MAX_TOOL_ROUNDS = 5
+
+        // Load editorial state for tool execution (draft mode reads from DB)
+        let editorialState = null
+        if (isDraftMode) {
+          const statePath = join(ROOT, 'data/editorial/state.json')
+          try {
+            editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
+          } catch { editorialState = {} }
+        }
+
+        let roundMessages = [...sdkMessages]
+        let toolRound = 0
+
+        while (true) {
+          if (abort.signal.aborted) break
+
+          const response = await client.messages.create({
+            model: modelId,
+            max_tokens: model === 'opus' ? 4096 : 2048,
+            system: getEditorialSystemPrompt(),
+            messages: roundMessages,
+            stream: true,
+            ...(isDraftMode && toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
+          })
+
+          const contentBlocks = []
+          let currentToolBlock = null
+          let toolInputJson = ''
+          let stopReason = null
+
+          for await (const event of response) {
+            if (abort.signal.aborted) break
+
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              fullText += event.delta.text
+              send({ type: 'delta', text: event.delta.text })
+            }
+
+            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+              currentToolBlock = { type: 'tool_use', id: event.content_block.id, name: event.content_block.name, input: {} }
+              toolInputJson = ''
+            }
+
+            if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
+              toolInputJson += event.delta.partial_json
+            }
+
+            if (event.type === 'content_block_stop') {
+              if (currentToolBlock) {
+                try { currentToolBlock.input = JSON.parse(toolInputJson || '{}') } catch { currentToolBlock.input = {} }
+                contentBlocks.push(currentToolBlock)
+                currentToolBlock = null
+                toolInputJson = ''
+              }
+            }
+
+            if (event.type === 'message_delta') {
+              stopReason = event.delta?.stop_reason
+            }
+          }
+
+          if (stopReason !== 'tool_use' || abort.signal.aborted) {
+            send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab })
+            break
+          }
+
+          toolRound++
+
+          const assistantContent = []
+          if (fullText) {
+            assistantContent.push({ type: 'text', text: fullText })
+          }
+          for (const block of contentBlocks) {
+            assistantContent.push(block)
+          }
+
+          const toolResults = []
+          for (const block of contentBlocks.filter(b => b.type === 'tool_use')) {
+            send({ type: 'tool_call', name: block.name, input: block.input })
+            const result = executeTool(block.name, block.input, editorialState)
+            send({ type: 'tool_result', name: block.name, preview: (result || '').slice(0, 200) })
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content: result,
+            })
+          }
+
+          roundMessages = [
+            ...roundMessages,
+            { role: 'assistant', content: assistantContent },
+            { role: 'user', content: toolResults },
+          ]
+
+          fullText = ''
+        }
+      } catch (err) {
+        send({ type: 'error', error: err.message })
+      }
+
+      try { controller.close() } catch { /* already closed */ }
+    }
+  })
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    }
+  })
 }
