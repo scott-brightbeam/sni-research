@@ -5,15 +5,6 @@ import { resolve } from 'path'
 import config from './lib/config.js'
 import { getDb, migrateSchema } from './lib/db.js'
 
-// --- DB migration on startup ---
-const db = getDb()
-await migrateSchema(db)
-console.log('[startup] DB schema migrated')
-if (process.env.FLY_MACHINE_ID) {
-  await db.sync()
-  console.log('[startup] Embedded replica synced')
-}
-
 // --- Route handler imports ---
 import { getStatus, getVerificationStatus } from './routes/status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated, getPublications, manualIngest } from './routes/articles.js'
@@ -351,3 +342,20 @@ process.on('SIGTERM', () => {
 })
 
 console.log(`SNI API server listening on http://localhost:${config.PORT}`)
+
+// --- DB migration (non-blocking — runs after server is already accepting connections) ---
+// Must be after Bun.serve() so health checks pass during the initial Turso replica sync,
+// which downloads the full database on first boot and can take 30-60 seconds.
+;(async () => {
+  try {
+    const db = getDb()
+    await migrateSchema(db)
+    console.log('[startup] DB schema migrated')
+    if (process.env.FLY_MACHINE_ID) {
+      await db.sync()
+      console.log('[startup] Embedded replica synced')
+    }
+  } catch (err) {
+    console.error('[startup] DB migration failed:', err.message)
+  }
+})()
