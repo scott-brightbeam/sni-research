@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, existsSync } from 'fs'
+import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import { getISOWeek } from '../lib/week.js'
 import { getDb } from '../lib/db.js'
@@ -36,6 +36,7 @@ export async function getStatus() {
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
     ingestServer: await getIngestHealth(),
+    podcastImport: getPodcastImport(),
   }
 }
 
@@ -205,32 +206,103 @@ function getLastFridayRunAt() {
 }
 
 function getNextPipeline() {
-  // Friday at 05:30 is the full pipeline run
+  // Thursday at 13:00 is the full pipeline run
   const now = new Date()
-  const day = now.getDay() // 0=Sun, 5=Fri
-  let daysUntilFriday = (5 - day + 7) % 7
-  if (daysUntilFriday === 0) {
-    // It's Friday — check if pipeline already ran today
+  const day = now.getDay() // 0=Sun, 4=Thu
+  let daysUntilThursday = (4 - day + 7) % 7
+  if (daysUntilThursday === 0) {
     const hour = now.getHours()
-    if (hour >= 6) daysUntilFriday = 7 // Already ran, next Friday
+    if (hour >= 14) daysUntilThursday = 7 // Past 2pm, assume it ran; next Thursday
   }
 
-  const nextFriday = new Date(now)
-  nextFriday.setDate(now.getDate() + daysUntilFriday)
-  nextFriday.setHours(5, 30, 0, 0)
+  const nextFull = new Date(now)
+  nextFull.setDate(now.getDate() + daysUntilThursday)
+  nextFull.setHours(13, 0, 0, 0)
 
   // Next daily fetch at 04:00
   const nextDaily = new Date(now)
   if (now.getHours() < 4) {
-    nextDaily.setHours(4, 0, 0, 0)       // today at 4am
+    nextDaily.setHours(4, 0, 0, 0)
   } else {
     nextDaily.setDate(now.getDate() + 1)
-    nextDaily.setHours(4, 0, 0, 0)       // tomorrow at 4am
+    nextDaily.setHours(4, 0, 0, 0)
   }
 
   return {
-    nextFriday: nextFriday.toISOString(),
+    nextFull: nextFull.toISOString(),
     nextDaily: nextDaily.toISOString()
+  }
+}
+
+export function getPodcastImport() {
+  const podcastDir = join(ROOT, 'data/podcasts')
+  if (!existsSync(podcastDir)) return null
+
+  const now = new Date()
+  const currentWeek = getISOWeek(now)
+  const currentYear = now.getFullYear()
+  let episodesThisWeek = 0
+  let latestDigestTime = null
+
+  try {
+    const dirs = readdirSync(podcastDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
+    for (const dateDir of dirs) {
+      const d = new Date(dateDir + 'T12:00:00Z')
+      if (isNaN(d.getTime())) continue
+      const isThisWeek = getISOWeek(d) === currentWeek && d.getFullYear() === currentYear
+
+      const datePath = join(podcastDir, dateDir)
+      try {
+        const sources = readdirSync(datePath)
+        for (const source of sources) {
+          const sourcePath = join(datePath, source)
+          try {
+            const files = readdirSync(sourcePath)
+            const digests = files.filter(f => f.endsWith('.digest.json'))
+            if (isThisWeek) episodesThisWeek += digests.length
+          } catch { /* not a directory */ }
+        }
+      } catch { /* skip */ }
+    }
+
+    const sortedDirs = dirs.sort().reverse()
+    for (const dateDir of sortedDirs) {
+      const datePath = join(podcastDir, dateDir)
+      try {
+        const stat = statSync(datePath)
+        latestDigestTime = stat.mtime.toISOString()
+        break
+      } catch { /* skip */ }
+    }
+  } catch { /* ignore */ }
+
+  let storiesGapFilled = 0
+  let warnings = []
+  const runsDir = join(ROOT, 'output/runs')
+  if (existsSync(runsDir)) {
+    const runFiles = readdirSync(runsDir)
+      .filter(f => f.startsWith('podcast-import-') && f.endsWith('.json'))
+      .sort()
+    if (runFiles.length > 0) {
+      try {
+        const data = JSON.parse(readFileSync(join(runsDir, runFiles[runFiles.length - 1]), 'utf-8'))
+        storiesGapFilled = data.storiesGapFilled ?? data.stories_gap_filled ?? 0
+        warnings = data.warnings || []
+        const runTime = data.completedAt || data.startedAt
+        if (runTime && (!latestDigestTime || runTime > latestDigestTime)) {
+          latestDigestTime = runTime
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  if (episodesThisWeek === 0 && !latestDigestTime) return null
+
+  return {
+    lastRun: latestDigestTime,
+    episodesThisWeek,
+    storiesGapFilled,
+    warnings,
   }
 }
 
