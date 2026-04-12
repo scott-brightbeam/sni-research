@@ -1,47 +1,28 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
-import { join, resolve } from 'path'
-import { walkArticleDir, validateParam } from '../lib/walk.js'
+import { validateParam } from '../lib/walk.js'
+import { getDb } from '../lib/db.js'
+import * as articleQueries from '../lib/article-queries.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
 const INGEST_URL = 'http://127.0.0.1:3847'
 
 export async function getArticles({ sector, date, from, to, search, limit, offset } = {}) {
-  const allMatched = []
-
-  walkArticleDir('verified', (raw, { date: d, sector: s, slug }) => {
-    const article = {
-      slug,
-      title: raw.title,
-      url: raw.url,
-      source: raw.source,
-      sector: raw.sector || s,
-      date_published: raw.date_published || d,
-      date_confidence: raw.date_confidence,
-      date_verified_method: raw.date_verified_method,
-      snippet: raw.snippet || (raw.full_text || '').slice(0, 300),
-      score: raw.score ?? null,
-      keywords_matched: raw.keywords_matched || [],
-      scraped_at: raw.scraped_at,
-      source_type: raw.source_type,
-    }
-
-    if (search) {
-      const hay = `${article.title} ${article.source} ${article.snippet}`.toLowerCase()
-      if (!hay.includes(search.toLowerCase())) return
-    }
-
-    allMatched.push(article)
-  }, { sector, date, dateFrom: from, dateTo: to })
-
+  const db = getDb()
   const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
   const off = Math.max(parseInt(offset) || 0, 0)
 
-  return {
-    articles: allMatched.slice(off, off + lim),
-    total: allMatched.length,
+  const result = await articleQueries.getArticles(db, {
+    sector,
+    date,
+    dateFrom: from,
+    dateTo: to,
+    search,
     limit: lim,
     offset: off,
-  }
+  })
+
+  // Parse JSON text fields back to arrays/objects for UI compatibility
+  result.articles = result.articles.map(normaliseArticleRow)
+
+  return result
 }
 
 export async function getArticle(date, sector, slug) {
@@ -49,45 +30,25 @@ export async function getArticle(date, sector, slug) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) return null
+  const db = getDb()
+  const row = await articleQueries.getArticle(db, date, sector, slug)
+  if (!row) return null
 
-  try {
-    const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-    return {
-      slug,
-      ...raw,
-      // Include full_text for detail view
-      full_text: raw.full_text || ''
-    }
-  } catch {
-    return null
-  }
+  return normaliseArticleRow(row)
 }
 
 export async function getFlaggedArticles() {
-  const articles = []
+  const db = getDb()
+  const result = await articleQueries.getFlaggedArticles(db)
 
-  walkArticleDir('review', (raw, { date, sector, slug, sectorPath }) => {
-    const reasonPath = join(sectorPath, `${slug}-reason.txt`)
-    const reason = existsSync(reasonPath)
-      ? readFileSync(reasonPath, 'utf-8').trim()
-      : null
-
-    articles.push({
-      slug,
-      title: raw.title,
-      url: raw.url,
-      source: raw.source,
-      sector: raw.sector || sector,
-      date_published: raw.date_published || date,
-      score: raw.score ?? null,
-      reason,
-      flagged: true,
-    })
+  result.articles = result.articles.map(row => {
+    const normalised = normaliseArticleRow(row)
+    // Map flag_reason → reason for UI compatibility
+    normalised.reason = row.flag_reason ?? null
+    return normalised
   })
 
-  return { articles, total: articles.length }
+  return result
 }
 
 export async function patchArticle(date, sector, slug, body) {
@@ -95,57 +56,56 @@ export async function patchArticle(date, sector, slug, body) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) {
+  const db = getDb()
+
+  // Check article exists
+  const existing = await articleQueries.getArticle(db, date, sector, slug)
+  if (!existing) {
     const err = new Error('Article not found')
     err.status = 404
     throw err
   }
 
-  const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-  const result = { article: { slug, ...raw } }
+  const result = { article: normaliseArticleRow(existing) }
+
+  // Track effective sector — may change during sector move
+  let effectiveSector = sector
 
   // Handle flagging
   if (body.flagged === true) {
-    const reviewDir = join(ROOT, 'data/review', date, sector)
-    mkdirSync(reviewDir, { recursive: true })
-    writeFileSync(join(reviewDir, `${slug}.json`), JSON.stringify(raw, null, 2))
+    await articleQueries.flagArticle(db, date, effectiveSector, slug, body.reason || '')
+    result.article.flagged = 1
   } else if (body.flagged === false) {
-    const reviewPath = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-    if (existsSync(reviewPath)) rmSync(reviewPath)
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { flagged: 0, flag_reason: null })
+    result.article.flagged = 0
   }
 
   // Handle sector move
   if (body.sector && body.sector !== sector) {
     validateParam(body.sector, 'sector')
-    const destDir = join(ROOT, 'data/verified', date, body.sector)
-    const destPath = join(destDir, `${slug}.json`)
 
-    if (existsSync(destPath)) {
+    // Check destination doesn't already exist
+    const destExists = await articleQueries.getArticle(db, date, body.sector, slug)
+    if (destExists) {
       const err = new Error(`An article with this name already exists in ${body.sector}`)
       err.status = 409
       throw err
     }
 
-    mkdirSync(destDir, { recursive: true })
-    raw.sector = body.sector
-    writeFileSync(destPath, JSON.stringify(raw, null, 2))
-    rmSync(filePath)
-
-    // Also move review copy if flagged
-    const oldReview = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-    if (existsSync(oldReview)) {
-      const newReviewDir = join(ROOT, 'data/review', date, body.sector)
-      mkdirSync(newReviewDir, { recursive: true })
-      writeFileSync(join(newReviewDir, `${slug}.json`), JSON.stringify(raw, null, 2))
-      rmSync(oldReview)
-    }
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { sector: body.sector })
+    effectiveSector = body.sector
 
     result.article.sector = body.sector
     result.moved = {
       from: `data/verified/${date}/${sector}/${slug}.json`,
       to: `data/verified/${date}/${body.sector}/${slug}.json`,
     }
+  }
+
+  // Handle archive
+  if (body.archived !== undefined) {
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { archived: body.archived ? 1 : 0 })
+    result.article.archived = body.archived ? 1 : 0
   }
 
   return result
@@ -156,27 +116,19 @@ export async function deleteArticle(date, sector, slug) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) {
+  const db = getDb()
+
+  // Check article exists
+  const existing = await articleQueries.getArticle(db, date, sector, slug)
+  if (!existing) {
     const err = new Error('Article not found')
     err.status = 404
     throw err
   }
 
-  const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-  raw.deleted_at = new Date().toISOString()
+  await articleQueries.deleteArticle(db, date, sector, slug)
 
-  // Move to data/deleted/
-  const deletedDir = join(ROOT, 'data/deleted', date, sector)
-  mkdirSync(deletedDir, { recursive: true })
-  writeFileSync(join(deletedDir, `${slug}.json`), JSON.stringify(raw, null, 2))
-  rmSync(filePath)
-
-  // Also remove from review if flagged
-  const reviewPath = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-  if (existsSync(reviewPath)) rmSync(reviewPath)
-
-  return { deleted: true, path: `data/deleted/${date}/${sector}/${slug}.json` }
+  return { deleted: true }
 }
 
 export async function ingestArticle(body) {
@@ -229,25 +181,51 @@ export async function ingestArticle(body) {
 }
 
 export async function getLastUpdated() {
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return { timestamp: 0 }
+  const db = getDb()
+  const result = await db.execute(
+    'SELECT MAX(scraped_at) AS latest FROM articles WHERE deleted_at IS NULL'
+  )
+  const latest = result.rows[0]?.latest
+  // Convert ISO string to epoch ms for compatibility
+  const timestamp = latest ? new Date(latest).getTime() : 0
+  return { timestamp }
+}
 
-  let maxMtime = 0
+export async function getPublications() {
+  const db = getDb()
+  return await articleQueries.getPublications(db)
+}
 
-  const dates = readdirSync(verifiedDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-  for (const d of dates) {
-    const datePath = join(verifiedDir, d)
-    if (!statSync(datePath).isDirectory()) continue
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-    const sectors = readdirSync(datePath)
-    for (const s of sectors) {
-      const sectorPath = join(datePath, s)
-      try {
-        const mtime = statSync(sectorPath).mtimeMs
-        if (mtime > maxMtime) maxMtime = mtime
-      } catch { /* skip */ }
-    }
+/**
+ * Normalise a DB row for API response.
+ * - Parses JSON text columns (keywords_matched, found_by) back to arrays
+ * - Preserves all other fields as-is
+ */
+function normaliseArticleRow(row) {
+  const article = { ...row }
+
+  // keywords_matched: stored as JSON text in DB, UI expects array
+  if (typeof article.keywords_matched === 'string') {
+    try { article.keywords_matched = JSON.parse(article.keywords_matched) }
+    catch { article.keywords_matched = [] }
+  }
+  if (article.keywords_matched == null) article.keywords_matched = []
+
+  // found_by: stored as JSON text in DB, UI may expect array
+  if (typeof article.found_by === 'string') {
+    try { article.found_by = JSON.parse(article.found_by) }
+    catch { article.found_by = [] }
   }
 
-  return { timestamp: maxMtime }
+  // ainewshub_meta: stored as JSON text
+  if (typeof article.ainewshub_meta === 'string') {
+    try { article.ainewshub_meta = JSON.parse(article.ainewshub_meta) }
+    catch { article.ainewshub_meta = null }
+  }
+
+  return article
 }

@@ -1,22 +1,131 @@
 import { readdirSync, readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
-import { walkArticleDir } from '../lib/walk.js'
 import { getISOWeek } from '../lib/week.js'
+import { getDb } from '../lib/db.js'
+import { getArticleCounts } from '../lib/article-queries.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
 export async function getStatus() {
   const lastFridayRunAt = getLastFridayRunAt()
+
+  // Article counts from DB — returns arrays, needs converting to object maps
+  const db = getDb()
+  const dbCounts = await getArticleCounts(db, {
+    scrapedSince: lastFridayRunAt || undefined,
+  })
+  const articles = convertCountsToObjectMaps(dbCounts)
+
+  // Available weeks from DB
+  const availableWeeks = await getAvailableWeeksFromDb(db)
+
   return {
     lastRun: getLastRun(),
     lastFridayRunAt,
-    articles: getArticleCounts(lastFridayRunAt),
-    availableWeeks: getAvailableWeeks(),
+    articles,
+    availableWeeks,
     nextPipeline: getNextPipeline(),
     errors: getRecentErrors(),
     ingestServer: await getIngestHealth(),
   }
 }
+
+// ---------------------------------------------------------------------------
+// DB-based helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert the array-based counts from article-queries.js to the object-map
+ * format the UI expects.
+ *
+ * DB returns:  { byDate: [{date, count}], bySector: [{sector, count}], byDateBySector: [{date, sector, count}] }
+ * UI expects:  { byDate: {date: count}, bySector: {sector: count}, byDateBySector: {date: {sector: count}} }
+ */
+function convertCountsToObjectMaps(dbCounts) {
+  const byDate = {}
+  for (const { date, count } of dbCounts.byDate) {
+    byDate[date] = count
+  }
+
+  const bySector = {}
+  for (const { sector, count } of dbCounts.bySector) {
+    bySector[sector] = count
+  }
+
+  const byDateBySector = {}
+  for (const { date, sector, count } of dbCounts.byDateBySector) {
+    if (!byDateBySector[date]) byDateBySector[date] = {}
+    byDateBySector[date][sector] = count
+  }
+
+  const result = {
+    today: dbCounts.today,
+    total: dbCounts.total,
+    byDate,
+    bySector,
+    byDateBySector,
+  }
+
+  // Week-filtered counts
+  if (dbCounts.weekArticles) {
+    const weekByDate = {}
+    for (const { date, count } of dbCounts.weekArticles.byDate) {
+      weekByDate[date] = count
+    }
+
+    const weekBySector = {}
+    for (const { sector, count } of dbCounts.weekArticles.bySector) {
+      weekBySector[sector] = count
+    }
+
+    const weekByDateBySector = {}
+    for (const { date, sector, count } of dbCounts.weekArticles.byDateBySector) {
+      if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
+      weekByDateBySector[date][sector] = count
+    }
+
+    result.weekArticles = {
+      total: dbCounts.weekArticles.total,
+      byDate: weekByDate,
+      bySector: weekBySector,
+      byDateBySector: weekByDateBySector,
+    }
+  } else {
+    result.weekArticles = {
+      total: 0,
+      byDate: {},
+      bySector: {},
+      byDateBySector: {},
+    }
+  }
+
+  return result
+}
+
+/**
+ * Get available weeks from the DB instead of walking filesystem directories.
+ */
+async function getAvailableWeeksFromDb(db) {
+  const result = await db.execute(
+    `SELECT DISTINCT date_published FROM articles
+     WHERE deleted_at IS NULL AND date_published IS NOT NULL
+     ORDER BY date_published`
+  )
+
+  const weeks = new Set()
+  for (const row of result.rows) {
+    const d = new Date(row.date_published + 'T12:00:00Z')
+    if (!isNaN(d.getTime())) {
+      weeks.add(getISOWeek(d))
+    }
+  }
+
+  return [...weeks].sort((a, b) => a - b)
+}
+
+// ---------------------------------------------------------------------------
+// Filesystem-based helpers (pipeline metadata — stays on filesystem)
+// ---------------------------------------------------------------------------
 
 async function getIngestHealth() {
   try {
@@ -28,25 +137,6 @@ async function getIngestHealth() {
   } catch {
     return { online: false }
   }
-}
-
-function getAvailableWeeks() {
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return []
-
-  const weeks = new Set()
-  try {
-    for (const dateDir of readdirSync(verifiedDir)) {
-      // Date directories are YYYY-MM-DD
-      const match = dateDir.match(/^\d{4}-\d{2}-\d{2}$/)
-      if (!match) continue
-      const d = new Date(dateDir + 'T12:00:00Z') // noon UTC to avoid timezone edge cases
-      if (isNaN(d.getTime())) continue
-      weeks.add(getISOWeek(d))
-    }
-  } catch { /* ignore read errors */ }
-
-  return [...weeks].sort((a, b) => a - b)
 }
 
 function getLastRun() {
@@ -81,52 +171,6 @@ function getLastRun() {
     }
   } catch {
     return null
-  }
-}
-
-function getArticleCounts(fridayCutoff) {
-  const byDate = {}
-  const bySector = {}
-  const byDateBySector = {}
-  let total = 0
-
-  // Week-filtered counts (articles scraped after last friday pipeline)
-  const weekByDate = {}
-  const weekBySector = {}
-  const weekByDateBySector = {}
-  let weekTotal = 0
-
-  walkArticleDir('verified', (raw, { date, sector }) => {
-    // All-time counts
-    byDate[date] = (byDate[date] || 0) + 1
-    bySector[sector] = (bySector[sector] || 0) + 1
-    if (!byDateBySector[date]) byDateBySector[date] = {}
-    byDateBySector[date][sector] = (byDateBySector[date][sector] || 0) + 1
-    total++
-
-    // Week counts: only articles scraped after last friday run
-    if (fridayCutoff && raw.scraped_at && raw.scraped_at > fridayCutoff) {
-      weekByDate[date] = (weekByDate[date] || 0) + 1
-      weekBySector[sector] = (weekBySector[sector] || 0) + 1
-      if (!weekByDateBySector[date]) weekByDateBySector[date] = {}
-      weekByDateBySector[date][sector] = (weekByDateBySector[date][sector] || 0) + 1
-      weekTotal++
-    }
-  })
-
-  const today = new Date().toISOString().split('T')[0]
-  return {
-    today: byDate[today] || 0,
-    total,
-    byDate,
-    bySector,
-    byDateBySector,
-    weekArticles: {
-      total: weekTotal,
-      byDate: weekByDate,
-      bySector: weekBySector,
-      byDateBySector: weekByDateBySector,
-    },
   }
 }
 
