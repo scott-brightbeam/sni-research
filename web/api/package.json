@@ -8,6 +8,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.2",
     "js-yaml": "^4.1.1"
   }
 }
