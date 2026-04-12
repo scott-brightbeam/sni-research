@@ -229,3 +229,6 @@ function normaliseArticleRow(row) {
 
   return article
 }
+
+// Alias for server.js import compatibility
+export { ingestArticle as manualIngest }

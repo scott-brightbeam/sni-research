@@ -6,6 +6,15 @@ import { getArticleCounts } from '../lib/article-queries.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
 
+export function getVerificationStatus() {
+  const flagPath = join(ROOT, 'data/editorial/drafts/VERIFICATION-FAILED.flag')
+  if (!existsSync(flagPath)) return { failed: false }
+  try {
+    const flag = JSON.parse(readFileSync(flagPath, 'utf-8'))
+    return { failed: true, failedAt: flag.failedAt || null, week: flag.week || null, reportPath: flag.reportPath || null }
+  } catch { return { failed: true, parseError: true } }
+}
+
 export async function getStatus() {
   const lastFridayRunAt = getLastFridayRunAt()
 
