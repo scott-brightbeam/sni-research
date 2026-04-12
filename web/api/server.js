@@ -4,6 +4,7 @@ import { getDraft, saveDraft, getDraftHistory } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
 import { getUsage as getUsageByPeriod } from './routes/usage.js'
 import { getConfig, putConfig } from './routes/config.js'
+import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 
 const PORT = 3900
 
@@ -161,6 +162,24 @@ const server = Bun.serve({
       if (configMatch && req.method === 'PUT') {
         const body = await req.json()
         return json(await putConfig(configMatch[1], body))
+      }
+
+      // --- Podcasts ---
+      if (path === '/api/podcasts' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetPodcasts(query))
+      }
+
+      if (path === '/api/podcasts/transcript' && req.method === 'GET') {
+        const query = parseQuery(req.url)
+        return json(await handleGetTranscript(query))
+      }
+
+      const podcastMatch = path.match(/^\/api\/podcasts\/(\d{4}-\d{2}-\d{2})\/([\w-]+)\/([\w-]+)$/)
+      if (podcastMatch && req.method === 'PATCH') {
+        const [, date, source, slug] = podcastMatch
+        const body = await req.json()
+        return json(await handlePatchPodcast(date, source, slug, body))
       }
 
       // --- Health ---
