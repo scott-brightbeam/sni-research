@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'bun:test'
-import { createTestDb, migrateSchema } from './lib/db.js'
+import { createTestDb, migrateSchema } from '../lib/db.js'
 
 describe('db module', () => {
   const db = createTestDb()
@@ -63,9 +63,9 @@ describe('db module', () => {
     const result = await db.execute("SELECT key, value FROM counters ORDER BY key")
     expect(result.rows.length).toBe(3)
     const keys = result.rows.map(r => r.key)
-    expect(keys).toContain('analysis_id')
-    expect(keys).toContain('post_id')
-    expect(keys).toContain('session')
+    expect(keys).toContain('nextSession')
+    expect(keys).toContain('nextDocument')
+    expect(keys).toContain('nextPost')
   })
 
   it('is idempotent (migrate twice)', async () => {

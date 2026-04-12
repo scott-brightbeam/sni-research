@@ -8,6 +8,8 @@
  *   getDb()              — singleton; uses test DB when SNI_TEST_MODE=1
  */
 
+const SCHEMA_VERSION = 1
+
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
 
@@ -38,7 +40,7 @@ export function createProductionDb() {
       url: 'file:/app/data/local.db',
       syncUrl: url,
       authToken,
-      syncInterval: 60,
+      syncInterval: 30,
     })
   }
 
@@ -375,9 +377,9 @@ const SEQUENTIAL_STATEMENTS = [
  * Counter seeds — inserted only if counters table is empty.
  */
 const COUNTER_SEEDS = [
-  { key: 'analysis_id', value: 0 },
-  { key: 'post_id', value: 0 },
-  { key: 'session', value: 0 },
+  { key: 'nextSession', value: 56 },
+  { key: 'nextDocument', value: 218 },
+  { key: 'nextPost', value: 163 },
 ]
 
 /**
@@ -385,6 +387,14 @@ const COUNTER_SEEDS = [
  * @param {import('@libsql/client').Client} db
  */
 export async function migrateSchema(db) {
+  // Check current schema version — skip if already up to date
+  try {
+    const vResult = await db.execute('SELECT MAX(version) AS v FROM schema_version')
+    if (vResult.rows[0]?.v >= SCHEMA_VERSION) return
+  } catch {
+    // schema_version table doesn't exist yet — first run
+  }
+
   // 1. Batch-safe DDL (tables + indexes)
   await db.batch(BATCH_STATEMENTS)
 
@@ -404,9 +414,9 @@ export async function migrateSchema(db) {
     }
   }
 
-  // 4. Record schema version (idempotent)
+  // 4. Record schema version
   await db.execute({
-    sql: "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
-    args: [1],
+    sql: "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
+    args: [SCHEMA_VERSION],
   })
 }
