@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-04-11T08:26:30.934Z",
+  "draft": "data/editorial/drafts/draft-session-53-v2.md",
+  "week": 15,
+  "pass": true,
+  "failures": 0,
+  "warnings": 1,
+  "stats": {
+    "articles_indexed": 2617,
+    "podcasts_whitelisted": 105,
+    "current_week_digests": 29,
+    "links_total": 34,
+    "links_podcast": 5,
+    "links_sector": 20,
+    "links_tldr": 9
+  }
+}

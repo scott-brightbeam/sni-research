@@ -1,127 +1,28 @@
-import { readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
-import { join } from 'path'
-import { walkArticleDir, walkArticleDirAsync, validateParam } from '../lib/walk.js'
-import config from '../lib/config.js'
+import { validateParam } from '../lib/walk.js'
+import { getDb } from '../lib/db.js'
+import * as articleQueries from '../lib/article-queries.js'
 
-const ROOT = config.ROOT
-const INGEST_URL = config.INGEST_URL
+const INGEST_URL = 'http://127.0.0.1:3847'
 
-// Stale-while-revalidate cache for the full article corpus. Walking 4576
-// articles on Fly's persistent volume takes ~16s+ per full scan. 5-minute TTL,
-// serve stale during refresh, filter + paginate in-memory per request.
-// Tests skip the cache (they create fixtures between calls and expect fresh reads).
-const ARTICLES_CACHE_TTL_MS = 5 * 60_000
-let _articlesCache = null
-let _articlesCacheAt = 0
-let _articlesInflight = null
-
-function buildCollector() {
-  const all = []
-  const collect = (raw, { date: d, sector: s, slug }, sourceType) => {
-    all.push({
-      slug,
-      title: raw.title,
-      url: raw.url,
-      source: raw.source,
-      sector: raw.sector || s,
-      date_published: raw.date_published || d,
-      date_confidence: raw.date_confidence,
-      date_verified_method: raw.date_verified_method,
-      snippet: raw.snippet || (raw.full_text || '').slice(0, 300),
-      score: raw.score ?? null,
-      keywords_matched: raw.keywords_matched || [],
-      scraped_at: raw.scraped_at,
-      source_type: sourceType || raw.source_type,
-    })
-  }
-  return { all, collect }
-}
-
-async function loadAllArticles(walkerOpts = {}) {
-  const { all, collect } = buildCollector()
-  await walkArticleDirAsync('verified', (raw, meta) => collect(raw, meta, raw.source_type), walkerOpts)
-  await walkArticleDirAsync('podcast-articles', (raw, meta) => collect(raw, meta, 'podcast-extract'), walkerOpts)
-  // Newest first — sort once, filter + paginate per request
-  all.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || '')
-    || (b.scraped_at || '').localeCompare(a.scraped_at || ''))
-  return all
-}
-
-async function refreshArticlesCache() {
-  try {
-    const result = await loadAllArticles()
-    _articlesCache = result
-    _articlesCacheAt = Date.now()
-    return result
-  } finally {
-    _articlesInflight = null
-  }
-}
-
-async function getAllArticlesCached() {
-  if (process.env.SNI_TEST_MODE === '1') return loadAllArticles()
-
-  const now = Date.now()
-
-  // Fresh cache
-  if (_articlesCache && (now - _articlesCacheAt) < ARTICLES_CACHE_TTL_MS) {
-    return _articlesCache
-  }
-
-  // Stale cache: return stale now, refresh in background
-  if (_articlesCache) {
-    if (!_articlesInflight) {
-      _articlesInflight = refreshArticlesCache()
-      _articlesInflight.catch(err => console.error('[articles] background refresh failed:', err.message))
-    }
-    return _articlesCache
-  }
-
-  // Cold start
-  if (!_articlesInflight) {
-    _articlesInflight = refreshArticlesCache()
-  }
-  return _articlesInflight
-}
-
-export function invalidateArticlesCache() {
-  _articlesCache = null
-  _articlesCacheAt = 0
-}
-
-export async function getArticles({ sector, date, dateFrom, dateTo, search, limit, offset } = {}) {
-  // Two paths:
-  // - Cache on (production): load the full corpus once per TTL, filter in memory
-  // - Cache off (tests): walk with filters passed through so we skip irrelevant
-  //   date directories. Avoids re-scanning 4576 articles for every test call.
-  const useCache = process.env.SNI_TEST_MODE !== '1'
-  const all = useCache
-    ? await getAllArticlesCached()
-    : await loadAllArticles({ sector, date, dateFrom, dateTo })
-
-  const searchLower = search ? search.toLowerCase() : null
-  const matched = all.filter(a => {
-    if (sector && a.sector !== sector) return false
-    const pubDate = a.date_published
-    if (date && pubDate !== date) return false
-    if (dateFrom && pubDate && pubDate < dateFrom) return false
-    if (dateTo && pubDate && pubDate > dateTo) return false
-    if (searchLower) {
-      const hay = `${a.title || ''} ${a.source || ''} ${a.snippet || ''}`.toLowerCase()
-      if (!hay.includes(searchLower)) return false
-    }
-    return true
-  })
-
+export async function getArticles({ sector, date, from, to, search, limit, offset } = {}) {
+  const db = getDb()
   const lim = Math.min(Math.max(parseInt(limit) || 100, 1), 500)
   const off = Math.max(parseInt(offset) || 0, 0)
 
-  return {
-    articles: matched.slice(off, off + lim),
-    total: matched.length,
+  const result = await articleQueries.getArticles(db, {
+    sector,
+    date,
+    dateFrom: from,
+    dateTo: to,
+    search,
     limit: lim,
     offset: off,
-  }
+  })
+
+  // Parse JSON text fields back to arrays/objects for UI compatibility
+  result.articles = result.articles.map(normaliseArticleRow)
+
+  return result
 }
 
 export async function getArticle(date, sector, slug) {
@@ -129,48 +30,25 @@ export async function getArticle(date, sector, slug) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) return null
+  const db = getDb()
+  const row = await articleQueries.getArticle(db, date, sector, slug)
+  if (!row) return null
 
-  try {
-    const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-    return {
-      slug,
-      ...raw,
-      // Include full_text for detail view
-      full_text: raw.full_text || ''
-    }
-  } catch {
-    return null
-  }
+  return normaliseArticleRow(row)
 }
 
 export async function getFlaggedArticles() {
-  const articles = []
+  const db = getDb()
+  const result = await articleQueries.getFlaggedArticles(db)
 
-  await walkArticleDirAsync('review', (raw, { date, sector, slug, sectorPath }) => {
-    const reasonPath = join(sectorPath, `${slug}-reason.txt`)
-    const reason = existsSync(reasonPath)
-      ? readFileSync(reasonPath, 'utf-8').trim()
-      : null
-
-    articles.push({
-      slug,
-      title: raw.title,
-      url: raw.url,
-      source: raw.source,
-      sector: raw.sector || sector,
-      date_published: raw.date_published || date,
-      score: raw.score ?? null,
-      reason,
-      flagged: true,
-    })
+  result.articles = result.articles.map(row => {
+    const normalised = normaliseArticleRow(row)
+    // Map flag_reason → reason for UI compatibility
+    normalised.reason = row.flag_reason ?? null
+    return normalised
   })
 
-  // Newest first
-  articles.sort((a, b) => (b.date_published || '').localeCompare(a.date_published || ''))
-
-  return { articles, total: articles.length }
+  return result
 }
 
 export async function patchArticle(date, sector, slug, body) {
@@ -178,51 +56,44 @@ export async function patchArticle(date, sector, slug, body) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) {
+  const db = getDb()
+
+  // Check article exists
+  const existing = await articleQueries.getArticle(db, date, sector, slug)
+  if (!existing) {
     const err = new Error('Article not found')
     err.status = 404
     throw err
   }
 
-  const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-  const result = { article: { slug, ...raw } }
+  const result = { article: normaliseArticleRow(existing) }
+
+  // Track effective sector — may change during sector move
+  let effectiveSector = sector
 
   // Handle flagging
   if (body.flagged === true) {
-    const reviewDir = join(ROOT, 'data/review', date, sector)
-    mkdirSync(reviewDir, { recursive: true })
-    writeFileSync(join(reviewDir, `${slug}.json`), JSON.stringify(raw, null, 2))
+    await articleQueries.flagArticle(db, date, effectiveSector, slug, body.reason || '')
+    result.article.flagged = 1
   } else if (body.flagged === false) {
-    const reviewPath = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-    if (existsSync(reviewPath)) rmSync(reviewPath)
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { flagged: 0, flag_reason: null })
+    result.article.flagged = 0
   }
 
   // Handle sector move
   if (body.sector && body.sector !== sector) {
     validateParam(body.sector, 'sector')
-    const destDir = join(ROOT, 'data/verified', date, body.sector)
-    const destPath = join(destDir, `${slug}.json`)
 
-    if (existsSync(destPath)) {
+    // Check destination doesn't already exist
+    const destExists = await articleQueries.getArticle(db, date, body.sector, slug)
+    if (destExists) {
       const err = new Error(`An article with this name already exists in ${body.sector}`)
       err.status = 409
       throw err
     }
 
-    mkdirSync(destDir, { recursive: true })
-    raw.sector = body.sector
-    writeFileSync(destPath, JSON.stringify(raw, null, 2))
-    rmSync(filePath)
-
-    // Also move review copy if flagged
-    const oldReview = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-    if (existsSync(oldReview)) {
-      const newReviewDir = join(ROOT, 'data/review', date, body.sector)
-      mkdirSync(newReviewDir, { recursive: true })
-      writeFileSync(join(newReviewDir, `${slug}.json`), JSON.stringify(raw, null, 2))
-      rmSync(oldReview)
-    }
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { sector: body.sector })
+    effectiveSector = body.sector
 
     result.article.sector = body.sector
     result.moved = {
@@ -231,15 +102,10 @@ export async function patchArticle(date, sector, slug, body) {
     }
   }
 
-  // Handle archive toggle
-  if (body.archived === true) {
-    raw.archived = true
-    writeFileSync(filePath, JSON.stringify(raw, null, 2))
-    result.article.archived = true
-  } else if (body.archived === false) {
-    delete raw.archived
-    writeFileSync(filePath, JSON.stringify(raw, null, 2))
-    delete result.article.archived
+  // Handle archive
+  if (body.archived !== undefined) {
+    await articleQueries.updateArticle(db, date, effectiveSector, slug, { archived: body.archived ? 1 : 0 })
+    result.article.archived = body.archived ? 1 : 0
   }
 
   return result
@@ -250,27 +116,19 @@ export async function deleteArticle(date, sector, slug) {
   validateParam(sector, 'sector')
   validateParam(slug, 'slug')
 
-  const filePath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-  if (!existsSync(filePath)) {
+  const db = getDb()
+
+  // Check article exists
+  const existing = await articleQueries.getArticle(db, date, sector, slug)
+  if (!existing) {
     const err = new Error('Article not found')
     err.status = 404
     throw err
   }
 
-  const raw = JSON.parse(readFileSync(filePath, 'utf-8'))
-  raw.deleted_at = new Date().toISOString()
+  await articleQueries.deleteArticle(db, date, sector, slug)
 
-  // Move to data/deleted/
-  const deletedDir = join(ROOT, 'data/deleted', date, sector)
-  mkdirSync(deletedDir, { recursive: true })
-  writeFileSync(join(deletedDir, `${slug}.json`), JSON.stringify(raw, null, 2))
-  rmSync(filePath)
-
-  // Also remove from review if flagged
-  const reviewPath = join(ROOT, 'data/review', date, sector, `${slug}.json`)
-  if (existsSync(reviewPath)) rmSync(reviewPath)
-
-  return { deleted: true, path: `data/deleted/${date}/${sector}/${slug}.json` }
+  return { deleted: true }
 }
 
 export async function ingestArticle(body) {
@@ -322,102 +180,52 @@ export async function ingestArticle(body) {
   }
 }
 
-export async function getPublications() {
-  const sources = new Set()
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return { publications: [] }
-
-  for (const dateDir of readdirSync(verifiedDir)) {
-    const datePath = join(verifiedDir, dateDir)
-    if (!statSync(datePath).isDirectory()) continue
-    for (const sectorDir of readdirSync(datePath)) {
-      const sectorPath = join(datePath, sectorDir)
-      if (!statSync(sectorPath).isDirectory()) continue
-      for (const file of readdirSync(sectorPath)) {
-        if (!file.endsWith('.json')) continue
-        try {
-          const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
-          if (raw.source) sources.add(raw.source)
-        } catch { /* skip malformed */ }
-      }
-    }
-  }
-
-  return { publications: [...sources].sort((a, b) => a.localeCompare(b)) }
-}
-
-export async function manualIngest(body) {
-  const { title, content, source, sector, url, date_published } = body || {}
-
-  if (!title || !title.trim()) {
-    const err = new Error('Title is required')
-    err.status = 400
-    throw err
-  }
-  if (!content || !content.trim()) {
-    const err = new Error('Content is required')
-    err.status = 400
-    throw err
-  }
-
-  const dateStr = date_published || new Date().toISOString().split('T')[0]
-  const sectorStr = (sector || 'general').toLowerCase()
-  validateParam(sectorStr, 'sector')
-
-  // Generate slug: lowercase, replace non-alphanum with hyphens, max 80 chars
-  const slug = title.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80)
-
-  const article = {
-    title: title.trim(),
-    url: url || null,
-    source: source || null,
-    source_type: 'manual',
-    date_published: dateStr,
-    date_confidence: 'high',
-    date_verified_method: 'manual',
-    sector: sectorStr,
-    keywords_matched: [],
-    snippet: content.trim().slice(0, 500),
-    full_text: content.trim(),
-    found_by: ['manual-ingest'],
-    scraped_at: null,
-    ingested_at: new Date().toISOString(),
-    score: null,
-    score_reason: null,
-  }
-
-  const destDir = join(ROOT, 'data/verified', dateStr, sectorStr)
-  mkdirSync(destDir, { recursive: true })
-  const destPath = join(destDir, `${slug}.json`)
-  writeFileSync(destPath, JSON.stringify(article, null, 2))
-
-  const relPath = `data/verified/${dateStr}/${sectorStr}/${slug}.json`
-  return { article, path: relPath }
-}
-
 export async function getLastUpdated() {
-  const verifiedDir = join(ROOT, 'data/verified')
-  if (!existsSync(verifiedDir)) return { timestamp: 0 }
+  const db = getDb()
+  const result = await db.execute(
+    'SELECT MAX(scraped_at) AS latest FROM articles WHERE deleted_at IS NULL'
+  )
+  const latest = result.rows[0]?.latest
+  // Convert ISO string to epoch ms for compatibility
+  const timestamp = latest ? new Date(latest).getTime() : 0
+  return { timestamp }
+}
 
-  let maxMtime = 0
+export async function getPublications() {
+  const db = getDb()
+  return await articleQueries.getPublications(db)
+}
 
-  const dates = readdirSync(verifiedDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
-  for (const d of dates) {
-    const datePath = join(verifiedDir, d)
-    if (!statSync(datePath).isDirectory()) continue
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-    const sectors = readdirSync(datePath)
-    for (const s of sectors) {
-      const sectorPath = join(datePath, s)
-      try {
-        const mtime = statSync(sectorPath).mtimeMs
-        if (mtime > maxMtime) maxMtime = mtime
-      } catch { /* skip */ }
-    }
+/**
+ * Normalise a DB row for API response.
+ * - Parses JSON text columns (keywords_matched, found_by) back to arrays
+ * - Preserves all other fields as-is
+ */
+function normaliseArticleRow(row) {
+  const article = { ...row }
+
+  // keywords_matched: stored as JSON text in DB, UI expects array
+  if (typeof article.keywords_matched === 'string') {
+    try { article.keywords_matched = JSON.parse(article.keywords_matched) }
+    catch { article.keywords_matched = [] }
+  }
+  if (article.keywords_matched == null) article.keywords_matched = []
+
+  // found_by: stored as JSON text in DB, UI may expect array
+  if (typeof article.found_by === 'string') {
+    try { article.found_by = JSON.parse(article.found_by) }
+    catch { article.found_by = [] }
   }
 
-  return { timestamp: maxMtime }
+  // ainewshub_meta: stored as JSON text
+  if (typeof article.ainewshub_meta === 'string') {
+    try { article.ainewshub_meta = JSON.parse(article.ainewshub_meta) }
+    catch { article.ainewshub_meta = null }
+  }
+
+  return article
 }

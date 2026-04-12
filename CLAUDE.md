@@ -19,6 +19,8 @@ The system is a single unified whole — not separate pipelines with upstream/do
 
 ```
 DISCOVER (automated, daily)
+  ├─ AI NewsHub fetch      API fetch from ainewshub.ie (7,000+ sources) → data/verified/
+  │   └─ scripts/ainewshub-fetch.js  launchd 03:30 daily
   ├─ Article fetching      Brave Search + RSS feeds → data/verified/
   │   └─ scripts/fetch.js  launchd 04:00 daily
   ├─ Article scoring       Heuristic relevance scoring → data/verified/
@@ -67,7 +69,7 @@ STATE (persistent, shared by all components)
 ### URL provenance — non-negotiable
 
 Every content item must carry the URL of its original source from the moment it enters the system:
-- **Articles:** `url` field set by RSS feed entry or Brave Search result at fetch time
+- **Articles:** `url` field set by RSS feed entry, Brave Search result, or AI NewsHub `external_url` at fetch time
 - **Podcasts:** `episodeUrl` field set by RSS feed parser at episode detection time
 - **Analysis entries:** `url` field inherited from the source article or podcast digest
 - **Theme evidence:** `url` field linking back to the source
@@ -100,6 +102,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
   - `OPENAI_API_KEY` — critique pair (GPT), evaluation
   - `GOOGLE_AI_API_KEY` — critique pair (Gemini), DISCOVER (Google Search grounding)
   - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` — alerts via Zaphod
+  - `AINEWSHUB_EMAIL` + `AINEWSHUB_PASSWORD` — AI NewsHub premium API access (ainewshub.ie)
   - ~~`ANTHROPIC_API_KEY`~~ — **REMOVED 23 Mar 2026.** All Anthropic/Claude processing now runs through Claude Code (Max subscription). Scripts exit cleanly when key is missing.
 - **No external services** — all data is local files. No database.
 - **Scheduling:** launchd for automated stages (fetch, podcast transcription). Claude Code scheduled tasks for analysis and drafting. See "Scheduled jobs" section below.
@@ -108,6 +111,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 
 | Job | Schedule | Runner | What |
 |-----|----------|--------|------|
+| `com.sni.ainewshub.plist` | Daily 03:30 | launchd → Bun | Fetch curated AI articles from ainewshub.ie API (IE, GB, EU, US) |
 | `com.sni.fetch.plist` | Daily 04:00 | launchd → Bun | Fetch articles (Brave + RSS), score (heuristic) |
 | `com.scott.podcast-pipeline.plist` | 22:00–06:00 (6 runs) | launchd → Python | Monitor podcast RSS, transcribe new episodes |
 | `podcast-import-daily` | Daily 07:00 | Claude Code | Import new podcast digests, update manifest |
@@ -122,6 +126,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 ### Daily flow (Mon–Wed)
 ```
 22:00–06:00  Podcast pipeline (launchd)    — detect episodes, transcribe
+03:30        AI NewsHub fetch (launchd)    — curated articles from 7,000+ sources (IE/GB/EU/US)
 04:00        Brave fetch (launchd)         — 312 queries, volume sweep
 07:00        Podcast import (Claude Code)  — digests + manifest
 07:30        Editorial analyse             — transcript → state + stories-session-N.json
@@ -131,6 +136,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 
 ### Thursday flow
 ```
+03:30        AI NewsHub fetch (launchd)    — runs before Brave fetch
 04:00        Brave fetch (launchd)
 13:00        Full pipeline (launchd)       — fetch → score → discover (GPT+Gemini) → report → draft
 14:00        Newsletter pipeline           — draft (Opus) → critique (Gemini + GPT) → revision
@@ -243,6 +249,7 @@ Analyse the current situation and invoke relevant skills:
 ```
 sni-research-v2/                          # Main project
 ├── scripts/                              # Pipeline scripts (Bun)
+│   ├── ainewshub-fetch.js                # AI NewsHub API fetch (IE/GB/EU/US, launchd 03:30)
 │   ├── fetch.js                          # Article fetching (Brave + RSS)
 │   ├── score.js                          # Relevance scoring (heuristic fallback)
 │   ├── draft.js                          # Newsletter generation (needs Claude Code now)

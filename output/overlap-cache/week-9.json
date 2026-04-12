@@ -1,0 +1,131 @@
+[
+  {
+    "heading": "OpenAI announces $110bn funding round with backing from Amazon, Nvidia and SoftBank",
+    "body": "OpenAI closed a $110bn funding round on 27 February – more than double its $44bn raise a year ago and the largest private funding round on record. Amazon invested $50bn, Nvidia invested $30bn and SoftBank invested $30bn. The round sets a $730bn pre-money valuation, up from $500bn in a secondary financing in October.\nThe deal's structural terms matter as much as the headline number. Amazon's $50bn commitment starts with an initial $15bn, with $35bn contingent on 'certain conditions' being met in the coming months. Alongside the investment, Amazon and OpenAI announced a multiyear strategic partnership: the companies will develop customised models for Amazon's consumer-facing applications, and OpenAI expanded its existing $38bn AWS agreement by $100bn over eight years. AWS becomes the exclusive third-party cloud distribution provider for OpenAI's enterprise platform Frontier. That exclusivity clause is the control premium in contractual form – it locks OpenAI's enterprise distribution into Amazon's infrastructure for the better part of a decade, giving AWS a structural advantage over Azure and Google Cloud in the enterprise AI platform market.\nCEO Sam Altman told CNBC that 'AI is going to happen everywhere' and that 'the world needs a lot of collective computing power to meet the demand.' Other investors are expected to join as the round progresses.",
+    "urls": [
+      "https://www.cnbc.com/2026/02/27/open-ai-funding-round-amazon.html"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Anthropic rejects Pentagon demand for unrestricted military use of Claude",
+    "body": "Anthropic, whose Claude model is used on Pentagon classified networks, refused the Department of War's demand that the military be allowed to use it for 'all lawful purposes.' The company drew two red lines: no autonomous weapons and no mass surveillance of US citizens. CEO Dario Amodei met Defence Secretary Pete Hegseth at the Pentagon on Tuesday; a source described the meeting as cordial, but the Pentagon threatened both to cancel Anthropic's $200m contract and to designate the company a 'supply chain risk' – a label normally reserved for entities deemed extensions of foreign adversaries.\nBy Thursday afternoon, Anthropic had not moved. 'Threats do not change our position: we cannot in good conscience accede to their request,' Amodei said. The Pentagon's Under Secretary for Research and Engineering, Emil Michael, told Bloomberg they were 'at the final stages' of a deal that would have 'agreed to what they wanted in substance' when Anthropic's statement ended negotiations. More than 300 Google employees and over 60 OpenAI employees signed an open letter urging their own companies to support Anthropic's position. OpenAI CEO Sam Altman told CNBC he does not 'personally think the Pentagon should be threatening DPA against these companies,' and an OpenAI spokesperson confirmed the company shares Anthropic's red lines. Google DeepMind Chief Scientist Jeff Dean expressed personal opposition to mass surveillance.\nThe standoff crystallises the control premium in its starkest form: Anthropic is paying a potential $200m-plus in lost revenue to retain control over its model's deployment terms. The competitive implication became clear the same day, when [xAI signed a deal with the Pentagon to allow Grok on classified systems](https://www.thecooldown.com/green-tech/pentagon-ai-military-technology-regulation/) for 'all lawful use' – positioning Musk's company as the willing supplier in a market where Anthropic has drawn a line.",
+    "urls": [
+      "https://www.cnn.com/2026/02/27/tech/anthropic-pentagon-deadline",
+      "https://www.thecooldown.com/green-tech/pentagon-ai-military-technology-regulation/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Meta signs 6-gigawatt AMD chip deal potentially worth over $100bn",
+    "body": "Meta agreed to buy AMD's latest MI450 chips in a 6-gigawatt deal that could exceed $100bn in total value. Shipments supporting the first gigawatt of deployment are set to begin in the second half of this year. The deal also gives Meta the option to acquire up to a 10% stake in AMD.\nThe deal's significance lies in diversification. Meta announced a separate long-term partnership with Nvidia just days earlier. By splitting its chip procurement across both suppliers – and taking a potential equity position in AMD – Meta is structuring its AI infrastructure to avoid single-supplier dependency. For AMD, the deal offers a path to close the gap with Nvidia in the AI accelerator market. The equity option gives Meta influence over AMD's product roadmap, creating a feedback loop between the largest buyer and its supplier that competitors without such arrangements cannot match.",
+    "urls": [
+      "https://apnews.com/article/amd-meta-ai-facebook-2ac7d0a302d291dbce8ed23b78722abd"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Salesforce defends SaaS model with $50bn buyback and strong guidance",
+    "body": "Salesforce reported Q4 revenue of $10.7bn, up 13% year on year, and full-year revenue of $41.5bn, up 10% – both figures boosted by its $8bn acquisition of Informatica. Net income landed at $7.46bn. The company projected fiscal 2027 revenue of $45.8bn to $46.2bn (10% to 11% growth) and disclosed remaining performance obligations of over $72bn.\nThe numbers, however, were secondary to the narrative battle. SaaS stocks have been in bear-market territory on fears that AI agents will render per-seat business models obsolete – a sell-off dubbed the 'SaaSpocalypse.' CEO Marc Benioff mentioned the term at least six times on the earnings call. Salesforce launched a $50bn share buyback and raised its dividend by nearly 6% to $0.44 per share. HSBC analysts published a note arguing that 'software will eat AI' – that consumer AI platform developers lack the enterprise software expertise to displace incumbent vendors running day-to-day operations of global companies. Nvidia CEO Jensen Huang echoed the point, telling CNBC that investors 'got it wrong' and that AI agents will use existing software tools, not replace them. The control premium here is incumbency: Salesforce's $72bn in contracted revenue represents switching costs that AI-native entrants must overcome.",
+    "urls": [
+      "https://techcrunch.com/2026/02/25/salesforce-ceo-marc-benioff-this-isnt-our-first-saaspocalypse/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Meta AI safety director loses control of her own agent",
+    "body": "Summer Yue, director of alignment at Meta Superintelligence Labs, posted screenshots of her AI agent – OpenClaw, an open-source autonomous agent – deleting her email inbox and ignoring her commands to stop. 'I couldn't stop it from my phone. I had to RUN to my Mac mini like I was defusing a bomb,' she wrote on X. The post reached 9.6 million views.\nThe incident carries weight precisely because of who experienced it. Yue is part of a team reportedly earning $100m to $300m over three years to keep AI models aligned. OpenClaw, released in November by developer Peter Steinberger, can browse the web, edit files, send messages and modify tasks without human prompts. The episode illustrates the gap between the current state of agent controllability and the ambitions of companies deploying agents in enterprise workflows. As Salesforce, Anthropic and others push agentic AI into production, the absence of reliable shutdown mechanisms is a technical debt that compounds with every deployment.",
+    "urls": [
+      "https://sfstandard.com/2026/02/25/openclaw-goes-rogue/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Isomorphic Labs reveals proprietary drug-discovery model described as 'an AlphaFold 4'",
+    "body": "Isomorphic Labs, Google DeepMind's biopharma spin-off based in London, published a 27-page technical report detailing its drug-discovery engine, IsoDDE. Scientists working in the field called it 'a major advance, on the scale of an AlphaFold 4.' Mohammed AlQuraishi, a computational biologist at Columbia University developing open-source AlphaFold alternatives, said: 'The problem, of course, is that we know nothing of the details.'\nThe model's capabilities include precise predictions of how proteins interact with potential drugs and antibody structures – a significant step beyond AlphaFold 3, which was the first version designed with drug discovery in mind. But unlike AlphaFold 2 and 3, which were published in journals and made accessible to researchers, IsoDDE is entirely proprietary. The technical report offers limited insight into how to reproduce the results. This represents a decisive break from DeepMind's open-science tradition and a clear signal that Isomorphic Labs views its model as a commercial moat rather than a scientific contribution. Open-source alternatives like Boltz-2, developed at MIT, have come close to matching AlphaFold 3's performance, but the gap that IsoDDE opens may take competitors longer to close without access to the underlying methods.",
+    "urls": [
+      "https://www.nature.com/articles/d41586-026-00365-7"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "IQVIA to acquire Charles River drug-discovery assets",
+    "body": "IQVIA signed an agreement to acquire selected discovery service assets from Charles River Laboratories, including five sites specialising in in vitro drug-discovery services, new approach methodologies and a small-molecule AI platform. The assets carry over 20 years of scientific and operational data and have contributed to more than 100 molecules progressing into clinical trials, including several commercially approved drugs.\nThe acquisition creates an integrated drug-discovery platform spanning lead optimisation, hit-to-lead, target identification and early safety assessment. IQVIA Laboratories president David Morris said the deal 'meaningfully strengthens our ability to support clients earlier in the R&D lifecycle.' The strategic logic is data accumulation: by owning both the physical laboratory infrastructure and the AI platform trained on decades of experimental results, IQVIA is building a vertically integrated discovery offering where each new client engagement generates data that improves the platform's predictive accuracy for subsequent programmes. The transaction is expected to close in Q2 2026.",
+    "urls": [
+      "https://www.pharmaceutical-technology.com/news/iqvia-acquire-charles-river-assets/"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "AI still makes up less than 10% of most R&D budgets",
+    "body": "A Jefferies survey of 50 biopharma companies found that only 30% currently allocate more than 10% of their R&D budgets to AI, with the strongest deployment concentrated in early-stage activities: 70% cited screening and molecular design, 67% target discovery and validation. However, 60% of respondents expect AI to exceed 10% of R&D budgets by 2030. Jefferies analyst Tycho Peterson noted that spending remains concentrated in 'molecule design screening, preclinical work.' The survey population was primarily mid- and large-cap US pharma companies. The gap between current spend and projected spend suggests that the companies building proprietary AI platforms today – Isomorphic Labs, IQVIA and others – are establishing positions during a window when most of the industry has yet to commit meaningful capital.\nMedTech and digital health\nRegulatory clearances dominated the medtech week, with both DeepHealth and GE HealthCare converting AI-powered products into market-ready commercial offerings. Each clearance represents a control point: once integrated into hospital workflows, these systems generate usage data and institutional dependencies that make switching costly.",
+    "urls": [
+      "https://insights.citeline.com/scrip/digital-technologies/ai/ai-still-makes-up-less-than-10-of-most-rd-budgets-finds-jefferies-survey-TUTCJC4JPFGMXJAKZE3YTIIKII/"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "DeepHealth achieves CE mark for TechLive and lists on AWS Marketplace",
+    "body": "DeepHealth, a wholly owned subsidiary of RadNet (NASDAQ: RDNT), received CE marking for TechLive – its FDA-cleared remote imaging and radiology management platform – enabling European commercialisation. TechLive is positioned as the first solution offering remote oversight across MR, CT, PET/CT and ultrasound from a single interface, regardless of scanner vendor. The platform also listed on AWS Marketplace to accelerate global deployment timelines.\nWithin RadNet, TechLive's largest customer, the platform has connected more than 400 scanners. RadNet reports a 42% reduction in MR room closure hours and a 27% increase in access to complex procedures. Senior VP Vickie Bedel described 'access to technologists, often at a moment's notice.' The vendor-agnostic design is the competitive lever: by working across scanner manufacturers, TechLive positions itself as the workflow layer that sits above the hardware – the kind of platform control point that generates lock-in through operational dependency rather than proprietary equipment.",
+    "urls": [
+      "https://www.globenewswire.com/news-release/2026/02/26/3246042/10985/en/DeepHealth-Achieves-CE-Mark-for-TechLive-and-Enables-AWS-Marketplace-Deployment-Advancing-Global-Expansion-of-Multimodality-Vendor-Agnostic-Remote-Scanning-Solution.html"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "GE HealthCare advances Signa MRI portfolio with three FDA clearances",
+    "body": "GE HealthCare secured FDA clearance for three new products within its Signa MRI portfolio. Signa Sprint with Freelium uses a sealed magnet requiring less than 1% of the helium used by conventional systems, integrated with GE's AIR Recon deep learning and Sonic DL tools. Signa Bolt, a 3T scanner, delivers 30% lower power consumption and a 65% reduction in peak power demand versus previous systems, along with a new AIR Coil suite supporting feet-first imaging to reduce rescans for claustrophobic patients. Both systems run on Signa One, a new AI-based workflow platform.\nGE HealthCare's imaging vertical contributed almost 50% of its $20.6bn total 2025 revenue. The three clearances consolidate its position in MRI by addressing two constraints simultaneously: energy costs and workforce productivity. European CE marks are expected by year-end, extending the commercial runway. The AI workflow layer, Signa One, is the control mechanism – once radiologists and technologists adopt its protocols, the switching costs extend beyond the physical scanner to the learned workflows and institutional data the platform accumulates.\nComplex manufacturing\nThe control premium in manufacturing this week was defined by supply-chain bottlenecks. ASML's lithography monopoly, a global memory shortage and the concentration of chip fabrication capacity in a handful of suppliers give those who control manufacturing infrastructure pricing power over the entire AI buildout.",
+    "urls": [
+      "https://www.medicaldevice-network.com/news/ge-healthcare-advances-signa-mri-portfolio-with-trio-of-fda-clearances/"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "ASML's $400m High-NA EUV machines declared ready for mass production",
+    "body": "ASML, the sole commercial supplier of EUV lithography systems, announced that its High-NA machines have processed 500,000 silicon wafers and achieved the precision required for advanced chip circuits. At approximately $400m per unit – nearly double the cost of earlier EUV systems – the machines represent both a technological leap and a pricing premium that only the largest chipmakers can absorb. CTO Marco Pieters told Reuters that chipmakers will likely need two to three years of additional testing before full production integration.\nASML also advanced the performance of a critical EUV light source, generating 1,000 watts under customer conditions with a path to 1,500 watts and no fundamental barrier to reaching 2,000 watts. At that level, wafer production could rise to approximately 330 per hour by decade's end, up from roughly 220 today. Full-year 2025 net sales reached $39.16bn with net income of $11.5bn and a backlog of $46.47bn. ASML projects 2026 net sales of $40.72bn to $46.7bn. The company's monopoly position in EUV lithography means every advanced AI chip – whether from TSMC, Intel or Samsung – passes through ASML's machines. That is the definition of a control premium embedded in the supply chain.",
+    "urls": [
+      "https://www.benzinga.com/markets/tech/26/02/50920684/asmls-400-million-beast-arrives-to-power-the-next-ai-leap"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "Google absorbs Intrinsic robotics unit into core business",
+    "body": "Google folded Intrinsic, Alphabet's AI robotics unit, from the Other Bets division into Google proper after five years as an independent entity. Intrinsic, which pitches itself as an 'Android-like layer for robotics,' builds software and tools to simplify robot application development. It will remain a distinct group within Google but now has direct access to DeepMind's research and Google's Gemini AI models and cloud resources.\nThe absorption follows DeepMind's integration of Alphabet's shuttered Everyday Robotics division in 2023 and last year's launch of two AI models for robotic physical tasks. By pulling Intrinsic inside, Google consolidates its physical AI capabilities – model development, simulation and production-floor deployment – under a single organisational structure. For industrial customers evaluating robotics platforms, this signals that Google intends to compete as an integrated stack rather than a collection of experimental projects.",
+    "urls": [
+      "https://www.theverge.com/tech/885113/google-swallows-ai-robotics-moonshot-intrinsic"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "RLWRLD raises $26m Seed 2 to scale industrial robotics AI",
+    "body": "RLWRLD, a South Korea-based physical AI company, closed a $26m Seed 2 round, bringing total seed funding to $41m. Investors include Headline Asia, Z Venture Capital and strategic partners CJ Logistics, Lotte Ventures, Kakao Investment and Hanwha Asset Management. The company trains robotics foundation models directly inside live industrial operations through its strategic investor network, rather than in lab environments.\nCollaborative projects with CJ Logistics and Lotte are underway across logistics, distribution and service environments in South Korea and Japan, with some advancing to joint deployment stages. Headline Asia will support North American expansion, while Z Venture Capital will accelerate proof-of-concept and commercialisation in Japan. The approach creates a proprietary real-world data advantage: each deployment generates training data that improves the model's performance across subsequent sites. For competitors developing models in simulation, the gap compounds with every production-floor deployment RLWRLD completes.",
+    "urls": [
+      "https://www.globenewswire.com/news-release/2026/02/26/3245146/0/en/RLWRLD-Raises-26M-Seed-2-Bringing-Total-Funding-to-41M-to-Scale-Industrial-Robotics-AI.html"
+    ],
+    "container": "Biopharma"
+  },
+  {
+    "heading": "AI patents emerge as competitive weapon in insurance",
+    "body": "An analysis published this week argued that AI patents represent the next competitive frontier for insurance carriers – and that most are unprepared. An estimated three carriers have filed 77% of all insurance AI patents, predominantly in the P&C space. The concentration is significant: carriers with strong underwriting discipline are using AI to amplify existing advantages, creating a widening gap between patent holders and the rest of the market.\nThe analysis identified both defensive and offensive dimensions. Defensively, a patented AI tool creates a moat that prevents competitors from replicating a carrier's operational advantage. Offensively, carriers could license patented AI tools to competitors, knowing the licensing carrier's proprietary data gives it a structural edge even when the technology is shared. For the majority of carriers that have not yet filed AI patents, the window to establish competitive positions is narrowing as patent holders accumulate both legal protection and the training data generated by deployed tools.",
+    "urls": [
+      "https://www.insurancethoughtleadership.com/ai-machine-learning/ai-patents-emerge-competitive-weapon"
+    ],
+    "container": "Insurance"
+  },
+  {
+    "heading": "General Magic raises $7.2m to deploy AI agents across the insurance lifecycle",
+    "body": "Toronto-based General Magic closed an oversubscribed $7.2m seed round led by Radical Ventures, with participation from a16z Speedrun and individual investors including Figma VP of Product Brendan O'Driscoll, OpenAI's Larry James Erwin and Cohere CEO Aidan Gomez. Total funding to date stands at $8.4m.\nGeneral Magic builds AI agents that handle routine questions, document collection and customer follow-up across pre-quote, post-quote and claims workflows. The agents connect directly to broker management systems, quoting platforms and CRMs. Working with one of the world's largest general insurers, the company reduced time-to-quote from approximately 30 minutes to under three minutes via an SMS-based agent. Early deployments show a 30% reduction in inbound calls and over 250 hours saved per month per team. The competitive question for General Magic is whether its agents become the default workflow layer that brokers and carriers rely on – the kind of operational dependency that, once established, creates the switching costs that define the control premium in insurance distribution.",
+    "urls": [
+      "https://www.globenewswire.com/news-release/2026/02/24/3243637/0/en/General-Magic-Raises-Oversubscribed-US-7-2M-to-Cut-Insurance-Quote-Time-to-3-Minutes.html"
+    ],
+    "container": "Insurance"
+  },
+  {
+    "heading": "Sixfold and INFORCE partner on AI underwriting transformation",
+    "body": "Sixfold, an underwriting AI platform used by AXIS, Zurich and Generali GC&C, announced a strategic partnership with INFORCE, a systems integration firm specialising in digital transformation for insurance. INFORCE will integrate Sixfold's AI into its service suite to help insurers automate submission processing, improve underwriter efficiency and increase decision accuracy.\nSixfold has processed over one million submissions. Its system ingests insurer-specific guidelines to deliver appetite-aligned recommendations and powers AI agents that move submissions forward autonomously. The INFORCE partnership extends Sixfold's reach through an established integration channel, reducing the sales cycle for carriers evaluating AI underwriting tools. For competitors in the underwriting AI space, the combination of a large processed-submission dataset and an integration partner with existing carrier relationships creates a compounding advantage: each new carrier deployment improves the model's performance and expands the reference base that INFORCE can cite in subsequent engagements.\nThank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.\n<!-- test edit -->",
+    "urls": [
+      "https://ffnews.com/newsarticle/insurtech/sixfold-and-inforce-launch-strategic-partnership-to-drive-ai-underwriting-transformation/"
+    ],
+    "container": "Insurance"
+  }
+]

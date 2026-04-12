@@ -1,0 +1,170 @@
+[
+  {
+    "heading": "Kleiner Perkins raises $3.5bn across two AI-focused funds",
+    "body": "Kleiner Perkins announced on 24 March that it raised $3.5bn in fresh capital, split between a $1bn early-stage fund (its 22nd) and a $2.5bn growth vehicle. The total represents a 75% increase from the firm's $2bn fundraise less than two years ago. The concentration of capital is the story: as AI model development costs climb, fewer firms can write the cheques that matter at Series B and beyond. For the portfolio companies that secure Kleiner backing, the capital provides a runway advantage that smaller syndicates cannot match. For competitors in the venture market, it compresses the window in which differentiated AI companies remain available at reasonable valuations.",
+    "urls": [
+      "https://techcrunch.com/2026/03/24/with-3-5b-in-fresh-capital-kleiner-perkins-is-going-all-in-on-ai/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "OpenAI partners with Broadcom on custom chip design",
+    "body": "OpenAI joined Broadcom's growing roster of custom silicon design partners. The move adds OpenAI to a client list that already includes Alphabet and Meta, all seeking to reduce their dependence on Nvidia's GPU monopoly for inference workloads. For Broadcom, the partnership validates the company's pivot toward AI-specific ASIC design as a core revenue line. For OpenAI, the decision reflects the economics of inference at scale: as agents move into production – hitting underwriting desks, clinical workflows and factory floors – the cost of serving each query through general-purpose GPUs becomes a margin problem. Custom silicon optimised for OpenAI's specific model architectures offers a path to lower per-query costs, though production timelines remain measured in years, not quarters.",
+    "urls": [
+      "https://www.fool.com/investing/2026/03/25/openai-just-became-broadcoms-newest-chip-customer/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Three charged with attempting to break US AI chip sanctions",
+    "body": "US prosecutors charged three individuals with conspiring to circumvent export controls on AI chips. Text messages cited in the indictment revealed explicit intentions to find clients to 'act as pass through partner for customers in China'. The case signals that enforcement is catching up with the policy intent behind successive rounds of Nvidia chip export restrictions imposed since 2022. For companies operating in the semiconductor supply chain, the prosecution raises the compliance stakes: intermediaries and distributors now face personal criminal liability, not just corporate penalties.",
+    "urls": [
+      "https://www.tomshardware.com/tech-industry/three-individuals-charged-with-attempting-to-break-us-sanctions-on-ai-chips-damning-text-messages-between-conspirators-reveal-intention-to-find-clients-to-act-as-pass-through-partner-for-customers-in-china"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "GitHub to train AI on user data by default from 24 April",
+    "body": "Microsoft's GitHub reversed a previous commitment and announced it will begin using customer interaction data – inputs, outputs and usage patterns – to train AI models from 24 April, unless users explicitly opt out. The reversal expands Microsoft's training corpus across tens of millions of active repositories. For enterprise customers, the change creates a data governance decision: accept the default and contribute proprietary code patterns to Microsoft's models, or invest in the administrative overhead of opting out across every seat. The opt-out design mirrors a pattern seen across the industry – platforms that default to inclusion capture more training data than those that require consent.",
+    "urls": [
+      "https://go.theregister.com/feed/www.theregister.com/2026/03/26/github_ai_training_policy_changes/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "EU backs delays to AI Act deadlines for high-risk systems and watermarking",
+    "body": "The EU proposed pushing back looming compliance deadlines for both high-risk AI systems and AI-generated content watermarking requirements. The delay gives companies building AI-powered medical devices, underwriting tools and manufacturing systems additional runway to meet certification standards. For medtech and insurance companies that had been racing to comply, the reprieve reduces near-term compliance costs but also removes the first-mover advantage that early compliance was expected to confer.\n## Biopharma\nThe week's biopharma signal centres on clinical proof points: an AI-designed molecule cleared a peer-reviewed phase 2a milestone, while a major pharma company tied its ADC programme to an AI-driven biomarker platform. Agents are hitting the bench as well as the underwriting desk.",
+    "urls": [
+      "https://www.theverge.com/ai-artificial-intelligence/901315/eu-ai-act-delays-ban-nudify-apps"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Insilico Medicine publishes phase 2a results for AI-designed rentosertib",
+    "body": "Insilico Medicine's rentosertib cleared a phase 2a trial for idiopathic pulmonary fibrosis, with results published in Nature Medicine. The company describes this as the first peer-reviewed phase 2a result for a molecule whose target was identified and whose structure was generated entirely by AI. The distinction matters because prior AI-assisted drugs relied on AI for one step in the pipeline – target identification or lead optimisation – while rentosertib was AI-generated end to end. If the data holds through later-stage trials, the result establishes a precedent that fully AI-designed drugs can reach clinical-grade evidence, compressing timelines that historically span 10-15 years. Competitors relying on conventional discovery pipelines face a structural speed disadvantage that compounds with each AI-designed molecule that clears a clinical hurdle.",
+    "urls": [
+      "https://www.drugdiscoverytrends.com/insilicos-ai-designed-rentosertib-shows-promise-in-first-phase-2a-trial-results/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Daiichi Sankyo and Tempus AI collaborate on ADC biomarker discovery",
+    "body": "Daiichi Sankyo entered a strategic collaboration with Tempus AI to accelerate clinical development of an antibody drug conjugate programme. The collaboration deploys AI models across Tempus' oncology database to identify biomarkers that could differentiate patient response. For Daiichi Sankyo, the deal is a bet that AI-driven patient stratification can improve trial outcomes and regulatory submissions by narrowing enrolment to patients most likely to respond. For Tempus, it adds another pharma partner to a growing set of collaborations that generate proprietary signal — a data advantage that deepens with each programme.",
+    "urls": [
+      "https://www.pharmaceutical-technology.com/news/daiichi-sankyo-tempus-adc-development/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Earendil Labs secures $787m for AI drug discovery expansion",
+    "body": "Earendil Labs closed $787m to expand its AI-powered drug discovery platform, which has already assembled a pipeline of more than 40 candidates. The financing is among the largest for a single AI drug discovery company and gives Earendil the capital to advance multiple programmes simultaneously rather than placing sequential bets. The scale matters: with 40-plus candidates, the company can absorb clinical failures across its portfolio while maintaining statistical coverage across therapeutic areas. Competitors with smaller war chests face a portfolio concentration risk – each failed candidate consumes a proportionally larger share of available capital.\n## MedTech and digital health\nAgents reached the clinical frontline this week: AI scribes entered NHS trusts and AI-driven diagnostic pathways moved into cardiology. The pattern parallels insurance – agents are being deployed not as experimental tools but as production systems that alter daily workflows.",
+    "urls": [
+      "https://www.pharmaceutical-technology.com/news/earendil-labs-787m-financing-ai-drug-discovery-development/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Viz.ai and Alnylam partner on AI-driven cardiac amyloidosis detection",
+    "body": "Viz.ai entered a collaboration with Alnylam Pharmaceuticals to advance earlier identification and diagnosis of cardiac amyloidosis, a condition the companies describe as chronically underdiagnosed. The pathway integrates the FDA-cleared Us2.ai echocardiography algorithm with electronic health records and generative AI to flag potential cases and route them to specialists. For Alnylam, which markets therapies for the condition, earlier diagnosis directly expands the addressable patient population. For Viz.ai, the deal extends its platform from stroke and pulmonary embolism into cardiology, adding another clinical pathway that generates the longitudinal patient data the company needs to train detection models. The competitive dynamic is clear: each new clinical partnership produces proprietary outcome data that improves Viz.ai's algorithms and makes the platform harder to displace.",
+    "urls": [
+      "https://www.pharmaceutical-technology.com/news/vizai-alnylam-advance-identification-cardiac-amyloidosis/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Dragon Copilot AI scribe reaches NHS trusts",
+    "body": "Microsoft's Dragon Copilot is now recording and summarising patient consultations across NHS trusts, with one specialist reporting two hours saved per week. The AI scribe has been listed on the NHS England Ambient Voice Technology Registry, clearing the path for wider adoption. The Registry listing is the relevant competitive signal: it functions as a de facto approval mechanism that shapes procurement decisions across 200-plus trusts. Competitors not yet on the Registry face an administrative moat – each additional trust that adopts Dragon Copilot generates integration precedent and workflow data that raises switching costs. The two-hour weekly saving per clinician, multiplied across thousands of specialists, represents a measurable workforce capacity argument that NHS finance teams can model directly.\n## Complex manufacturing\nThe theme of agents reaching production surfaces here as physical infrastructure: battery supply chains reoriented toward AI data centres, a new chip design company attracted Samsung's capital, and ex-SpaceX engineers targeted the gap between AI planning software and factory-floor execution.",
+    "urls": [
+      "https://www.resultsense.com/news/2026-03-24-dragon-copilot-nhs-clinical-documentation"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Panasonic shifts battery production from automotive to data centre compute",
+    "body": "Panasonic disclosed that data centre batteries are selling years in advance, driven by AI infrastructure demand. The company is redirecting production capacity from automotive batteries toward compute applications and developing supercapacitors as an additional power-protection technology for AI workloads. The reallocation reveals a supply-chain hierarchy that has shifted since 2024: data centre operators are now outbidding automotive OEMs for battery capacity, a reversal of the priority ordering that prevailed during the EV ramp. For manufacturers dependent on the same lithium-ion supply chain, Panasonic's pivot signals that lead times for industrial battery procurement will extend further. Companies that locked in supply agreements before the reallocation hold a structural advantage.",
+    "urls": [
+      "https://go.theregister.com/feed/www.theregister.com/2026/03/26/panasonic_datacenter_energy_plans/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Normal Computing raises $50m led by Samsung Catalyst",
+    "body": "Normal Computing closed a $50m round led by Samsung Catalyst to accelerate its novel chip architecture aimed at reducing AI hardware energy consumption. Samsung's involvement as lead investor is notable: as both a memory manufacturer and foundry operator, Samsung has direct commercial interest in chip designs that consume less power per operation, since power constraints increasingly limit the density at which its memory products can be deployed in AI clusters. For Normal Computing, the Samsung relationship provides manufacturing pathway visibility that pure-play chip design startups typically lack. The round positions the company in a growing field of energy-efficient AI silicon, where the winners will be determined less by theoretical performance and more by who can reach volume production first.",
+    "urls": [
+      "https://www.morningstar.com/news/pr-newswire/20260325ny18355/normal-computing-raises-50m-led-by-samsung-catalyst-to-accelerate-silicon-design-and-solve-ai-hardware-energy-crisis"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Sift brings manufacturing data infrastructure from SpaceX to the factory floor",
+    "body": "Two former SpaceX engineers founded Sift to bring the sensor-data infrastructure that supported rocket launches to general manufacturing. The company targets a specific gap: while AI planning and forecasting tools are widely deployed, most factories lack the data plumbing to feed real-time sensor information into those models. The SpaceX pedigree matters because the software was built for environments where latency and data loss carry existential consequences – standards that exceed what most manufacturing AI vendors have been required to meet. Jeff Bezos' recently reported $100bn factory automation fund suggests that capital is flowing toward physical manufacturing, but Sift's founders argue that automation without structured data infrastructure produces unreliable results. Each factory deployment generates proprietary integration patterns that become training data for subsequent installations.\n## Insurance\nAgents did not approach the underwriting desk this week – they sat down and began issuing quotes. Aviva launched on ChatGPT, Chaucer embedded real-time vessel data into Lloyd's underwriting, and a WTW survey quantified the performance gap between carriers that use AI and those that do not. The performance gap between early adopters and the rest is now measurable.",
+    "urls": [
+      "https://techcrunch.com/2026/03/25/with-sift-stack-two-ex-spacex-engineers-are-bringing-the-software-that-helped-launch-rockets-to-the-factory-floor/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Aviva launches first major UK insurance app on ChatGPT",
+    "body": "Aviva announced it will launch an app on ChatGPT allowing new customers to obtain a Signature home insurance quote in minutes. The app is the first collaboration through Aviva's recently announced partnership with OpenAI. Owen Morris, CEO of Aviva UK Personal Lines, confirmed the app is due within weeks. The distribution implications are significant: by placing a quoting engine inside a conversational AI platform used by hundreds of millions, Aviva bypasses the comparison-site intermediaries that have dominated UK personal lines distribution for two decades. For brokers, the move raises a channel conflict question – if customers can bind coverage through a chatbot, the broker's role in personal lines narrows to complex or high-value cases. For competing insurers, the cost of not being on ChatGPT is that Aviva captures demand at the point of intent, before the customer ever visits a comparison site.",
+    "urls": [
+      "https://www.aviva.com/newsroom/news-releases/2026/03/aviva-launches-insurance-app-on-chatgpt/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Chaucer and Ceto AI launch Lloyd's marine MGA with real-time vessel data",
+    "body": "Chaucer and Ceto AI launched a Lloyd's marine managing general agent that integrates real-time vessel tracking data directly into underwriting decisions. The MGA structure is the key detail: by housing the AI underwriting capability inside a delegated authority vehicle, Chaucer can write business at speed while maintaining Lloyd's capital backing. For Ceto AI, the vessel data feeds an underwriting model that improves with each risk assessed – a compounding data advantage. Traditional marine underwriters who rely on static risk assessments updated quarterly or annually face an information asymmetry: the MGA sees vessel behaviour in real time while incumbents see it in retrospect.",
+    "urls": [
+      "https://www.webdisclosure.com/press-release/ceto-ai-limited-etr-chaucer-and-ceto-launch-lloyds-marine-mga-integrating-real-time-vessel-data-into-underwriting-HKtuDpWIy4t"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "TPG and Allianz lead $350m investment in Cambridge Mobile Telematics",
+    "body": "TPG and Allianz led a $350m strategic investment in Cambridge Mobile Telematics to expand its global road safety platform and real-time AI risk models. The deal includes new long-term commercial agreements between Allianz and CMT. The structure reveals Allianz's strategic calculus: by investing in CMT while simultaneously signing commercial contracts, the insurer secures preferential access to telematics data that feeds its own underwriting models. Competing carriers that licence CMT's technology receive the same algorithms but lack Allianz's proprietary data, creating a structural edge even when the tools are shared. The $350m cheque also prices competitors out of acquiring CMT independently.",
+    "urls": [
+      "https://www.cmtelematics.com/news/tpg-and-allianz-lead-usd-350-million-strategic-investment-in-cambridge-mobile-telematics-to-accelerate-ai-driven-road-safety/"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "WTW survey quantifies the AI performance gap among insurers",
+    "body": "WTW surveyed 59 insurers and found that those using advanced analytics and AI achieved combined ratios six points lower and premium growth three points higher between 2022 and 2024. A six-point combined ratio advantage compounds into billions of dollars in relative profitability across a large book. Yet only 16% of respondents currently augment underwriting decisions with AI, though 60% plan to prioritise it by 2028. The gap between intention and execution defines the competitive window: carriers that operationalise AI underwriting now accumulate two to three years of proprietary loss data before the majority even begins. That data advantage is the moat – it cannot be purchased, only earned through deployment.",
+    "urls": [
+      "https://www.insurancejournal.com/news/national/2026/03/25/863287.htm"
+    ],
+    "container": ""
+  },
+  {
+    "heading": "Azhar's token data proves the infrastructure thesis in a single number.",
+    "body": "[Azeem Azhar on the Exponential View](https://www.exponentialview.co/p/jensens-openclaw-thesis): his personal AI usage went from 150,000 tokens per day in summer 2024 to 870 million in a single day this week — a 5,800x increase in under two years. The mechanism is what he calls 'the harness': the infrastructure between raw model capability and useful work. His analogy — a Ferrari engine on your lawn versus a ten-year-old engine in a car — frames the entire infrastructure debate. The engine matters less than the vehicle around it. The inference economics compound: reasoning models create 10,000x the compute demand per user compared to standard chat. One sophisticated user, two months, 5,800x more tokens. Multiply that across enterprise deployments and you understand why Nvidia has $1 trillion in committed orders and why grid capacity — in Ireland, the Nordics, and everywhere else — is the binding constraint.",
+    "urls": [
+      "https://www.exponentialview.co/p/jensens-openclaw-thesis"
+    ],
+    "container": "podcast"
+  },
+  {
+    "heading": "60% of companies are exaggerating AI's role in layoffs. The data is clear.",
+    "body": "A resume.org survey of 1,000 hiring managers, [unpacked by Nathaniel Whittemore on the AI Daily Brief](https://podcasters.spotify.com/pod/show/nlw/episodes/Why-AI-Actually-Wont-Take-Your-Job-e3gq5op), found that 60% said they deliberately emphasised AI's role in redundancies because markets and stakeholders view it more favourably than admitting to overhiring or strategic misjudgement. Only 9% said AI had actually replaced any roles fully. Whittemore's distinction between 'efficiency AI' (cutting costs) and 'opportunity AI' (creating new capacity) matters here: companies framing cost cuts as AI transformation are borrowing credibility from a technology they haven't yet deployed at scale. The danger for policymakers and enterprise planners alike is that regulatory responses, workforce investment and strategic decisions are being calibrated to a narrative that the companies creating it know to be exaggerated.",
+    "urls": [
+      "https://podcasters.spotify.com/pod/show/nlw/episodes/Why-AI-Actually-Wont-Take-Your-Job-e3gq5op"
+    ],
+    "container": "podcast"
+  },
+  {
+    "heading": "Jensen's 'token factory' reframes what a data centre is — and what a leader does.",
+    "body": "[Jensen Huang on Lex Fridman](https://lexfridman.com/jensen-huang/?utm_source=rss&utm_medium=rss&utm_campaign=jensen-huang) described four scaling laws — pre-training, post-training, test-time, agentic — each multiplying compute demand. His framing: data centres are no longer computers. They are factories. They produce tokens. 'Every token has value, and it brings different kinds of value.' The architecture shifted from single GPUs (DGX1) to rack-scale computing (NVLink 72) because agents — which 'bang on tools' and spawn sub-agents — demand a fundamentally different infrastructure from chat models. His management model mirrors his architecture: 60 direct reports, no one-on-ones, and a practice of 'constantly reasoning in front of people' so anyone can challenge his thinking at any step. When he's wrong, 'pretty much everybody sees it.' For leaders evaluating both AI infrastructure and AI-era management, the parallel is deliberate. The same transparency agents need is what Jensen demands of himself.",
+    "urls": [
+      "https://lexfridman.com/jensen-huang/?utm_source=rss&utm_medium=rss&utm_campaign=jensen-huang"
+    ],
+    "container": "podcast"
+  },
+  {
+    "heading": "The submarine problem is a workforce problem. And it's yours too.",
+    "body": "Chris Power (CEO, Hadrian) and Admiral Robert Goucher [on the a16z podcast](https://a16z.simplecast.com/episodes/submarines-and-the-future-of-defense-manufacturing) described American submarine manufacturing: decades of industrial decline, a skilled workforce that doesn't exist in sufficient numbers, and a technology intervention compressing the timeline. Power: 'Three years ago it was incredibly difficult and now... is pretty fast.' The mechanism isn't AI replacing welders. There aren't enough welders to replace. Software multiplies the output of the ones who exist. The defence context adds a structural accelerant — single-person authority replacing distributed multi-stakeholder accountability — that isn't available in commercial manufacturing. But the underlying logic transfers: when you cannot hire your way to the precision workforce your industry requires, verification and amplification of scarce human skill becomes the primary lever. That's as true in pharmaceutical manufacturing, semiconductor fabrication and specialist insurance underwriting as it is in submarine hulls.\nThank you for reading this week's report. Come back next week for all the AI news you need to know in your sector.",
+    "urls": [
+      "https://a16z.simplecast.com/episodes/submarines-and-the-future-of-defense-manufacturing"
+    ],
+    "container": "podcast"
+  }
+]

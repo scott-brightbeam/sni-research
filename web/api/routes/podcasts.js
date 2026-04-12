@@ -1,169 +1,82 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, existsSync, readdirSync } from 'fs'
+import { join, resolve } from 'path'
 import { validateParam } from '../lib/walk.js'
-import config from '../lib/config.js'
+import { getDb } from '../lib/db.js'
+import * as pq from '../lib/podcast-queries.js'
 
-const ROOT = config.ROOT
+const ROOT = process.env.SNI_ROOT || resolve(import.meta.dir, '../../..')
 
-// Stale-while-revalidate cache for the full podcast list. Scanning 140+ digest
-// files on Fly's persistent volume blocks the event loop for several seconds.
-// 5-minute TTL, serve stale during refresh, async yields keep the dashboard
-// responsive during the walk itself.
-const PODCASTS_CACHE_TTL_MS = 5 * 60_000
-let _podcastsCache = null
-let _podcastsCacheAt = 0
-let _podcastsInflight = null
-
-const YIELD_EVERY = 50
-const yieldToEventLoop = () => new Promise(resolve => setImmediate(resolve))
-const yieldsEnabled = () => process.env.SNI_TEST_MODE !== '1'
+// ---------------------------------------------------------------------------
+// Normalise DB row (snake_case) → UI shape (camelCase + digest sub-object)
+// ---------------------------------------------------------------------------
 
 /**
- * Scan data/podcasts/ directories for .digest.json files.
- * Used as fallback when manifest.json does not exist.
- * Yields the event loop every 50 files to keep health checks responsive.
+ * The UI expects camelCase keys and a nested `digest` object containing
+ * summary, stories, and themes.  DB rows use snake_case and return stories
+ * at the top level.  This function bridges the gap.
  */
-async function scanDigestFiles() {
-  const podcastsDir = join(ROOT, 'data/podcasts')
-  if (!existsSync(podcastsDir)) return []
+function normaliseEpisode(row) {
+  const sourceSlug = row.source_slug || slugify(row.source)
+  const filenameSlug = (row.filename || '').replace(/\.md$/, '')
 
-  const episodes = []
-  const dateDirs = readdirSync(podcastsDir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort()
+  // Build stories array in the shape the UI expects
+  const stories = (row.stories || []).map(s => ({
+    headline: s.headline,
+    detail: s.detail || null,
+    url: s.url || null,
+    sector: s.sector || 'general-ai',
+  }))
 
-  let processed = 0
-  for (const dateDir of dateDirs) {
-    const datePath = join(podcastsDir, dateDir)
-    let sourceDirs
-    try {
-      if (!statSync(datePath).isDirectory()) continue
-      sourceDirs = readdirSync(datePath)
-    } catch { continue }
-
-    for (const sourceDir of sourceDirs) {
-      const sourcePath = join(datePath, sourceDir)
-      let files
-      try {
-        if (!statSync(sourcePath).isDirectory()) continue
-        files = readdirSync(sourcePath)
-      } catch { continue }
-
-      for (const file of files) {
-        if (!file.endsWith('.digest.json')) continue
-        try {
-          const digest = JSON.parse(readFileSync(join(sourcePath, file), 'utf-8'))
-          const slug = file.replace('.digest.json', '')
-          episodes.push({
-            filename: digest.filename || `${dateDir}-${sourceDir}-${slug}.md`,
-            title: digest.title,
-            source: digest.source,
-            date: digest.date || dateDir,
-            week: digest.week,
-            duration: digest.duration,
-            episodeUrl: digest.episodeUrl || null,
-            type: 'podcast',
-            archived: digest.archived || false,
-            digestPath: `data/podcasts/${dateDir}/${sourceDir}/${file}`,
-            digest,
-          })
-        } catch { /* skip malformed digest */ }
-        processed++
-        if (yieldsEnabled() && processed % YIELD_EVERY === 0) await yieldToEventLoop()
-      }
-    }
-  }
-
-  return episodes
-}
-
-export function invalidatePodcastsCache() {
-  _podcastsCache = null
-  _podcastsCacheAt = 0
-}
-
-async function loadAllEpisodes() {
-  const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-  if (existsSync(manifestPath)) {
-    let manifest
-    try {
-      manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-    } catch {
-      return []
-    }
-    const entries = Array.isArray(manifest)
-      ? manifest
-      : Object.entries(manifest).map(([filename, entry]) => ({ filename, ...entry }))
-
-    const episodes = []
-    let processed = 0
-    for (const entry of entries) {
-      let digest = null
-      if (entry.digestPath) {
-        const digestFullPath = join(ROOT, entry.digestPath)
-        if (existsSync(digestFullPath)) {
-          try {
-            digest = JSON.parse(readFileSync(digestFullPath, 'utf-8'))
-          } catch { /* skip malformed */ }
-        }
-      }
-      episodes.push({ ...entry, archived: digest?.archived || entry.archived || false, digest })
-      processed++
-      if (yieldsEnabled() && processed % YIELD_EVERY === 0) await yieldToEventLoop()
-    }
-    return episodes
-  }
-  // Fallback: scan digest files directly (also async)
-  return await scanDigestFiles()
-}
-
-async function refreshPodcastsCache() {
-  try {
-    const result = await loadAllEpisodes()
-    _podcastsCache = result
-    _podcastsCacheAt = Date.now()
-    return result
-  } finally {
-    _podcastsInflight = null
+  return {
+    filename: row.filename,
+    title: row.title,
+    source: row.source,
+    date: row.date,
+    week: row.week != null ? Number(row.week) : null,
+    year: row.year != null ? Number(row.year) : null,
+    duration: row.duration != null ? Number(row.duration) : null,
+    episodeUrl: row.episode_url || null,
+    tier: row.tier != null ? Number(row.tier) : 1,
+    archived: row.archived === 1 || row.archived === true,
+    type: 'podcast',
+    // Synthetic digestPath so the UI can build PATCH URLs
+    digestPath: `data/podcasts/${row.date}/${sourceSlug}/${filenameSlug}.digest.json`,
+    // Nested digest for UI backward compat (digest.summary, digest.stories, digest.themes)
+    digest: {
+      summary: row.summary || null,
+      stories,
+      themes: [], // themes not stored in episodes table; empty for now
+    },
+    // Flat stats the UI also reads
+    storiesExtracted: stories.length,
+    storyCount: row.story_count != null ? Number(row.story_count) : stories.length,
   }
 }
 
-async function getAllEpisodesCached() {
-  if (process.env.SNI_TEST_MODE === '1') return loadAllEpisodes()
-
-  const now = Date.now()
-
-  // Fresh cache
-  if (_podcastsCache && (now - _podcastsCacheAt) < PODCASTS_CACHE_TTL_MS) {
-    return _podcastsCache
-  }
-
-  // Stale cache: return stale now, refresh in background
-  if (_podcastsCache) {
-    if (!_podcastsInflight) {
-      _podcastsInflight = refreshPodcastsCache()
-      _podcastsInflight.catch(err => console.error('[podcasts] background refresh failed:', err.message))
-    }
-    return _podcastsCache
-  }
-
-  // Cold start
-  if (!_podcastsInflight) {
-    _podcastsInflight = refreshPodcastsCache()
-  }
-  return _podcastsInflight
+/** Simple slug helper — only needed as fallback if source_slug is missing */
+function slugify(s) {
+  if (!s) return 'unknown'
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
+
+// ---------------------------------------------------------------------------
+// GET /api/podcasts?week=N&source=X
+// ---------------------------------------------------------------------------
 
 export async function handleGetPodcasts(query) {
-  const { week } = query
-  let episodes = await getAllEpisodesCached()
+  const { week, source } = query
+  const db = getDb()
 
-  if (week) {
-    const weekNum = parseInt(week, 10)
-    episodes = episodes.filter(e => e.week === weekNum)
-  }
+  const opts = {}
+  if (week != null) opts.week = parseInt(week, 10)
+  if (source) opts.source = source
 
-  // Find the latest podcast-import run summary
-  const runsDir = join(ROOT, 'output/runs')
+  const rows = await pq.getEpisodes(db, opts)
+  const episodes = rows.map(normaliseEpisode)
+
+  // Find the latest podcast-import run summary (stays on filesystem)
   let lastRun = null
+  const runsDir = join(ROOT, 'output/runs')
   if (existsSync(runsDir)) {
     try {
       const runFiles = readdirSync(runsDir)
@@ -179,11 +92,12 @@ export async function handleGetPodcasts(query) {
     } catch { /* skip if can't read dir */ }
   }
 
-  // Newest first
-  episodes.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-
   return { week: week ? parseInt(week, 10) : null, episodes, lastRun }
 }
+
+// ---------------------------------------------------------------------------
+// GET /api/podcasts/transcript?date=...&source=...&title=...
+// ---------------------------------------------------------------------------
 
 export async function handleGetTranscript(query) {
   const { date, source, title } = query
@@ -238,26 +152,49 @@ export async function handleGetTranscript(query) {
   return { transcript, metadata }
 }
 
+// ---------------------------------------------------------------------------
+// PATCH /api/podcasts/:date/:source/:slug
+// ---------------------------------------------------------------------------
+
 export async function handlePatchPodcast(date, source, slug, body) {
   validateParam(date, 'date')
   validateParam(source, 'source')
   validateParam(slug, 'slug')
 
-  const digestPath = join(ROOT, 'data/podcasts', date, source, `${slug}.digest.json`)
-  if (!existsSync(digestPath)) {
-    const err = new Error('Podcast digest not found')
+  const db = getDb()
+
+  // Map camelCase body keys to snake_case DB columns
+  const updates = {}
+  if (body.archived === true) updates.archived = 1
+  else if (body.archived === false) updates.archived = 0
+  if (body.tier != null) updates.tier = body.tier
+  if (body.summary != null) updates.summary = body.summary
+
+  if (Object.keys(updates).length === 0) {
+    return { ok: true }
+  }
+
+  await pq.patchEpisode(db, date, source, slug, updates)
+
+  // Return updated episode if we can find it
+  const result = await db.execute({
+    sql: `SELECT * FROM episodes
+          WHERE date = ? AND source_slug = ? AND filename LIKE ?`,
+    args: [date, source, `%${slug}%`],
+  })
+
+  if (result.rows.length === 0) {
+    const err = new Error('Podcast episode not found')
     err.status = 404
     throw err
   }
 
-  const raw = JSON.parse(readFileSync(digestPath, 'utf-8'))
+  // Fetch stories for the matched episode
+  const row = result.rows[0]
+  const storiesResult = await db.execute({
+    sql: 'SELECT headline, detail, url, sector FROM episode_stories WHERE episode_id = ?',
+    args: [row.id],
+  })
 
-  if (body.archived === true) {
-    raw.archived = true
-  } else if (body.archived === false) {
-    delete raw.archived
-  }
-
-  writeFileSync(digestPath, JSON.stringify(raw, null, 2))
-  return { digest: raw }
+  return normaliseEpisode({ ...row, stories: storiesResult.rows })
 }

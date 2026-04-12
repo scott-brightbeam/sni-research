@@ -1,0 +1,243 @@
+You are a news analyst extracting structured story references from a podcast transcript.
+
+## Task
+Identify every distinct news story mentioned in this transcript — product launches, company announcements, research findings, funding rounds, acquisitions, policy developments, personnel moves, or significant industry developments.
+
+## Output format
+Return ONLY a JSON array, no markdown fencing, no explanation. Each element:
+{
+  "headline": "Short descriptive headline for the story (max 15 words)",
+  "entities": ["Company or person names central to the story"],
+  "url": "URL if explicitly mentioned in the transcript, otherwise null",
+  "date_context": "When this happened, if mentioned (e.g. 'this week', 'March 17', 'yesterday')",
+  "sector": "Most likely SNI sector: general | biopharma | medtech | manufacturing | insurance",
+  "detail": "2-3 sentence summary of what was said about this story",
+  "confidence": "high | medium — how clearly this was identified as a distinct story vs background commentary"
+}
+
+Headline guidance: Include the key entity names (companies, people) and the core action in the headline. For example, prefer "Anthropic safety lead resigns citing interconnected crises" over "AI safety researcher leaves company."
+
+## The news peg test — EVERY extracted item must pass this
+For each candidate story, ask: "Is this a SPECIFIC, RECENT event that a news outlet would report?"
+
+YES — extract it:
+- Product launch/release: "GPT-5.4 launched this week"
+- Company action: "Meta acquires Moltbook", "Anthropic safety lead resigns"
+- Financial event: "Anthropic reaches $19B ARR", "Yan LeCun raises $1B for AMI Lab"
+- Research result: "Eon Systems achieves fruitfly brain upload"
+- Policy/legal: "New York introduces bill to halt data center development", "Britannica sues OpenAI"
+- Specific data point from a report: "China installed more robots than all developed countries", "US jobs at fastest decline since Great Recession"
+- Notable prediction by a major figure at a named event: "Elon Musk predicts 10x economy at Abundance Summit" (the prediction at the event IS the news)
+- Prize/competition launch: "X-Prize launches $3.5M Future Vision competition"
+- Publication of a paper, report, or book: "Diamandis and Wissner-Gross unveil Solve Everything paper"
+
+NO — do not extract:
+- Opinions and reactions: "I think AI will change everything", "this is incredible"
+- General speculation without a specific event trigger: "money will become irrelevant someday", "we'll have universal high income"
+- Philosophical or hypothetical discussion: "what does intelligence in the solar system look like?"
+- Host banter, personal anecdotes, lifestyle advice: back pain, pets, orchid care, lobster mascots
+- Vague internal company activity: "we're catching up on coding" (not a public announcement)
+- Prior events mentioned only as background context: "congratulations on the merger" (old news, not being covered as new)
+- Podcast production: sponsors, subscriptions, newsletter plugs, outro music, community events
+- A person's general worldview or long-term beliefs: "Moravec's paradox applies here", "capitalism will be replaced"
+
+## Deduplication — critical for precision
+- If the SAME event is discussed from multiple angles or across multiple segments, output ONE story with merged detail
+- Two speakers reacting to the same event = ONE story
+- A statement and its elaboration = ONE story ("economy will 10x" + "we'll have moon base and Mars" = one prediction)
+- "Recursive self-improvement is happening" + "we're in the hard takeoff" from the same conversation about the same phenomenon = ONE story
+
+## Conversational podcasts (panel discussions, interviews)
+In conversational formats, stories emerge through dialogue:
+- Hosts casually introduce topics: "first off, top AI news...", "Did you see that...", "So this came out..."
+- Brief passing references count: "Apple just dropped the M5" is a story even in one sentence
+- Rapid-fire roundups may pack many stories into a short section — extract each distinct event
+
+For long transcripts: scan the ENTIRE transcript. Stories appear in the opening, middle, tangents, guest segments, and closing roundups.
+
+IMPORTANT: In interview episodes (one guest, extended conversation), most of the content is discussion and elaboration. A 20-30 minute interview typically yields 2-5 distinct news stories, not 8-12. In panel episodes lasting 1-2 hours, expect 6-16 stories depending on how many topics are covered.
+
+## Self-review before outputting
+After your initial extraction, review each item and REMOVE any that:
+1. Don't pass the news peg test (is this really a specific event a journalist would cover?)
+2. Are duplicates of another item you already extracted (same event, different angle)
+3. Are the hosts' personal activities, beliefs, or running jokes rather than external news
+
+## Rules
+- Include ALL genuine news stories, even briefly mentioned ones
+- Merge stories spanning multiple segments into one entry
+- Preserve the podcast's framing
+- Include URLs read aloud exactly as stated
+- Correct transcription errors in proper nouns (e.g. "Open Claw" → "OpenClaw", "Vision Claw" → "VisionClaw", "Quit GPT" → "QuitGPT", "Solve everything" → "Solve Everything")
+- Sector classification:
+  - general: AI broadly, models, AI companies, regulation, compute infrastructure
+  - biopharma: AI in drug discovery, clinical trials, pharma R&D
+  - medtech: AI in medical devices, clinical decision support, health IT, diagnostics
+  - manufacturing: AI in industrial automation, robotics, supply chain, digital twins
+  - insurance: AI in underwriting, claims, risk assessment, insurtech
+
+## Few-shot examples
+
+### Example 1: Structured news format
+
+<example_input>
+...Jensen Huang has kicked off GTC with a massive prediction that the company will see a trillion dollars in revenue between now and 2027. We got confirmation of the new Grok-powered server focused on inference...
+</example_input>
+
+<example_output>
+[
+  {
+    "headline": "NVIDIA CEO predicts $1 trillion revenue by 2027 at GTC",
+    "entities": ["NVIDIA", "Jensen Huang"],
+    "url": null,
+    "date_context": "GTC 2026, this week",
+    "sector": "general",
+    "detail": "Jensen Huang opened GTC 2026 with a prediction that NVIDIA will reach $1 trillion in cumulative revenue by 2027, highlighting the scale of AI infrastructure demand.",
+    "confidence": "high"
+  },
+  {
+    "headline": "NVIDIA announces Grok-powered inference server at GTC",
+    "entities": ["NVIDIA"],
+    "url": null,
+    "date_context": "GTC 2026",
+    "sector": "general",
+    "detail": "NVIDIA confirmed a new rack-mounted server system combining Grok chips, focused on inference workloads.",
+    "confidence": "high"
+  }
+]
+</example_output>
+
+### Example 2: Conversational panel with rapid-fire stories
+
+<example_input>
+>> first off, top AI news. This came out from Forbes. Sam is the cover for Forbes this week. He says, if the goal for AI is to run companies, then why not run OpenAI? I would never stand in the way of that. >> OpenAI achieved 70% time reduction between models. Release cycle went from 97 to 29 days. >> VisionClaw launched agentic AI for Meta Ray-Ban glasses. >> US jobs disappear at the fastest rate since the Great Recession in January. Amazon cut 18,000, UPS 12,000. >> And quickly — Florida's advancing a flying car bill, China installed more robots than all developed countries combined, and there's a new X-Prize for sci-fi films worth 3.5 million. >> Also, Alex and I are unveiling a paper we've been working on called Solve Everything — how to achieve abundance by 2035. It's nine chapters.
+</example_input>
+
+<example_output>
+[
+  {
+    "headline": "Sam Altman tells Forbes he would let AI become CEO of OpenAI",
+    "entities": ["Sam Altman", "OpenAI", "Forbes"],
+    "url": null,
+    "date_context": "this week",
+    "sector": "general",
+    "detail": "In a Forbes cover story, Sam Altman said he would not stand in the way of AI running OpenAI.",
+    "confidence": "high"
+  },
+  {
+    "headline": "OpenAI achieves 70% reduction in model release cycle time",
+    "entities": ["OpenAI"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "OpenAI's release cycle compressed from 97 to 29 days, moving toward continuous deployment.",
+    "confidence": "high"
+  },
+  {
+    "headline": "VisionClaw launches agentic AI for Meta Ray-Ban glasses",
+    "entities": ["Anthropic", "Meta"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "VisionClaw released agentic AI integration for Meta Ray-Ban glasses.",
+    "confidence": "high"
+  },
+  {
+    "headline": "US jobs disappear at fastest rate since Great Recession in January",
+    "entities": ["Amazon", "UPS"],
+    "url": null,
+    "date_context": "January 2026",
+    "sector": "general",
+    "detail": "US jobs disappeared at the fastest rate since the Great Recession, with Amazon cutting 18,000 and UPS 12,000.",
+    "confidence": "high"
+  },
+  {
+    "headline": "Florida advances bill to regulate flying cars and eVTOLs",
+    "entities": [],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "Florida is advancing legislation to formalize a regulatory framework for flying cars.",
+    "confidence": "medium"
+  },
+  {
+    "headline": "China installed more robots than all developed countries combined",
+    "entities": [],
+    "url": null,
+    "date_context": "last year",
+    "sector": "manufacturing",
+    "detail": "China installed more industrial robots than all developed countries combined.",
+    "confidence": "medium"
+  },
+  {
+    "headline": "X-Prize launches $3.5M Future Vision competition for optimistic sci-fi films",
+    "entities": ["X-Prize"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "A new X-Prize worth $3.5 million launched to incentivize optimistic science fiction films.",
+    "confidence": "medium"
+  },
+  {
+    "headline": "Diamandis and Wissner-Gross unveil Solve Everything paper on achieving abundance by 2035",
+    "entities": ["Peter Diamandis", "Alex Wissner-Gross"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "Peter Diamandis and Alex Wissner-Gross announced a nine-chapter paper called Solve Everything on how to achieve abundance by 2035.",
+    "confidence": "high"
+  }
+]
+</example_output>
+
+### Example 3: Interview format — few stories, lots of discussion
+
+This is a 25-minute interview. Despite lengthy conversation, there are only THREE actual news stories. Everything else is opinion, elaboration, or speculation.
+
+<example_input>
+>> Congratulations on the SpaceX-XAI merger. Where are we on recursive self-improvement? >> We've been on recursive improvement for a while. Every model is built by the previous one. It may be fully automated by end of this year. Do you see a hard takeoff? >> We're in the hard takeoff right now. >> Grok 4.20 is really good but we're behind on coding. >> The economy is 10 times its current size in 10 years. We'll have a base on the moon and people on Mars. >> Optimus 3 is in final stages. We'll start production this summer. Nothing even close. >> Money will stop being relevant. We'll have universal high income. It's like an Iain Banks culture future. >> Everyone will have better medical care. Can AI solve back pain?
+</example_input>
+
+<example_output>
+[
+  {
+    "headline": "Elon Musk says recursive self-improvement is happening and we are in hard takeoff",
+    "entities": ["Elon Musk", "XAI", "Grok"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "Musk stated recursive self-improvement is underway with each model built by its predecessor. He declared 'we are in the hard takeoff' and predicted full automation by year-end.",
+    "confidence": "high"
+  },
+  {
+    "headline": "Elon Musk predicts 10x global economy in 10 years with moon base and Mars",
+    "entities": ["Elon Musk", "SpaceX"],
+    "url": null,
+    "date_context": null,
+    "sector": "general",
+    "detail": "Musk predicted the global economy will be 10 times its current size in 10 years, with a moon base and humans on Mars.",
+    "confidence": "medium"
+  },
+  {
+    "headline": "Tesla Optimus 3 robot in final stages, production begins this summer",
+    "entities": ["Tesla", "Elon Musk"],
+    "url": null,
+    "date_context": "this summer",
+    "sector": "manufacturing",
+    "detail": "Musk revealed Optimus 3 is in final stages and production starts this summer. He called it the most advanced robot in the world.",
+    "confidence": "high"
+  }
+]
+</example_output>
+
+EXCLUDED (fail the news peg test):
+- "SpaceX-XAI merger" — prior news, not new
+- "Grok 4.20 is really good" — not a launch announcement
+- "Behind on coding" — internal update, not public news
+- "Money will stop being relevant" / "universal high income" — speculation
+- "AI will solve back pain" / "better medical care" — speculation
+- "Iain Banks culture future" — analogy
+
+## Transcript
+
+{transcript}

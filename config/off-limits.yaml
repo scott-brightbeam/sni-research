@@ -1,114 +1,182 @@
-week_7:
-  - company: Takeda
-    topic: Iambic AI drug discovery partnership
-  - company: Isomorphic Labs
-    topic: IsoDDE protein design
-  - company: Generate Biomedicines
-    topic: IPO filing
-week_8:
-  - company: Merck
-    topic: Mayo Clinic AI drug discovery partnership
-  - company: Medtronic
-    topic: Stealth AXiS FDA clearance
-  - company: Samsung
-    topic: HBM4 memory
-  - company: ERGO
-    topic: 1000 job cuts AI
-  - company: AIG
-    topic: AI beyond expectations results
-  - company: mea Platform
-    topic: 50m funding round
-  - company: Gallagher Re
-    topic: insurtech report
-  - company: Intrinsic
-    topic: Alphabet CEO
-  - company: Copan
-    topic: PhenoMATRIX
-  - company: Deloitte
-    topic: manufacturing AI analysis
-  - company: Michigan State
-    topic: AI diamonds research
-  - company: PYMNTS
-    topic: pharma AI operations
-  - company: Semiconductor
-    topic: equipment market GlobeNewsWire
-week_9:
-  - company: DeepSeek
-    topic: access US chipmakers
-  - company: The SaaSpocalypse
-    topic: stack war
-  - company: Nvidia Q4
-    topic: reinforces hardware layer's dominance
-  - company: AI
-    topic: chip capital surges toward specific positions
-  - company: A
-    topic: fictional memo rattles market value
-  - company: IQVIA
-    topic: Charles River discovery assets
-  - company: Bruker and Noetik
-    topic: spatial biology AI
-  - company: BreezeBio
-    topic: genetic medicine delivery
-  - company: DeepHealth
-    topic: CE mark remote imaging platform
-  - company: Oura
-    topic: proprietary women's health AI
-  - company: RLWRLD
-    topic: industrial robotics AI
-  - company: Axelera AI
-    topic: edge AI chips
-  - company: Apple
-    topic: Mac mini production US
-  - company: AI
-    topic: patents emerge competitive weapon
-  - company: Broker
-    topic: stocks fall AI displacement fear returns
-  - company: Concirrus
-    topic: Inspire underwriting platform
-  - company: General Magic
-    topic: SMS-based insurance AI
-  - company: The SaaSpocalypse'
-    topic: '''SaaSpocalypse'' sell-off'
-  - company: HSBC
-    topic: incumbents
-  - company: Nvidia
-    topic: reported Q4 revenue
-  - company: Anthropic
-    topic: pushed enterprise
-  - company: Meta
-    topic: deal AMD
-  - company: Bruker
-    topic: expanded collaboration Noetik
-  - company: State Farm, USAA and Allstate
-    topic: filed AI patents
-  - company: Clear Group CEO Mike Edgeley
-    topic: argued
 week_10:
-  - company: OpenAI
-    topic: GPT-5.4 model release variants
-  - company: Anthropic
-    topic: Pentagon defense contract negotiations
-  - company: Broadcom
-    topic: record Q1 revenue custom silicon
-  - company: KALA BIO
-    topic: on-premises AI research platform
-  - company: Insilico Medicine
-    topic: drug discovery model partnership
-  - company: Liquid AI
-    topic: drug discovery model partnership
-  - company: Tempus
-    topic: Merck precision medicine collaboration expansion
-  - company: Sectra
-    topic: Oxipit autonomous radiology AI acquisition
-  - company: Oxipit
-    topic: CE Class IIB autonomous AI certification
-  - company: RadNet
-    topic: Gleamer radiology AI acquisition
-  - company: Gleamer
-    topic: CE-marked FDA-cleared radiology devices
-  - company: Perimeter Medical Imaging
-    topic: Claire FDA-approved intraoperative imaging
-  - company: Bob McGrew startup
-    topic: manufacturing-focused AI funding
-  - company: Cisco
-    topic: industrial AI cybersecurity barriers report
+- company: OpenAI
+  topic: GPT-5.4 model release variants
+- company: Anthropic
+  topic: Pentagon defense contract negotiations
+- company: Broadcom
+  topic: record Q1 revenue custom silicon
+- company: KALA BIO
+  topic: on-premises AI research platform
+- company: Insilico Medicine
+  topic: drug discovery model partnership
+- company: Liquid AI
+  topic: drug discovery model partnership
+- company: Tempus
+  topic: Merck precision medicine collaboration expansion
+- company: Sectra
+  topic: Oxipit autonomous radiology AI acquisition
+- company: Oxipit
+  topic: CE Class IIB autonomous AI certification
+- company: RadNet
+  topic: Gleamer radiology AI acquisition
+- company: Gleamer
+  topic: CE-marked FDA-cleared radiology devices
+- company: Perimeter Medical Imaging
+  topic: Claire FDA-approved intraoperative imaging
+- company: Bob McGrew startup
+  topic: manufacturing-focused AI funding
+- company: Cisco
+  topic: industrial AI cybersecurity barriers report
+week_12:
+- company: Meta
+  topic: AI agent exposed sensitive data
+- company: Okta
+  topic: identity management for AI agents
+- company: Visa
+  topic: Agentic Ready programme for AI payments
+- company: Tempo
+  topic: mainnet and standard for machine payments
+- company: NVIDIA
+  topic: NemoClo enterprise security wrapper
+- company: Roche
+  topic: 3,500 Blackwell GPUs hybrid-cloud AI factory
+- company: Anthropic
+  topic: Claude market share growth in business
+- company: Microsoft
+  topic: Mustafa Suleyman moved to superintelligence
+- company: PhaseV
+  topic: AI Conductor clinical trial automation platform
+- company: Earendil Labs
+  topic: AI-designed bispecific antibodies partnership
+- company: WuXi Biologics
+  topic: AI-designed bispecific antibodies partnership
+- company: Microsoft
+  topic: Copilot Health US preview launch
+- company: BMW
+  topic: humanoid robot expansion to Germany plant
+- company: Tesla
+  topic: Terafab AI chip fabrication project
+- company: Micron
+  topic: entire 2026 HBM capacity sold out
+- company: Neptune Flood
+  topic: quoting app inside ChatGPT
+- company: Clearcover
+  topic: Dearborn Labs AI systems service
+- company: Lemonade
+  topic: claimed insurmountable AI lead
+- company: OpenAI
+  topic: pivoted hard to enterprise and coding
+week_13:
+- url: https://a16z.simplecast.com/episodes/submarines-and-the-future-of-defense-manufacturing
+- url: https://aibusiness.com/generative-ai/microsoft-cuts-back-on-unnecessary-copilot-ai
+- url: https://go.theregister.com/feed/www.theregister.com/2026/03/26/github_ai_training_policy_changes/
+- url: https://go.theregister.com/feed/www.theregister.com/2026/03/26/panasonic_datacenter_energy_plans/
+- url: https://lexfridman.com/jensen-huang/?utm_source=rss&utm_medium=rss&utm_campaign=jensen-huang
+- url: https://m.economictimes.com/tech/artificial-intelligence/ettech-explainer-why-is-openai-shutting-down-sora-its-text-to-video-app/articleshow/129804124.cms
+- url: https://podcasters.spotify.com/pod/show/nlw/episodes/Why-AI-Actually-Wont-Take-Your-Job-e3gq5op
+- url: https://techcrunch.com/2026/03/24/with-3-5b-in-fresh-capital-kleiner-perkins-is-going-all-in-on-ai/
+- url: https://techcrunch.com/2026/03/25/with-sift-stack-two-ex-spacex-engineers-are-bringing-the-software-that-helped-launch-rockets-to-the-factory-floor/
+- url: https://www.cbsnews.com/news/meta-youtube-social-media-addiction-lawsuit-verdict/
+- url: https://www.cmtelematics.com/news/tpg-and-allianz-lead-usd-350-million-strategic-investment-in-cambridge-mobile-telematics-to-accelerate-ai-driven-road-safety/
+- url: https://www.digit.fyi/openai-targets-8000-staff-in-enterprise-ai-push/
+- url: https://www.drugdiscoverytrends.com/insilicos-ai-designed-rentosertib-shows-promise-in-first-phase-2a-trial-results/
+- url: https://www.exponentialview.co/p/jensens-openclaw-thesis
+- url: https://www.fool.com/investing/2026/03/25/openai-just-became-broadcoms-newest-chip-customer/
+- url: https://www.insurancejournal.com/news/national/2026/03/25/863287.htm
+- url: https://www.morningstar.com/news/pr-newswire/20260325ny18355/normal-computing-raises-50m-led-by-samsung-catalyst-to-accelerate-silicon-design-and-solve-ai-hardware-energy-crisis
+- url: https://www.pcgamer.com/software/ai/openai-discontinues-sora-video-generation-app-disney-pulls-out-of-usd1-billion-investment-deal/
+- url: https://www.pcworld.com/article/3099680/openai-just-nixed-chatgpt-erotic-adult-mode.html
+- url: https://www.pharmaceutical-technology.com/news/daiichi-sankyo-tempus-adc-development/
+- url: https://www.pharmaceutical-technology.com/news/earendil-labs-787m-financing-ai-drug-discovery-development/
+- url: https://www.pharmaceutical-technology.com/news/vizai-alnylam-advance-identification-cardiac-amyloidosis/
+- url: https://www.resultsense.com/news/2026-03-24-dragon-copilot-nhs-clinical-documentation
+- url: https://www.theguardian.com/technology/2026/mar/24/openai-ai-video-sora
+- url: https://www.theverge.com/ai-artificial-intelligence/901315/eu-ai-act-delays-ban-nudify-apps
+- url: https://www.timesofisrael.com/meta-ordered-to-pay-375-million-in-us-trial-over-child-exploitation-user-safety/
+- url: https://www.tomshardware.com/tech-industry/three-individuals-charged-with-attempting-to-break-us-sanctions-on-ai-chips-damning-text-messages-between-conspirators-reveal-intention-to-find-clients-to-act-as-pass-through-partner-for-customers-in-china
+- url: https://www.webdisclosure.com/press-release/ceto-ai-limited-etr-chaucer-and-ceto-launch-lloyds-marine-mga-integrating-real-time-vessel-data-into-underwriting-HKtuDpWIy4t
+week_7:
+- company: Takeda
+  topic: Iambic AI drug discovery partnership
+- company: Isomorphic Labs
+  topic: IsoDDE protein design
+- company: Generate Biomedicines
+  topic: IPO filing
+week_8:
+- company: Merck
+  topic: Mayo Clinic AI drug discovery partnership
+- company: Medtronic
+  topic: Stealth AXiS FDA clearance
+- company: Samsung
+  topic: HBM4 memory
+- company: ERGO
+  topic: 1000 job cuts AI
+- company: AIG
+  topic: AI beyond expectations results
+- company: mea Platform
+  topic: 50m funding round
+- company: Gallagher Re
+  topic: insurtech report
+- company: Intrinsic
+  topic: Alphabet CEO
+- company: Copan
+  topic: PhenoMATRIX
+- company: Deloitte
+  topic: manufacturing AI analysis
+- company: Michigan State
+  topic: AI diamonds research
+- company: PYMNTS
+  topic: pharma AI operations
+- company: Semiconductor
+  topic: equipment market GlobeNewsWire
+week_9:
+- company: DeepSeek
+  topic: access US chipmakers
+- company: The SaaSpocalypse
+  topic: stack war
+- company: Nvidia Q4
+  topic: reinforces hardware layer's dominance
+- company: AI
+  topic: chip capital surges toward specific positions
+- company: A
+  topic: fictional memo rattles market value
+- company: IQVIA
+  topic: Charles River discovery assets
+- company: Bruker and Noetik
+  topic: spatial biology AI
+- company: BreezeBio
+  topic: genetic medicine delivery
+- company: DeepHealth
+  topic: CE mark remote imaging platform
+- company: Oura
+  topic: proprietary women's health AI
+- company: RLWRLD
+  topic: industrial robotics AI
+- company: Axelera AI
+  topic: edge AI chips
+- company: Apple
+  topic: Mac mini production US
+- company: AI
+  topic: patents emerge competitive weapon
+- company: Broker
+  topic: stocks fall AI displacement fear returns
+- company: Concirrus
+  topic: Inspire underwriting platform
+- company: General Magic
+  topic: SMS-based insurance AI
+- company: The SaaSpocalypse'
+  topic: '''SaaSpocalypse'' sell-off'
+- company: HSBC
+  topic: incumbents
+- company: Nvidia
+  topic: reported Q4 revenue
+- company: Anthropic
+  topic: pushed enterprise
+- company: Meta
+  topic: deal AMD
+- company: Bruker
+  topic: expanded collaboration Noetik
+- company: State Farm, USAA and Allstate
+  topic: filed AI patents
+- company: Clear Group CEO Mike Edgeley
+  topic: argued

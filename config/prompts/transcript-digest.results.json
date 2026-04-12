@@ -1,0 +1,18 @@
+{
+  "prompt_version": "v1",
+  "evaluated_at": "2026-03-20",
+  "dataset": "data/test/digest-labels.json",
+  "dataset_size": 5,
+  "total_expected_stories": 69,
+  "metrics": {
+    "story_count_improvement": "5-7 avg before prompt update to 8-10 avg after",
+    "sector_detection_accuracy": "3/5 episodes fully correct",
+    "sector_detection_notes": "Moonshots improved from general-only to general+biopharma+manufacturing. Cognitive Revolution misses fleeting biopharma/insurance/manufacturing references."
+  },
+  "targets": {
+    "quality_score": ">=4/5",
+    "story_coverage": ">0.85"
+  },
+  "target_met": "partial",
+  "notes": "Automated metrics only. Manual quality evaluation pending. Story count improved significantly after prompt update. Sector tagging correct for 3 of 5 episodes; remaining 2 miss low-signal sector references in conversational formats."
+}

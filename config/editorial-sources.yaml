@@ -1,0 +1,164 @@
+# editorial-sources.yaml — Podcast source configuration for editorial intelligence
+#
+# Defines trusted podcast sources, their metadata, and cost budget for the
+# editorial pipeline (ANALYSE, DISCOVER, DRAFT stages).
+#
+# This file is read by scripts/editorial-analyse.js and web/api/routes/editorial.js.
+# Existing pipeline config files are never modified — this is a new config file.
+
+# ── Podcast sources ──────────────────────────────────────
+
+sources:
+  ai-daily-brief:
+    name: AI Daily Brief
+    host: Nathaniel Whittemore
+    tier: 1
+    frequency: daily
+    trust: true
+    typical_duration_min: 15
+    notes: Primary news source. Short-form daily briefing on AI industry developments.
+
+  cognitive-revolution:
+    name: Cognitive Revolution
+    host: Nathan Labenz
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 60
+    notes: Deep technical interviews. High density of enterprise-relevant insights.
+
+  moonshots:
+    name: Moonshots
+    host: Peter Diamandis
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 30
+    notes: Technology trends with exponential growth framing. Good for Wright's Law angles.
+
+  no-priors:
+    name: No Priors
+    host: Sarah Guo, Elad Gil
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 45
+    notes: VC perspective on AI companies. Good for market dynamics and funding signals.
+
+  big-technology:
+    name: Big Technology
+    host: Alex Kantrowitz
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 40
+    notes: Industry analysis with enterprise angle.
+
+  exponential-view:
+    name: Exponential View Newsletter
+    host: Azeem Azhar
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 0
+    notes: Newsletter (not podcast). Provides macro-level AI economy analysis.
+
+  lex-fridman:
+    name: Lex Fridman Podcast
+    host: Lex Fridman
+    tier: 1
+    frequency: irregular
+    trust: true
+    typical_duration_min: 180
+    notes: Long-form interviews. Selective processing — only AI/enterprise-relevant episodes.
+
+  dwarkesh:
+    name: Dwarkesh Podcast
+    host: Dwarkesh Patel
+    tier: 1
+    frequency: irregular
+    trust: true
+    typical_duration_min: 120
+    notes: Deep technical interviews with researchers. High analytical density.
+
+  a16z:
+    name: a16z Podcast
+    host: Various
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 30
+    notes: Andreessen Horowitz perspectives. Good for market and investment signals.
+
+  jim-rutt-show:
+    name: Jim Rutt Show
+    host: Jim Rutt
+    tier: 1
+    frequency: weekly
+    trust: true
+    typical_duration_min: 60
+    notes: Complex systems thinking. Good for coordination and organisational angles.
+
+  rachman-review:
+    name: Rachman Review
+    host: Gideon Rachman
+    tier: 2
+    frequency: weekly
+    trust: false
+    typical_duration_min: 30
+    notes: Tier 2 — geopolitical context. Ambient backdrop, not primary post fuel.
+
+  intelligence-squared:
+    name: Intelligence Squared
+    host: Various
+    tier: 2
+    frequency: weekly
+    trust: false
+    typical_duration_min: 60
+    notes: Tier 2 — debate format on cultural and political topics. Ambient backdrop.
+
+# ── Cost budget ──────────────────────────────────────────
+
+budget:
+  weekly_cap_usd: 50
+  warn_threshold_pct: 60
+  danger_threshold_pct: 80
+  models:
+    opus:
+      provider: anthropic
+      model: claude-opus-4-6
+      input_per_1k: 0.015
+      output_per_1k: 0.075
+      use_for: analyse, draft, revise, chat
+    gemini:
+      provider: google
+      model: gemini-3.1-pro-preview
+      input_per_1k: 0.00125
+      output_per_1k: 0.01
+      use_for: critique
+    gpt:
+      provider: openai
+      model: gpt-5.4
+      input_per_1k: 0.0025
+      output_per_1k: 0.01
+      use_for: critique
+
+# ── Processing config ────────────────────────────────────
+
+processing:
+  transcript_dir: ~/Desktop/Podcast Transcripts
+  max_transcripts_per_session: 25
+  evidence_retention_sessions: 3
+  evidence_max_per_theme: 12
+  compaction_trigger_sessions: 5
+  editorial_week: friday_to_thursday
+
+# ── Discovery config ─────────────────────────────────────
+
+discovery:
+  max_stories_per_episode: 15
+  search_timeout_ms: 30000
+  scrape_timeout_ms: 30000
+  max_concurrent_fetches: 3
+  skip_paywalled: true
+  fallback_to_snippet: true

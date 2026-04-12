@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-04-10T10:07:07.776Z",
+  "draft": "/tmp/test-hallucinated-draft.md",
+  "week": 15,
+  "pass": false,
+  "failures": 27,
+  "warnings": 3,
+  "stats": {
+    "articles_indexed": 2617,
+    "podcasts_whitelisted": 0,
+    "current_week_digests": 0,
+    "links_total": 18,
+    "links_podcast": 3,
+    "links_sector": 15,
+    "links_tldr": 0
+  }
+}

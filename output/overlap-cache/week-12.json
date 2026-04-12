@@ -1,0 +1,26 @@
+[
+  {
+    "heading": "Skills as enterprise architecture.",
+    "body": "Anthropic mapped 28,000+ agent skills into nine categories and surfaced a distinction that matters for regulated industries.\nSome skills help agents do things they can't do natively - recognising a specific document format, for intance. But these depreciate as models improve.\nOther skills encode how your team actually works - the sequence of steps, the review gates, the handoff points. The good news? These are durable. And this is where compliance lives. Which means we're trending towards practicals framework for how organisations encode institutional knowledge into agentic systems.",
+    "urls": [],
+    "container": "podcast"
+  },
+  {
+    "heading": "The desktop convergence.",
+    "body": "In one week, Manus, Adaptive, NVIDIA and OpenAI all announced desktop-native agent tools.\nThe most enterprise-relevant is NemoClo - NVIDIA's security wrapper for OpenClaw. It adds policy-based access control and guardrails to agent instances, is model and hardware agnostic, and is explicitly positioned to make OpenClaw enterprise-ready.\nJensen Huang compared OpenClaw to Linux, Kubernetes and HTML - infrastructure that the entire industry grabs onto. If Okta is solving the identity question and Visa is solving the payments question, NemoClo is solving the compute-access question. Same governance sprint, different layer.\nAI Daily Brief — 'The Race to Put AI Agents Everywhere' (17 March)",
+    "urls": [],
+    "container": "podcast"
+  },
+  {
+    "heading": "Agents don't trust each other.",
+    "body": "On Moltbook - the AI agent social network acquired by Meta this month - agents constantly demand proof of claims from other agents. They replicate human social dynamics: scepticism, status competition, refusal to take assertions at face value.\nA separate study found Marxist social dynamics arising in overworked agent populations. This extends the governance question from 'how do we control agents?' to 'how do agents govern interactions with each other?'\nFor enterprises building multi-agent workflows - including the AI-vs-AI billing disputes already playing out in US healthcare - agent-to-agent trust verification is a now an architectural requirement.\nMoonshots — 'Meta Buys Moltbook, GPT 5.4, and Fruitfly Brain Upload' (17 March)\nAI Daily Brief — 'How to Use Agent Skills' (18 March)",
+    "urls": [],
+    "container": "podcast"
+  },
+  {
+    "heading": "OpenAI pivoted to enterprise.",
+    "body": "The most valuable AI company told staff it was 'distracted by side quests.'\nNew applications lead Vicky Simo was blunt: 'We cannot miss this moment.'\nThe pivot is to enterprise and coding - exactly the territory Anthropic has been occupying. And there was immmediate confirmation of its value - GPT-5.4 hit 5 trillion tokens per day and $1 billion in net new annualised revenue within its first week. Sora, Atlas browser, hardware devices - done.\nAI Daily Brief — 'The Race to Put AI Agents Everywhere' (17 March)",
+    "urls": [],
+    "container": "podcast"
+  }
+]

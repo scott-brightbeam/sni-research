@@ -1,9 +1,13 @@
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join, basename } from 'path'
+import { readFileSync, existsSync } from 'fs'
+import { join, resolve } from 'path'
 import { getWeekDateRange } from './week.js'
-import config from './config.js'
+import { getDb } from './db.js'
+import { getArticles, getArticle as getArticleByKey } from './article-queries.js'
+// Available for buildPodcastContext / buildEditorialContext when those functions are added:
+// import { getEpisodes } from './podcast-queries.js'
+// import * as eq from './editorial-queries.js'
 
-const ROOT = config.ROOT
+const ROOT = resolve(import.meta.dir, '../../..')
 
 const COPILOT_SYSTEM = `You are an editorial analyst for Sector News Intelligence (SNI), a weekly newsletter covering AI news across five sectors: general AI, biopharma, medtech, manufacturing, and insurance.
 
@@ -15,7 +19,7 @@ Style guidelines:
 - Always cite specific articles from the context when making claims
 - Flag when you are speculating vs summarising reported facts
 
-You have access to this week's article corpus, podcast episode digests, and any pinned editorial notes. When a full podcast transcript is injected, use it for detailed references and quotes.`
+You have access to this week's article corpus and any pinned editorial notes.`
 
 const DRAFT_SYSTEM = `You are an editorial assistant helping refine a newsletter draft for Sector News Intelligence (SNI).
 
@@ -74,114 +78,15 @@ export function trimHistory(messages, tokenBudget) {
   return kept
 }
 
-export function loadArticlesForWeek(week, year) {
+export async function loadArticlesForWeek(week, year) {
   const { start, end } = getWeekDateRange(week, year)
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  const articles = []
-
-  for (const dir of ['data/verified', 'data/podcast-articles']) {
-    const baseDir = join(ROOT, dir)
-    if (!existsSync(baseDir)) continue
-    const isPodcast = dir === 'data/podcast-articles'
-
-    for (const dateDir of readdirSync(baseDir).sort()) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDir)) continue
-      const d = new Date(dateDir)
-      if (d < startDate || d > endDate) continue
-
-      const datePath = join(baseDir, dateDir)
-      if (!statSync(datePath).isDirectory()) continue
-
-      for (const sector of readdirSync(datePath)) {
-        const sectorPath = join(datePath, sector)
-        if (!statSync(sectorPath).isDirectory()) continue
-
-        for (const f of readdirSync(sectorPath).filter(f => f.endsWith('.json'))) {
-          try {
-            const raw = JSON.parse(readFileSync(join(sectorPath, f), 'utf-8'))
-            const article = {
-              title: raw.title || basename(f, '.json'),
-              source: raw.source || 'Unknown',
-              sector,
-              date_published: raw.date_published || dateDir,
-              snippet: raw.snippet || '',
-              score: raw.score || 0,
-              slug: basename(f, '.json'),
-              date: dateDir,
-            }
-            if (isPodcast || (raw.found_by && raw.found_by.includes('podcast-extract'))) {
-              article.source_type = 'podcast-extract'
-            }
-            articles.push(article)
-          } catch { /* skip malformed */ }
-        }
-      }
-    }
-  }
-
+  const { articles } = await getArticles(getDb(), { dateFrom: start, dateTo: end, limit: 200 })
   return articles
 }
 
-export function buildPodcastContext(week, year) {
-  const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-  if (!existsSync(manifestPath)) return { text: '', tokenCount: 0 }
-
-  let manifest = {}
-  try { manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) } catch { return { text: '', tokenCount: 0 } }
-
-  const episodes = Object.values(manifest).filter(e => e.week === week)
-  if (episodes.length === 0) return { text: '', tokenCount: 0 }
-
-  const lines = [`\n## Podcast Digests (${episodes.length} episodes)\n`]
-
-  for (const ep of episodes) {
-    const digestPath = join(ROOT, ep.digestPath)
-    let digest = null
-    try { digest = JSON.parse(readFileSync(digestPath, 'utf-8')) } catch { continue }
-
-    lines.push(`### ${ep.title} (${ep.source}, ${ep.date})`)
-    if (digest.summary) lines.push(digest.summary)
-    if (digest.key_stories?.length) {
-      lines.push('Key stories:')
-      for (const s of digest.key_stories) {
-        lines.push(`- ${s.headline} [${s.sector}]`)
-      }
-    }
-    if (digest.notable_quotes?.length) {
-      lines.push('Quotes:')
-      for (const q of digest.notable_quotes.slice(0, 2)) {
-        lines.push(`- "${q.quote}" — ${q.speaker}`)
-      }
-    }
-    lines.push('')
-  }
-
-  const text = lines.join('\n')
-  return { text, tokenCount: estimateTokens(text) }
-}
-
-export function loadPodcastFullText(date, podcastSlug, titleSlug) {
-  const path = join(ROOT, 'data/podcasts', date, podcastSlug, `${titleSlug}.md`)
-  if (!existsSync(path)) return ''
-  const text = readFileSync(path, 'utf-8')
-  return text.slice(0, 16000)
-}
-
-export function loadArticleFullText(date, sector, slug) {
-  const mdPath = join(ROOT, 'data/verified', date, sector, `${slug}.md`)
-  const jsonPath = join(ROOT, 'data/verified', date, sector, `${slug}.json`)
-
-  let text = ''
-  if (existsSync(mdPath)) {
-    text = readFileSync(mdPath, 'utf-8')
-  } else if (existsSync(jsonPath)) {
-    try {
-      const raw = JSON.parse(readFileSync(jsonPath, 'utf-8'))
-      text = raw.full_text || raw.snippet || ''
-    } catch { /* skip */ }
-  }
-  return text
+export async function loadArticleFullText(date, sector, slug) {
+  const article = await getArticleByKey(getDb(), date, sector, slug)
+  return article?.full_text ?? article?.snippet ?? ''
 }
 
 export function loadPins(week) {
@@ -201,116 +106,8 @@ export function buildPinContext(pins) {
   return lines.join('\n')
 }
 
-const EDITORIAL_TOKEN_BUDGET = 15000  // ~60k chars
-
-export function buildEditorialContext() {
-  const statePath = join(ROOT, 'data/editorial/state.json')
-  if (!existsSync(statePath)) return ''
-
-  let state
-  try {
-    state = JSON.parse(readFileSync(statePath, 'utf-8'))
-  } catch (err) {
-    console.error(`[buildEditorialContext] Failed to read/parse ${statePath}:`, err.message)
-    return ''
-  }
-
-  if (!state || typeof state !== 'object') return ''
-
-  const lines = ['\n## Editorial Intelligence\n']
-  let charBudget = EDITORIAL_TOKEN_BUDGET * 4  // ~4 chars per token
-
-  // --- Analysis Index: current session entries (cap ~30) ---
-  const analysisIndex = state.analysisIndex || {}
-  const currentSession = (state.counters?.nextSession || 1) - 1
-  const allEntries = Object.entries(analysisIndex)
-  // Prefer current session entries, fall back to most recent
-  let sessionEntries = allEntries.filter(([, e]) => e.session === currentSession)
-  if (sessionEntries.length === 0) {
-    // Fall back to entries from latest available session
-    const sessions = [...new Set(allEntries.map(([, e]) => e.session || 0))].sort((a, b) => b - a)
-    if (sessions.length > 0) {
-      sessionEntries = allEntries.filter(([, e]) => e.session === sessions[0])
-    }
-  }
-  sessionEntries = sessionEntries.slice(0, 30)
-
-  if (sessionEntries.length > 0) {
-    const sessionNum = sessionEntries[0]?.[1]?.session || currentSession
-    lines.push(`### Analysis Index (Session ${sessionNum})`)
-    for (const [id, entry] of sessionEntries) {
-      const themes = entry.themes?.length ? entry.themes.join(', ') : 'none'
-      const summary = (entry.summary || '').slice(0, 200)
-      lines.push(`- #${id}: ${entry.title} — Tier ${entry.tier ?? 1} — Themes: ${themes}`)
-      if (summary) lines.push(`  Summary: ${summary}`)
-    }
-    lines.push('')
-  }
-
-  // Check budget — slice to last newline to avoid breaking mid-entry
-  let text = lines.join('\n')
-  if (text.length > charBudget) {
-    const sliced = text.slice(0, charBudget)
-    const lastNewline = sliced.lastIndexOf('\n')
-    return lastNewline > 0 ? sliced.slice(0, lastNewline) : sliced
-  }
-
-  // --- Active Themes (cap ~20) ---
-  const themeRegistry = state.themeRegistry || {}
-  const themeEntries = Object.entries(themeRegistry)
-    .filter(([code]) => /^T\d{2}$/.test(code))
-    .slice(0, 20)
-
-  if (themeEntries.length > 0) {
-    lines.push('### Active Themes')
-    for (const [code, theme] of themeEntries) {
-      const docCount = theme.documentCount || 0
-      lines.push(`- ${code}: ${theme.name} (${docCount} docs)`)
-
-      // Last 2 evidence items
-      const evidence = theme.evidence || []
-      const recent = evidence.slice(-2)
-      for (const ev of recent) {
-        const content = (ev.content || '').slice(0, 150)
-        lines.push(`  Latest evidence: ${content}`)
-      }
-    }
-    lines.push('')
-  }
-
-  text = lines.join('\n')
-  if (text.length > charBudget) return text.slice(0, charBudget)
-
-  // --- Post Candidates: HIGH/IMMEDIATE priority (cap ~15) ---
-  const postBacklog = state.postBacklog || {}
-  const highPriorityPosts = Object.entries(postBacklog)
-    .filter(([, p]) => {
-      const priority = (p.priority || '').toLowerCase()
-      return (priority === 'high' || priority === 'immediate') &&
-             p.status !== 'published' && p.status !== 'rejected' && p.status !== 'archived'
-    })
-    .slice(0, 15)
-
-  if (highPriorityPosts.length > 0) {
-    lines.push('### Post Candidates')
-    for (const [id, post] of highPriorityPosts) {
-      const format = post.format || 'unspecified'
-      lines.push(`- #${id}: ${post.title} [${post.priority}] — ${format}`)
-      if (post.coreArgument) {
-        lines.push(`  ${post.coreArgument.slice(0, 200)}`)
-      }
-    }
-    lines.push('')
-  }
-
-  text = lines.join('\n')
-  if (text.length > charBudget) return text.slice(0, charBudget)
-
-  return text
-}
-
-export function assembleContext({ week, year, threadHistory, articleRef, podcastRef, ephemeral, draftContext, publishedExemplar }) {
-  const TOKEN_BUDGET = 64000  // leave headroom for response
+export async function assembleContext({ week, year, threadHistory, articleRef, ephemeral, draftContext }) {
+  const TOKEN_BUDGET = 28000  // leave 2k for response
   let used = 0
 
   // 1. System prompt
@@ -322,72 +119,28 @@ export function assembleContext({ week, year, threadHistory, articleRef, podcast
   if (ephemeral && draftContext) {
     contextBlock = `## Current Draft\n\n${draftContext}`
   } else {
-    const articles = loadArticlesForWeek(week, year)
+    const articles = await loadArticlesForWeek(week, year)
     contextBlock = buildArticleContext(articles, 30)
   }
 
-  // 3. Podcast digests
-  let podcastBlock = ''
-  if (!ephemeral) {
-    const { text } = buildPodcastContext(week, year)
-    podcastBlock = text
-  }
-
-  // 4. Full-text injection (article OR podcast — only one at a time, podcast takes precedence)
+  // 3. Article injection
   let injectedArticle = ''
-  let injectedPodcast = ''
-  if (podcastRef) {
-    const transcript = loadPodcastFullText(podcastRef.date, podcastRef.source, podcastRef.title)
-    if (transcript) {
-      injectedPodcast = `\n## Full Podcast Transcript: ${podcastRef.title}\n\n${transcript}\n`
-    }
-  } else if (articleRef) {
-    const fullText = loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
+  if (articleRef) {
+    const fullText = await loadArticleFullText(articleRef.date, articleRef.sector, articleRef.slug)
     if (fullText) {
       injectedArticle = `\n## Full Article: ${articleRef.slug}\n\n${fullText.slice(0, 8000)}\n`
     }
   }
 
-  // 5. Editorial intelligence (if available)
-  let editorialBlock = !ephemeral ? buildEditorialContext() : ''
-
-  // 6. Pins
+  // 4. Pins
   const pins = loadPins(week)
   const pinBlock = buildPinContext(pins)
 
-  // 7. Published exemplar (for /compare-draft command)
-  let exemplarBlock = ''
-  if (publishedExemplar) {
-    exemplarBlock = `\n## Published Exemplar\n\n<published_exemplar>\n${publishedExemplar}\n</published_exemplar>\n\nCompare the current draft against this published exemplar. Analyse structure, tone, section balance and coverage gaps.\n`
-  }
-
-  // 8. Assemble with priority-based truncation
-  // Priority (truncate first → last): thread history, podcast digests, article context
-  const preambleParts = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean)
-  let preamble = preambleParts.join('\n')
+  // 5. Assemble the user-context preamble
+  const preamble = [contextBlock, injectedArticle, pinBlock].filter(Boolean).join('\n')
   used += estimateTokens(preamble)
 
-  // If over budget, truncate in priority order: podcast → editorial → article
-  if (used > TOKEN_BUDGET * 0.85) {
-    // 1. Trim podcast block first
-    const podcastTokens = estimateTokens(podcastBlock)
-    if (podcastTokens > 5000) {
-      podcastBlock = podcastBlock.slice(0, 20000) // ~5000 tokens
-      preamble = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
-      used = estimateTokens(systemPrompt) + estimateTokens(preamble)
-    }
-    // 2. Trim editorial block if still over budget
-    if (used > TOKEN_BUDGET * 0.85) {
-      const editorialTokens = estimateTokens(editorialBlock)
-      if (editorialTokens > 3000) {
-        editorialBlock = editorialBlock.slice(0, 12000) // ~3000 tokens
-        preamble = [contextBlock, podcastBlock, editorialBlock, injectedArticle, injectedPodcast, pinBlock, exemplarBlock].filter(Boolean).join('\n')
-        used = estimateTokens(systemPrompt) + estimateTokens(preamble)
-      }
-    }
-  }
-
-  // 9. Trim thread history to fit remaining budget
+  // 6. Trim thread history to fit remaining budget
   const historyBudget = TOKEN_BUDGET - used
   const trimmedHistory = trimHistory(threadHistory || [], Math.max(historyBudget, 2000))
 

@@ -1,0 +1,20 @@
+{
+  "prompt_version": "v1",
+  "evaluated_at": "2026-03-20",
+  "dataset": "data/test/content-match-labels.json",
+  "dataset_size": 57,
+  "metrics": {
+    "true_positives": 25,
+    "false_positives": 1,
+    "false_negatives": 0,
+    "true_negatives": 31,
+    "fpr": 0.031,
+    "fnr": 0.0
+  },
+  "targets": {
+    "fpr": "<0.10",
+    "fnr": "<0.05"
+  },
+  "target_met": true,
+  "notes": "3 labels corrected during calibration (same-story arcs). Tier 1 Jaccard threshold of 0.03 achieves 100% recall, sending 77% (44/57) of pairs to tier 2 LLM check."
+}

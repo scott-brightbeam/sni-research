@@ -1,0 +1,5 @@
+[test]
+# Safety preload: sets SNI_TEST_MODE=1 before any test runs.
+# Prevents tests from spawning real pipeline scripts that hit paid APIs.
+# See .claude/hooks/test-guard-preload.ts for details.
+preload = [".claude/hooks/test-guard-preload.ts"]

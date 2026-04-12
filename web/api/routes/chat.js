@@ -273,7 +273,7 @@ export async function handleChat(req) {
   }
 
   // Assemble context
-  const { systemPrompt, preamble, trimmedHistory } = assembleContext({
+  const { systemPrompt, preamble, trimmedHistory } = await assembleContext({
     week,
     threadHistory,
     articleRef,

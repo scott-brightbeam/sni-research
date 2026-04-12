@@ -43,7 +43,7 @@ export default function Dashboard() {
 
       <div className="dashboard-grid">
         <StatCard
-          label="Articles today"
+          label="Added today"
           value={articles.today}
           detail={`${articles.total} total across all dates`}
         />
@@ -73,13 +73,11 @@ export default function Dashboard() {
             <TimeRangeSelector value={chartRange} onChange={setChartRange} />
           </div>
           <BarChart byDate={articles.byDate || {}} range={chartRange} />
-          <div className="sector-badges">
-            {Object.entries(articles.bySector || {}).map(([sector, count]) => (
-              <span key={sector} className="sector-count">
-                <SectorBadge sector={sector} /> {count}
-              </span>
-            ))}
-          </div>
+          <SectorBadges
+            bySector={articles.bySector || {}}
+            byDateBySector={articles.byDateBySector || {}}
+            range={chartRange}
+          />
         </div>
 
         <div className="card">
@@ -184,34 +182,63 @@ function StatCard({ label, value, detail, smallValue }) {
   )
 }
 
+function SectorBadges({ bySector, byDateBySector, range }) {
+  const { startDate, endDate } = getDateRange(range)
+
+  // For 'all', use pre-computed totals; otherwise sum from byDateBySector
+  let counts = bySector
+  if (startDate || endDate) {
+    counts = {}
+    for (const [date, sectors] of Object.entries(byDateBySector)) {
+      if (startDate && date < startDate) continue
+      if (endDate && date > endDate) continue
+      for (const [sector, n] of Object.entries(sectors)) {
+        counts[sector] = (counts[sector] || 0) + n
+      }
+    }
+  }
+
+  return (
+    <div className="sector-badges">
+      {Object.entries(counts).map(([sector, count]) => (
+        <span key={sector} className="sector-count">
+          <SectorBadge sector={sector} /> {count}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function BarChart({ byDate, range }) {
   const { startDate, endDate } = getDateRange(range)
   const filtered = filterByDateEntries(byDate, startDate, endDate)
-  const filled = fillCalendarGaps(filtered)
+  const filteredEntries = Object.entries(filtered).sort(([a], [b]) => a.localeCompare(b))
 
-  if (filled.length === 0) {
+  if (filteredEntries.length === 0) {
     return <div className="bar-chart-empty">No articles in this period</div>
   }
 
-  // Aggregate to weeks if >14 data points
-  const entries = filled.length > 14 ? aggregateToWeeks(filled) : filled
+  // For ≤14 days of data, fill calendar gaps for a continuous daily view.
+  // For >14 days, aggregate directly to weeks from sparse data (no gap-fill).
+  const filled = fillCalendarGaps(filtered)
   const isWeekly = filled.length > 14
+  const entries = isWeekly ? aggregateToWeeks(filteredEntries) : filled
   const max = Math.max(...entries.map(([, n]) => n), 1)
 
   return (
     <div className="bar-chart">
-      {entries.map(([key, count]) => {
+      {entries.map(([key, count], i) => {
         let label
         if (isWeekly) {
-          label = key // "W10"
+          label = key // "W10" or "W49 '24"
         } else {
-          const d = new Date(key + 'T00:00:00')
+          const d = new Date(key + 'T12:00:00')
           const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' })
           const day = String(d.getDate()).padStart(2, '0')
           label = `${weekday} ${day}`
         }
         return (
-          <div key={key} className="bar-group">
+          <div key={isWeekly ? `${key}-${i}` : key} className="bar-group">
             <div
               className="bar"
               style={{

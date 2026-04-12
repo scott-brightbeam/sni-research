@@ -1,0 +1,32 @@
+[
+  {
+    "heading": "AI & Tech",
+    "body": "OpenAI released GPT-5.4 in Standard, Thinking and Pro variants, intensifying model-layer competition weeks before anticipated IPOs\nAnthropic resumed Pentagon negotiations over its collapsed $200m defence contract, as CEO Dario Amodei framed the breakdown in political terms\nNvidia CEO Jensen Huang said his company's investments in OpenAI and Anthropic are likely its last in both, citing anticipated IPOs\nSeven hyperscalers signed the White House Ratepayer Protection Pledge, committing to fund their own power generation for AI data centres\nBroadcom reported record Q1 revenue of $19.3bn, up 29% year on year, reinforcing that custom silicon demand from hyperscalers shows no sign of slowing",
+    "urls": [],
+    "container": ""
+  },
+  {
+    "heading": "Biopharma",
+    "body": "KALA BIO licensed an on-premises AI research platform called Researgency, explicitly designed to keep biotech data behind the firewall\nInsilico Medicine and Liquid AI partnered on a 2.6B-parameter drug discovery model small enough to run on local infrastructure\nTempus expanded its multi-year collaboration with Merck to accelerate precision-medicine biomarker discovery in oncology",
+    "urls": [],
+    "container": ""
+  },
+  {
+    "heading": "Medtech",
+    "body": "Sectra acquired Oxipit, which holds the first CE Class IIB certification for autonomous AI in chest X-ray analysis\nRadNet agreed to acquire Gleamer for €230m, adding CE-marked and FDA-cleared radiology AI devices to its imaging network\nPerimeter Medical Imaging's 'Claire' became the first FDA-approved AI-enabled imaging device for intraoperative breast cancer surgery",
+    "urls": [],
+    "container": ""
+  },
+  {
+    "heading": "Manufacturing",
+    "body": "Bob McGrew, OpenAI's former chief research officer, is reportedly raising $70m for a manufacturing-focused AI startup\nCisco's 2026 industrial AI report found cybersecurity is the top barrier to expanding AI in manufacturing, with unreliable networks disrupting operations",
+    "urls": [],
+    "container": ""
+  },
+  {
+    "heading": "Insurance",
+    "body": "Generative and agentic AI accounted for 68% of insurance AI deployments in Q4 2025, up sharply from prior quarters\nBank of America estimated $15bn in insurance commissions are at riskfrom AI-driven disintermediation, targeting brokers and intermediaries\nHong Kong's four financial regulators jointly launched a GenAI Sandbox++ to accelerate supervised AI adoption across banking, securities and insurance\nAnd if you're still hungry for more, here's the detail on each:\n## AI & Tech\nThis week crystallised around two questions: who controls the infrastructure layer and who gets to sell to governments. Both reflect the broader theme of AI moving inside the firewall – whether that firewall belongs to a hyperscaler, a nation state or the Pentagon's procurement office.\nBroadcom posts record $19.3bn quarter on custom AI chip surge: The chipmaker reported fiscal Q1 2026 revenue of $19.3bn, up 29% year on year, and approved a $10bn share buyback. The results were propelled by surging demand for custom AI accelerators – application-specific chips designed to the specifications of individual hyperscalers rather than sold as general-purpose GPUs. CEO Hock Tan told analysts that Broadcom will soon deploy 'multiple gigawatts' worth of custom accelerators at major cloud customers, and said AI companies 'can't make their own silicon any time soon' despite widespread industry discussion of in-house chip efforts.\nOpenAI releases GPT-5.4 with Pro and Thinking variants: Describing it as 'our most capable and efficient frontier model for professional work'. The model ships in three configurationsand comes weeks before OpenAI's anticipated IPO and positions the company to demonstrate continued model-layer momentum to public-market investors. With Anthropic also expected to go public later this year, and Nvidia CEO Jensen Huang saying this week that his company's investments in both OpenAI and Anthropic are likely its last, the model-provider layer is entering a new phase of capitalisation. The shift from private to public capital will change the accountability structure - model providers will face quarterly earnings scrutiny for the first time.\nAnthropic resumes Pentagon negotiations after $200m contract collapse: Its $200m contract with the Department of Defense collapsed after the two parties failed to agree on the degree to which the military could obtain unrestricted access to Anthropic's AI. The Pentagon subsequently signed with OpenAI instead. CEO Dario Amodei then resumed discussions with the Pentagon, reopening negotiations that multiple observers had assumed were dead.\nAmodei framed the original breakdown in political terms, telling reporters the government relationship collapsed because 'we haven't donated to' or 'given dictator-style praise to Trump'. Five unresolved questions remain, according to CNBC's analysis: the precise guardrail terms Anthropic demanded, whether OpenAI's deal included the same restrictions, whether the Pentagon's position reflects technical requirements or political preferences, what role national security considerations played and whether Anthropic can secure any federal contract without a political relationship. The episode illustrates that for frontier AI companies, the firewall is now as much political as technical – and the cost of being on the wrong side is measured in hundreds of millions.\nHyperscalers sign White House pledge to fund their own power generation: Amazon, Google, Meta, Microsoft, OpenAI, Oracle and xAI signed the White House Ratepayer Protection Pledge on 5 March, committing to pay for the new generation capacity required to power their AI data centres rather than passing costs to residential electricity customers. The pledge follows growing public and political concern that data centre energy demand – now forecast to exceed tens of gigawatts within the decade – could raise household electricity bills.\nThe pledge is voluntary and contains no enforcement mechanism, but it carries political weight. President Trump had told AI companies earlier in the week that infrastructure expansion had 'angered Americans' and that they needed to address public concern.",
+    "urls": [],
+    "container": ""
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-04-10T10:30:01.219Z",
+  "draft": "/Users/scott/Projects/sni-research-v2/data/editorial/drafts/draft-session-53-final.md",
+  "week": 15,
+  "pass": false,
+  "failures": 13,
+  "warnings": 1,
+  "stats": {
+    "articles_indexed": 2617,
+    "podcasts_whitelisted": 105,
+    "current_week_digests": 29,
+    "links_total": 60,
+    "links_podcast": 5,
+    "links_sector": 0,
+    "links_tldr": 55
+  }
+}

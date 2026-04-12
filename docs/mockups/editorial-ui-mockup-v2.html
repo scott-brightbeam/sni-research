@@ -1,0 +1,2521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNI Editorial Intelligence — UI Mockup v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     DESIGN SYSTEM v2 — tokens aligned with production tokens.css
+     DS1: Three-tier text hierarchy
+     DS2: Spacing scale
+     DS3: Button system
+     DS6: Transition tokens
+     DS7: Contrast-safe secondary text
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    /* Palette */
+    --terra: #D4714E;
+    --terra-light: #e08a6a;
+    --terra-dark: #c15f3c;
+    --terra-15: rgba(212,113,78,0.15);
+    --terra-25: rgba(212,113,78,0.25);
+    --terra-bg: rgba(212,113,78,0.1);
+
+    /* Surfaces — DS5 aligned */
+    --pampas: #1a1816;
+    --sidebar-bg: #1e1c1a;
+    --card-bg: #242220;
+    --surface: #2c2a27;
+    --surface-hover: #353330;
+    --border: rgba(255,255,255,0.08);
+
+    /* Text hierarchy — DS1 new */
+    --text-primary: #e8e6dc;
+    --text-secondary: #a09e94;    /* DS7: 5.2:1 contrast on pampas */
+    --text-muted: #706e66;
+    --cloudy: #8a8778;            /* legacy alias */
+
+    /* Semantic colours */
+    --sage: #6FA584;
+    --sage-15: rgba(111,165,132,0.15);
+    --blue: #7CADD6;
+    --blue-15: rgba(124,173,214,0.15);
+    --brown: #A08B6D;
+    --brown-15: rgba(160,139,109,0.15);
+    --purple: #ADA0D0;
+    --purple-15: rgba(173,160,208,0.15);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.12);
+    --warning: #f1c40f;
+    --warning-bg: rgba(241,196,15,0.12);
+    --danger: #e74c3c;
+    --danger-bg: rgba(231,76,60,0.12);
+
+    /* Spacing scale — DS2 */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+
+    /* Radii */
+    --radius: 8px;
+    --radius-lg: 12px;
+
+    /* Shadows */
+    --shadow-subtle: 0 0.25rem 1.25rem rgba(0,0,0,0.2);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    --focus-ring: 0 0 0 2px rgba(212,113,78,0.2);
+
+    /* Transitions — DS6 */
+    --transition-fast: 0.15s;
+    --transition-normal: 0.25s ease;
+    --transition-slow: 0.3s;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Lora', Georgia, serif;
+    background: var(--pampas);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── Sidebar — L1 fix: 260px, sidebar-bg, production-matched ─── */
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-6) 0;
+    flex-shrink: 0;
+  }
+  .sidebar-brand {
+    padding: 0 var(--sp-6) var(--sp-6);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--sp-4);
+  }
+  .sidebar-brand h1 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+  .sidebar-brand span {
+    font-family: 'Lora', serif;
+    color: var(--text-secondary);
+    font-size: 12px;
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* L3 fix: SVG icons via inline SVG instead of emoji */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: 10px var(--sp-6);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-left: 3px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+  .nav-item.active { color: var(--terra); border-left-color: var(--terra); background: var(--terra-bg); }
+  .nav-icon {
+    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  }
+  .nav-icon svg {
+    width: 20px; height: 20px;
+    stroke: currentColor; fill: none;
+    stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: var(--sp-4) var(--sp-6);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .sidebar-status {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.ok { background: var(--sage); }
+  .status-dot.running { background: var(--terra); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ─── Main content ─── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header {
+    padding: var(--sp-6) var(--sp-10) 0;
+    font-family: 'Poppins', sans-serif;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; margin-bottom: var(--sp-1); }
+  .page-header .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: var(--sp-4); }
+  .page-header-row { display: flex; align-items: center; justify-content: space-between; }
+  .page-content { flex: 1; overflow-y: auto; padding: var(--sp-6) var(--sp-10) var(--sp-8); }
+
+  /* ─── Shared: Tabs — DS4 unified ─── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--sp-6);
+    font-family: 'Poppins', sans-serif;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all var(--transition-fast);
+    border: none;
+    background: none;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--terra); border-bottom: 2px solid var(--terra); }
+  .tab .tab-count { font-size: 11px; color: var(--text-muted); margin-left: 6px; }
+
+  /* ─── Shared: Cards — DS5 aligned ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-6);
+    box-shadow: var(--shadow-subtle);
+    margin-bottom: var(--sp-4);
+  }
+  .card-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--sp-4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ─── Shared: Buttons — DS3 system ─── */
+  .btn {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-md { font-size: 13px; padding: 6px 16px; }
+  .btn-sm { font-size: 11px; padding: 4px 10px; }
+  .btn-primary { background: var(--terra); color: white; border-color: var(--terra); }
+  .btn-primary:hover { background: var(--terra-dark); }
+  .btn-secondary { background: var(--surface); color: var(--text-secondary); }
+  .btn-secondary:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .btn-ghost { background: none; border-color: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+  .btn-danger { background: var(--danger-bg); color: var(--danger); border-color: rgba(231,76,60,0.2); }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ─── Shared: Stat grid ─── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); margin-bottom: var(--sp-6); }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px var(--sp-6);
+    box-shadow: var(--shadow-subtle);
+  }
+  .stat-label { font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 700; margin: var(--sp-1) 0; }
+  .stat-sub { font-size: 13px; color: var(--text-secondary); }
+
+  /* ─── Shared: Badges ─── */
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; display: inline-block; }
+  .badge-immediate { background: var(--danger-bg); color: var(--danger); }
+  .badge-high { background: var(--warning-bg); color: var(--warning); }
+  .badge-medium-high { background: var(--blue-15); color: var(--blue); }
+  .badge-medium { background: var(--brown-15); color: var(--brown); }
+  .badge-low { background: rgba(112,110,102,0.15); color: var(--text-muted); }
+  .badge-tier1 { background: var(--sage-15); color: var(--sage); }
+  .badge-tier2 { background: var(--purple-15); color: var(--purple); }
+  .badge-stub { background: rgba(112,110,102,0.15); color: var(--text-muted); }
+  .badge-suggested { background: var(--blue-15); color: var(--blue); }
+  .badge-published { background: var(--sage-15); color: var(--sage); }
+  .badge-format { background: var(--terra-15); color: var(--terra-light); font-weight: 500; }
+
+  /* ─── Shared: Theme tags (L16 fix: show name on hover) ─── */
+  .theme-tag {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    margin: 2px 4px 2px 0;
+    cursor: default;
+    position: relative;
+  }
+  .theme-tag[data-name]:hover::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ─── Shared: Search bar ─── */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-4);
+    transition: border-color var(--transition-fast);
+  }
+  .search-bar:focus-within { border-color: var(--terra); box-shadow: var(--focus-ring); }
+  .search-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    outline: none;
+  }
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-icon { color: var(--text-muted); font-size: 14px; }
+
+  /* ─── Shared: Filter pills ─── */
+  .filter-row { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-4); flex-wrap: wrap; align-items: center; }
+  .filter-pill {
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: none;
+    transition: all var(--transition-fast);
+  }
+  .filter-pill:hover { border-color: var(--text-secondary); }
+  .filter-pill.active { background: var(--terra-15); border-color: var(--terra); color: var(--terra); }
+  .filter-sep { border-left: 1px solid var(--border); height: 16px; margin: 0 var(--sp-1); }
+
+  /* ─── Shared: Sort toggle ─── */
+  .sort-toggle {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .sort-toggle select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+
+  /* ─── Shared: List items ─── */
+  .list-item {
+    padding: var(--sp-4) 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: rgba(255,255,255,0.02); margin: 0 calc(-1 * var(--sp-6)); padding-left: var(--sp-6); padding-right: var(--sp-6); border-radius: var(--radius); }
+  .list-item-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-wrap: wrap;
+  }
+  .list-item-id { color: var(--text-muted); font-size: 12px; }
+  .list-item-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: var(--sp-4);
+    align-items: center;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .list-item-themes { margin-top: var(--sp-2); }
+  .expand-chevron {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform var(--transition-fast);
+    flex-shrink: 0;
+  }
+  .expand-chevron.open { transform: rotate(90deg); }
+
+  /* ─── Shared: Expanded detail ─── */
+  .expanded-detail {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-4) 20px;
+    margin-top: var(--sp-3);
+  }
+  .expanded-detail h4 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--sp-2);
+    margin-top: var(--sp-3);
+  }
+  .expanded-detail h4:first-child { margin-top: 0; }
+  .expanded-detail p { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+
+  /* ─── Shared: Evidence blocks ─── */
+  .evidence-block {
+    background: var(--surface);
+    border-left: 3px solid var(--terra);
+    padding: 10px 14px;
+    margin: 6px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .evidence-source {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--terra-light);
+    font-weight: 500;
+    margin-bottom: var(--sp-1);
+  }
+  .evidence-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* ─── Shared: Cross-connections ─── */
+  .cross-connection {
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--surface);
+    border-left: 3px solid var(--terra);
+    margin: 6px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-radius: 0 4px 4px 0;
+  }
+  .cross-connection strong { color: var(--terra-light); font-family: 'Poppins', sans-serif; }
+
+  /* ─── Shared: Notification items ─── */
+  .notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .notification-item:last-child { border-bottom: none; }
+  .notification-icon { font-size: 16px; margin-top: 2px; }
+  .notification-content { flex: 1; }
+  .notification-title { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .notification-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .notification-time { font-size: 11px; color: var(--text-muted); font-family: 'Poppins', sans-serif; white-space: nowrap; }
+  .notification-actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }
+
+  /* ─── Shared: Toast (X1) ─── */
+  .toast-container {
+    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideIn 0.25s ease;
+  }
+  .toast.success { border-left: 3px solid var(--sage); }
+  .toast.error { border-left: 3px solid var(--danger); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ─── Shared: Empty state (X6) ─── */
+  .empty-state {
+    text-align: center;
+    padding: 60px var(--sp-6);
+    color: var(--text-muted);
+    font-family: 'Poppins', sans-serif;
+  }
+  .empty-state-icon { font-size: 32px; margin-bottom: var(--sp-4); opacity: 0.4; }
+  .empty-state-title { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--sp-2); }
+  .empty-state-desc { font-size: 13px; margin-bottom: var(--sp-6); line-height: 1.5; }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Dashboard — D1-D5 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Draft — DR1-DR6 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .draft-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    margin-bottom: var(--sp-2);
+  }
+  .draft-toolbar-left { display: flex; align-items: center; gap: var(--sp-3); }
+  .draft-toolbar-centre { display: flex; align-items: center; gap: var(--sp-3); margin: 0 auto; }
+  .draft-toolbar-right { display: flex; align-items: center; gap: var(--sp-2); }
+
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .week-nav button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .week-nav button:disabled { opacity: 0.3; cursor: default; }
+
+  .version-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+  }
+  .version-toggle button {
+    padding: 6px 14px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .version-toggle button:hover { color: var(--text-primary); }
+  .version-toggle button.active { background: var(--terra); color: white; }
+
+  .review-pill {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: var(--radius-lg);
+    border: none;
+    cursor: pointer;
+  }
+  .review-pill.pass { background: var(--sage-15); color: var(--sage); }
+  .review-pill.fail { background: var(--terra-15); color: var(--terra); }
+
+  .word-count {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* DR3: Unified right panel with tabs */
+  .draft-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: calc(100vh - 140px); }
+  .draft-editor-pane {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .draft-editor-header {
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--card-bg);
+  }
+  /* DR2: Editor with line-number gutter appearance */
+  .draft-editor {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+  }
+  .draft-gutter {
+    width: 40px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    padding: var(--sp-4) 0;
+    text-align: right;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .draft-gutter span { display: block; padding-right: var(--sp-2); }
+  .draft-textarea {
+    flex: 1;
+    padding: var(--sp-4);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    background: var(--pampas);
+    white-space: pre-wrap;
+    overflow-y: auto;
+    border: none;
+    outline: none;
+    resize: none;
+  }
+  /* Markdown syntax hints */
+  .md-heading { color: var(--terra); font-weight: 700; }
+  .md-bold { color: var(--text-primary); font-weight: 700; }
+  .md-link { color: var(--blue); }
+  .md-bullet { color: var(--terra-light); }
+
+  /* Right panel — unified (DR3) */
+  .draft-panel { display: flex; flex-direction: column; overflow: hidden; }
+  .draft-panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Poppins', sans-serif;
+    background: var(--card-bg);
+    flex-shrink: 0;
+  }
+  .draft-panel-tab {
+    padding: 10px var(--sp-4);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    border-top: none; border-left: none; border-right: none;
+    background: none;
+  }
+  .draft-panel-tab:hover { color: var(--text-primary); }
+  .draft-panel-tab.active { color: var(--terra); border-bottom-color: var(--terra); }
+  .draft-panel-content { flex: 1; overflow-y: auto; padding: var(--sp-6); }
+
+  /* Critique view */
+  .critique-summary {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: var(--sp-4);
+    display: flex;
+    justify-content: space-between;
+  }
+  .critique-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+  .critique-col h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: var(--sp-3);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .critique-point {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--sp-3);
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .critique-point.accepted { border-left: 3px solid var(--sage); }
+  .critique-point.rejected { border-left: 3px solid var(--text-muted); opacity: 0.6; }
+  .critique-quote {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 2px solid var(--border);
+    padding-left: var(--sp-2);
+    margin-bottom: 6px;
+  }
+  .critique-verdict {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: var(--sp-2);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .critique-verdict.accepted { color: var(--sage); }
+  .critique-verdict.rejected { color: var(--text-muted); }
+  .critique-actions {
+    display: flex;
+    gap: var(--sp-1);
+    margin-left: auto;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Editorial — full feature set
+     ═══════════════════════════════════════════════════════════ */
+
+  /* Activity feed */
+  .activity-item {
+    display: flex;
+    gap: var(--sp-3);
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .activity-dot.analyse { background: var(--terra); }
+  .activity-dot.discover { background: var(--blue); }
+  .activity-dot.draft { background: var(--sage); }
+  .activity-dot.track { background: var(--purple); }
+  .activity-dot.error { background: var(--danger); }
+  .activity-content { flex: 1; }
+  .activity-title { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .activity-detail { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  .activity-time { font-size: 11px; color: var(--text-muted); font-family: 'Poppins', sans-serif; white-space: nowrap; margin-top: 2px; }
+
+  /* Cost tracker */
+  .cost-bar-container { margin: var(--sp-3) 0; }
+  .cost-bar-bg {
+    height: 8px;
+    background: var(--card-bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .cost-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-slow);
+  }
+  .cost-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: var(--sp-1);
+    font-family: 'Poppins', sans-serif;
+  }
+  .cost-breakdown {
+    margin-top: var(--sp-4);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .cost-row { display: flex; justify-content: space-between; margin-bottom: var(--sp-1); }
+
+  /* Priority groups */
+  .priority-group { margin-bottom: var(--sp-6); }
+  .priority-group-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: var(--sp-2);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .priority-count { color: var(--text-muted); font-weight: 400; }
+
+  /* Decision item */
+  .decision-item {
+    padding: var(--sp-4) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .decision-item:last-child { border-bottom: none; }
+  .decision-id {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--terra);
+    margin-bottom: var(--sp-1);
+  }
+  .decision-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: var(--sp-2);
+  }
+  .decision-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--sp-2);
+  }
+  .decision-reasoning {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-left: 2px solid var(--border);
+    padding-left: var(--sp-3);
+  }
+
+  /* Trigger button group */
+  .trigger-group {
+    display: flex;
+    gap: var(--sp-2);
+    padding: var(--sp-3) 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--sp-4);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Articles — A1 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .articles-filter-bar {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: center;
+    margin-bottom: var(--sp-3);
+    flex-wrap: wrap;
+  }
+  .articles-filter-bar select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .articles-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .articles-table th {
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: 1px solid var(--border);
+  }
+  .articles-table td {
+    padding: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .articles-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .article-title { font-family: 'Poppins', sans-serif; font-weight: 500; max-width: 500px; }
+  .article-source { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .article-score { font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .article-score.high { color: var(--sage); }
+  .article-score.medium { color: var(--terra-light); }
+  .article-score.low { color: var(--text-muted); }
+  .score-label { font-size: 10px; font-weight: 400; margin-left: 4px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Co-pilot — CP4, CP5 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .copilot-layout { display: flex; height: calc(100vh - 120px); gap: var(--sp-3); }
+  .copilot-threads {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-y: auto;
+  }
+  .copilot-main { flex: 1; display: flex; flex-direction: column; }
+  .copilot-context-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: var(--sp-2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .context-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .context-item .token-count { color: var(--text-muted); }
+  .usage-bar-full {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 80px;
+  }
+  .usage-bar-full .fill { height: 100%; border-radius: 2px; background: var(--sage); transition: width var(--transition-slow); }
+  .usage-bar-full .fill.warning { background: var(--warning); }
+  .usage-bar-full .fill.danger { background: var(--danger); }
+  .usage-text { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Sources — S5 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .health-strip {
+    display: flex;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-4);
+    flex-wrap: wrap;
+  }
+  .health-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px var(--sp-3);
+  }
+  .health-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .health-dot.green { background: var(--sage); }
+  .health-dot.amber { background: var(--warning); }
+  .health-dot.red { background: var(--danger); }
+
+  /* ═══════════════════════════════════════════════════════════
+     PAGE: Config — C1 improvements
+     ═══════════════════════════════════════════════════════════ */
+  .config-tab-dirty::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--terra);
+    border-radius: 50%;
+    margin-left: 6px;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     Editorial: Split layout with contextual Opus chat
+     ═══════════════════════════════════════════════════════════ */
+  .editorial-split {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+  .editorial-content {
+    overflow-y: auto;
+    padding: var(--sp-6) var(--sp-10) var(--sp-8);
+  }
+  .editorial-chat {
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    overflow: hidden;
+  }
+  .editorial-chat-header {
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Poppins', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .editorial-chat-header .chat-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .editorial-chat-header .chat-context {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chat-context-tag {
+    background: var(--terra-15);
+    color: var(--terra-light);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .editorial-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+  .chat-msg {
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 95%;
+  }
+  .chat-msg.user {
+    align-self: flex-end;
+    background: var(--terra-bg);
+    font-family: 'Poppins', sans-serif;
+    max-width: 85%;
+  }
+  .chat-msg.assistant {
+    align-self: flex-start;
+    background: var(--surface);
+  }
+  .chat-msg-footer {
+    margin-top: var(--sp-2);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .model-badge {
+    background: var(--terra-15);
+    color: var(--terra);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+  }
+  .editorial-chat-input {
+    padding: var(--sp-3);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: var(--sp-2);
+    align-items: flex-end;
+  }
+  .editorial-chat-input textarea {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    padding: var(--sp-2) var(--sp-3);
+    resize: none;
+    min-height: 36px;
+    max-height: 120px;
+    outline: none;
+  }
+  .editorial-chat-input textarea:focus {
+    border-color: var(--terra);
+    box-shadow: var(--focus-ring);
+  }
+  .editorial-chat-input textarea::placeholder { color: var(--text-muted); }
+
+  /* Click-to-draft affordance */
+  .draft-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--terra-light);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    padding: 2px 0;
+  }
+  .draft-link:hover { color: var(--terra); }
+  .draft-link svg {
+    width: 12px; height: 12px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* Hidden pages */
+  .page { display: none; }
+  .page.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .editorial-tab { display: none; }
+  .editorial-tab.active { display: block; }
+  .db-tab { display: none; }
+  .db-tab.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIDEBAR — L1-L3 fixes: production-matched width, bg, SVG icons
+     ═══════════════════════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h1>SNI Research</h1>
+    <span>Editorial Intelligence</span>
+  </div>
+
+  <div class="nav-item active" onclick="showPage('dashboard')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+    Dashboard
+  </div>
+  <div class="nav-item" onclick="showPage('database')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
+    Database
+  </div>
+  <div class="nav-item" onclick="showPage('draft')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>
+    Draft
+  </div>
+  <div class="nav-item" onclick="showPage('editorial')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></span>
+    Editorial
+    <span class="nav-badge">3</span>
+  </div>
+  <div class="nav-item" onclick="showPage('copilot')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
+    Co-pilot
+  </div>
+  <div class="nav-item" onclick="showPage('sources')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>
+    Sources
+  </div>
+  <div class="nav-item" onclick="showPage('config')">
+    <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+    Config
+  </div>
+
+  <!-- Lock/running status (issue #6) -->
+  <div class="sidebar-footer">
+    <div class="sidebar-status">
+      <span class="status-dot ok"></span>
+      Pipeline healthy &middot; 12m ago
+    </div>
+    <div class="sidebar-status">
+      <span class="status-dot running"></span>
+      <span style="color: var(--terra);">ANALYSE running &middot; 3 of 18</span>
+    </div>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DASHBOARD — D1-D5 redesigned
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <div class="subtitle">Week 12 &middot; 14&ndash;20 March 2026</div>
+    </div>
+    <div class="page-content">
+
+      <!-- D1: Replaced low-value stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Articles this week</div>
+          <div class="stat-value">147</div>
+          <div class="stat-sub">across 5 sectors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Editorial status</div>
+          <div class="stat-value" style="font-size: 22px; margin-top: 8px; color: var(--sage);">Draft ready</div>
+          <div class="stat-sub">ANALYSE &radic; &middot; DISCOVER &radic; &middot; DRAFT &radic;</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Flagged articles</div>
+          <div class="stat-value" style="color: var(--terra);">12</div>
+          <div class="stat-sub">3 unreviewed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Weekly cost</div>
+          <div class="stat-value" style="color: var(--sage);">$24</div>
+          <div class="stat-sub">of $60 budget &middot; 40%</div>
+        </div>
+      </div>
+
+      <!-- D5 + D9: Two-column — editorial summary + post candidates (equal width) -->
+      <div class="dashboard-grid">
+        <!-- D5: Editorial summary — new card -->
+        <div class="card">
+          <div class="card-header">Editorial This Week</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-4);">
+            <div>
+              <div style="font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Transcripts</div>
+              <div style="font-family: Poppins, sans-serif; font-size: 20px; font-weight: 700;">18 <span style="font-size: 13px; font-weight: 400; color: var(--text-secondary);">of 20</span></div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">4 Tier 1 &middot; 2 Tier 2 &middot; 1 STUB</div>
+            </div>
+            <div>
+              <div style="font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Stories found</div>
+              <div style="font-family: Poppins, sans-serif; font-size: 20px; font-weight: 700;">43 <span style="font-size: 13px; font-weight: 400; color: var(--text-secondary);">articles</span></div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">38 found &middot; 5 paywalled</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: var(--sp-4); align-items: center; padding-top: var(--sp-3); border-top: 1px solid var(--border);">
+            <div style="flex: 1;">
+              <div style="font-family: Poppins, sans-serif; font-size: 14px; font-weight: 600; margin-bottom: 4px;">Week 12 draft &mdash; ready for sub-edit</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">Opus drafted &middot; Gemini + GPT critiqued &middot; Opus revised &middot; 2,847 words</div>
+            </div>
+            <button class="btn btn-primary btn-md" onclick="showPage('draft')">Open draft &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Post candidates card — L9 fix: equal width -->
+        <div class="card">
+          <div class="card-header">
+            Post Candidates
+            <span style="font-size: 11px; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 400;">3 new this week</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">&#9889;</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #91 The Contract Clause Nobody Is Talking About
+                <span class="badge badge-immediate">IMMEDIATE</span>
+              </div>
+              <div class="notification-desc">All-lawful-use contract language in government AI procurement. Governance analysis, not political commentary.</div>
+              <div class="notification-actions">
+                <button class="btn btn-sm btn-secondary">View</button>
+                <button class="btn btn-sm btn-ghost">Dismiss</button>
+              </div>
+            </div>
+            <span class="notification-time">2h ago</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">&#11014;</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #89 Google's Culture Problem Is an AI Problem
+                <span class="badge badge-high">HIGH</span>
+              </div>
+              <div class="notification-desc">The scaffolding gap, not the model gap. Recursive self-improvement as the real differentiator.</div>
+            </div>
+            <span class="notification-time">3h ago</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">&#11014;</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #90 The 4K Ceiling
+                <span class="badge badge-high">HIGH</span>
+              </div>
+              <div class="notification-desc">When local inference is good enough, value shifts from model quality to platform control.</div>
+            </div>
+            <span class="notification-time">3h ago</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- D2/D3: Pipeline + podcast merged, with chart -->
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <span>Articles by Date</span>
+            <div style="display: flex; gap: 4px; background: var(--terra-bg); border-radius: var(--radius); padding: 3px;">
+              <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px;">This week</button>
+              <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px; background: var(--terra); color: white; border-color: transparent;">Last 7d</button>
+              <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px;">Last 30d</button>
+            </div>
+          </div>
+          <!-- D4: Chart with Y-axis labels -->
+          <div style="display: flex; height: 80px; margin-top: var(--sp-3); align-items: flex-end; gap: 4px;">
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; font-family: Poppins, sans-serif; font-size: 10px; color: var(--text-muted); padding-right: 6px; text-align: right; width: 24px;">
+              <span>30</span><span>15</span><span>0</span>
+            </div>
+            <div style="flex: 1; display: flex; align-items: flex-end; gap: 6px;">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:42px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Fri 14</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:28px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Sat 15</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:55px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Sun 16</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:70px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Mon 17</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:62px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Tue 18</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:50px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Wed 19</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:100%; height:35px; background:var(--terra); border-radius:4px 4px 0 0;"></div><span style="font-family:Poppins,sans-serif; font-size:10px; color:var(--text-muted);">Thu 20</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- D2/D3: Pipeline card with podcast folded in -->
+        <div class="card">
+          <div class="card-header">Last Pipeline Run</div>
+          <div style="display: flex; flex-direction: column; gap: var(--sp-2);">
+            <div style="display: flex; align-items: center; gap: var(--sp-3); padding: 8px var(--sp-3); background: rgba(255,255,255,0.03); border-radius: var(--radius); font-family: Poppins, sans-serif; font-size: 13px;">
+              <span style="width: 20px; height: 20px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">&check;</span>
+              <span style="flex: 1; font-weight: 500;">fetch</span>
+              <span style="color: var(--text-secondary); font-size: 12px;">147 saved</span>
+              <span style="color: var(--text-muted); font-size: 12px; min-width: 50px; text-align: right;">2m 14s</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--sp-3); padding: 8px var(--sp-3); background: rgba(255,255,255,0.03); border-radius: var(--radius); font-family: Poppins, sans-serif; font-size: 13px;">
+              <span style="width: 20px; height: 20px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">&check;</span>
+              <span style="flex: 1; font-weight: 500;">score</span>
+              <span style="color: var(--text-secondary); font-size: 12px;">89 kept, 4 flagged</span>
+              <span style="color: var(--text-muted); font-size: 12px; min-width: 50px; text-align: right;">45s</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--sp-3); padding: 8px var(--sp-3); background: rgba(255,255,255,0.03); border-radius: var(--radius); font-family: Poppins, sans-serif; font-size: 13px;">
+              <span style="width: 20px; height: 20px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; color: white; font-size: 11px;">&check;</span>
+              <span style="flex: 1; font-weight: 500;">draft</span>
+              <span style="color: var(--text-secondary); font-size: 12px;">done</span>
+              <span style="color: var(--text-muted); font-size: 12px; min-width: 50px; text-align: right;">1m 8s</span>
+            </div>
+          </div>
+          <div style="margin-top: var(--sp-3); font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-secondary);">
+            Full mode &middot; completed 12m ago &middot; 4m 7s total
+          </div>
+          <!-- D3: Podcast folded in as sub-section -->
+          <div style="margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border);">
+            <div style="font-family: Poppins, sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-2);">Podcast Import</div>
+            <div style="display: flex; gap: var(--sp-8);">
+              <div><span style="font-family: Poppins, sans-serif; font-size: 20px; font-weight: 700;">7</span> <span style="font-size: 12px; color: var(--text-secondary);">episodes</span></div>
+              <div><span style="font-family: Poppins, sans-serif; font-size: 20px; font-weight: 700;">38</span> <span style="font-size: 12px; color: var(--text-secondary);">gap-filled</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DRAFT PAGE — DR1-DR6 redesigned
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-draft">
+    <div class="page-header">
+      <!-- DR1: Reorganised toolbar — left/centre/right -->
+      <div class="draft-toolbar">
+        <div class="draft-toolbar-left">
+          <h1 style="font-size: 18px; margin: 0;">Draft</h1>
+          <div class="week-nav">
+            <button>&laquo;</button>
+            <span>Week 12</span>
+            <button disabled>&raquo;</button>
+          </div>
+        </div>
+        <div class="draft-toolbar-centre">
+          <div class="version-toggle">
+            <button>v1 (pre-critique)</button>
+            <button class="active">Final</button>
+          </div>
+          <span class="review-pill pass">Pass</span>
+          <span class="word-count">2,847 words</span>
+        </div>
+        <div class="draft-toolbar-right">
+          <button class="btn btn-secondary btn-md">Compare pipeline</button>
+          <button class="btn btn-primary btn-md">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="draft-layout">
+      <!-- DR2: Editor with line-number gutter -->
+      <div class="draft-editor-pane">
+        <div class="draft-editor-header">Editorial Draft &middot; Week 12</div>
+        <div class="draft-editor">
+          <div class="draft-gutter">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span>
+          </div>
+          <div class="draft-textarea" contenteditable="true" spellcheck="false"><span class="md-heading">## tl;dr</span>
+
+The most consequential AI development this week wasn't a model release &mdash; it was a contract clause. While the industry debated whether GPT-5.4 deserved the 'best model' crown (the market yawned; benchmarks are, as Zvi Mowshowitz put it, 'kind of over'), the US Department of Work quietly inserted 'all lawful use' language into every government AI procurement contract.
+
+Meanwhile, Anthropic's 81,000-person survey revealed something enterprise leaders should find uncomfortable: the people actually using AI report real benefits at <span class="md-bold">**consistently higher rates**</span> than non-users experience real harm. Independent workers capture economic value at three times the rate of institutional employees.
+
+And in Cupertino, Apple's Mac Mini shortage tells a story the company didn't intend to write. OpenClaw agents are driving delivery times from 3 days to 8 weeks for 64GB configurations.
+
+<span class="md-heading">## General AI</span>
+
+<span class="md-bullet">&bull;</span> <span class="md-link">[Anthropic publishes largest qualitative AI survey]</span> &mdash; 81,000 people interviewed by Claude across 159 countries. Benefits are experiential; fears are hypothetical.
+<span class="md-bullet">&bull;</span> <span class="md-link">[GPT-5.4 launches to market indifference]</span> &mdash; 'Arguably the best model in the world' and nobody paid attention.
+<span class="md-bullet">&bull;</span> <span class="md-link">[Mac Mini 64GB delivery times hit 8 weeks]</span> &mdash; OpenClaw agent demand drives Apple hardware shortage.
+<span class="md-bullet">&bull;</span> <span class="md-link">[DeepSeek V4 positioned as China litmus test]</span> &mdash; If it doesn't compete with Opus/GPT-5.4, Chinese labs go 'back in the pack.'
+
+<span style="color: var(--text-muted);">[ ... sector sections and podcast synthesis continue ... ]</span></div>
+        </div>
+      </div>
+
+      <!-- DR3: Unified right panel — all tabs in one container -->
+      <div class="draft-panel">
+        <div class="draft-panel-tabs">
+          <button class="draft-panel-tab active">AI Critique</button>
+          <button class="draft-panel-tab">Preview</button>
+          <button class="draft-panel-tab">Review</button>
+          <button class="draft-panel-tab">Links</button>
+          <button class="draft-panel-tab">Chat</button>
+        </div>
+        <div class="draft-panel-content">
+          <div class="critique-summary">
+            <span>5 points accepted &middot; 2 rejected &middot; Verdict: <strong style="color: var(--sage);">PUBLISH</strong></span>
+          </div>
+
+          <div class="critique-grid">
+            <div class="critique-col">
+              <h3><span style="color: var(--blue);">&bull;</span> Gemini 3.1</h3>
+              <div class="critique-point accepted">
+                <div class="critique-quote">'the people actually using AI report real benefits at roughly double the rate'</div>
+                The 'roughly double' framing is imprecise. The survey found 91% vs 46%. Suggest: 'consistently higher rates' or cite the specific ratio.
+                <div class="critique-verdict accepted">
+                  &check; Accepted &mdash; tightened to specific ratio
+                  <span class="critique-actions">
+                    <button class="btn btn-sm btn-ghost" style="font-size: 10px; padding: 2px 6px; color: var(--sage);">&check;</button>
+                    <button class="btn btn-sm btn-ghost" style="font-size: 10px; padding: 2px 6px;">&times;</button>
+                  </span>
+                </div>
+              </div>
+              <div class="critique-point accepted">
+                <div class="critique-quote">'the institution itself appears to be the adoption barrier'</div>
+                Strong claim. Supported by independent worker data (3x rate) but survey doesn't control for role complexity. Add hedge.
+                <div class="critique-verdict accepted">&check; Accepted &mdash; added 'the survey data suggests'</div>
+              </div>
+              <div class="critique-point rejected">
+                Podcast section's second theme block reads more as episode recap than analysis.
+                <div class="critique-verdict rejected">&times; Rejected &mdash; already frames through enterprise lens</div>
+              </div>
+            </div>
+            <div class="critique-col">
+              <h3><span style="color: var(--sage);">&bull;</span> GPT-5.4</h3>
+              <div class="critique-point accepted">
+                Introduction opens with the contract clause, which is strong, but the transition to the Anthropic survey feels abrupt. Needs one bridging sentence.
+                <div class="critique-verdict accepted">&check; Accepted &mdash; added bridging sentence</div>
+              </div>
+              <div class="critique-point accepted">
+                UK English check: 'organization' appears twice in the sector sections. Should be 'organisation'.
+                <div class="critique-verdict accepted">&check; Accepted &mdash; corrected</div>
+              </div>
+              <div class="critique-point rejected">
+                Consider adding a 'what to watch' forward-looking section at the end.
+                <div class="critique-verdict rejected">&times; Rejected &mdash; not part of established newsletter format</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       EDITORIAL PAGE — split layout with contextual Opus chat
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-editorial">
+    <div class="page-header">
+      <div class="page-header-row">
+        <div>
+          <h1>Editorial Intelligence</h1>
+          <div class="subtitle">Session 16 &middot; 125 documents &middot; 26 themes &middot; 91 post candidates</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" onclick="showEditorialTab('state')">State<span class="tab-count">125</span></button>
+        <button class="tab" onclick="showEditorialTab('themes')">Themes<span class="tab-count">26</span></button>
+        <button class="tab" onclick="showEditorialTab('backlog')">Backlog<span class="tab-count">91</span></button>
+        <button class="tab" onclick="showEditorialTab('decisions')">Decisions<span class="tab-count">7</span></button>
+        <button class="tab" onclick="showEditorialTab('activity')">Activity</button>
+      </div>
+    </div>
+
+    <!-- Split layout: content left, Opus chat right -->
+    <div class="editorial-split">
+    <div class="editorial-content">
+
+      <!-- ─── STATE TAB ─── -->
+      <div class="editorial-tab active" id="tab-state">
+        <div class="search-bar">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" placeholder="Search analysis index... (title, source, themes, summary)">
+        </div>
+        <!-- L11: Source-level filtering added -->
+        <div class="filter-row">
+          <span class="filter-pill active">All</span>
+          <span class="filter-pill">Tier 1</span>
+          <span class="filter-pill">Tier 2</span>
+          <span class="filter-pill">STUB</span>
+          <span class="filter-sep"></span>
+          <span class="filter-pill">Session 16</span>
+          <span class="filter-pill">Session 15</span>
+          <span class="filter-pill">Session 14</span>
+          <span class="filter-sep"></span>
+          <span class="filter-pill">AI Daily Brief</span>
+          <span class="filter-pill">Cognitive Rev.</span>
+          <span class="filter-pill">Moonshots</span>
+          <span class="filter-pill">EV Newsletter</span>
+        </div>
+
+        <div class="card" style="padding: 0 var(--sp-6);">
+          <!-- Entry 1 — expanded with chevron -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#122</span>
+              Zvi's Mic Works &mdash; Recursive Self-Improvement, Live Player
+              <span class="badge badge-tier1">Tier 1</span>
+              <span style="font-size: 11px; color: var(--sage); font-family: Poppins, sans-serif;">&#9733; Highest value</span>
+              <span class="expand-chevron open">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Cognitive Revolution</span>
+              <span>Zvi Mowshowitz</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--sage);">Post potential: very-high</span>
+            </div>
+            <div class="list-item-themes">
+              <span class="theme-tag" data-name="Enterprise Diffusion Gap">T01</span>
+              <span class="theme-tag" data-name="Agentic Architecture">T03</span>
+              <span class="theme-tag" data-name="Agentic Engineering Skill">T04</span>
+              <span class="theme-tag" data-name="Commoditisation &amp; Platform">T05</span>
+              <span class="theme-tag" data-name="Geopolitics of Compute">T07</span>
+              <span class="theme-tag" data-name="AI Governance">T25</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Summary</h4>
+              <p>3+ hour conversation covering the full AI landscape. Five enterprise-relevant threads. (a) Lab competition: Only Big Three (Anthropic, OpenAI, Google) matter. xAI disqualified by talent acquisition failure. (b) Google in danger of falling from top tier &mdash; scaffolding/integration/culture claim, not model quality. (c) Model release fatigue. (d) Anthropic-DoW: 'all lawful use' contract language. (e) Flow-state preservation through context-switching elimination.</p>
+              <h4>Stories referenced</h4>
+              <p style="font-size: 12px;">6 stories extracted &middot; 5 found &middot; 1 paywalled (FT)</p>
+              <div style="margin-top: var(--sp-3); display: flex; gap: var(--sp-3);">
+                <span class="draft-link" onclick="showPage('draft')"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open in Draft</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Entry 2 — collapsed with chevron -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#120</span>
+              What People Really Want From AI
+              <span class="badge badge-tier1">Tier 1</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>AI Daily Brief</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--sage);">Post potential: high</span>
+            </div>
+            <div class="list-item-themes">
+              <span class="theme-tag" data-name="Enterprise Diffusion Gap">T01</span>
+              <span class="theme-tag" data-name="Displacement &amp; Labour">T10</span>
+              <span class="theme-tag" data-name="Abundance Displacement">T23</span>
+              <span class="theme-tag" data-name="AI Governance">T25</span>
+            </div>
+          </div>
+
+          <!-- Entry 3 — Tier 2 -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#123</span>
+              Understanding Consumer Debt Collections
+              <span class="badge badge-tier2">Tier 2</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Complex Systems</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--text-muted);">Post potential: low</span>
+            </div>
+          </div>
+
+          <!-- Entry 4 — STUB -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#121</span>
+              AI Just Gave You Superpowers. Now What?
+              <span class="badge badge-stub">STUB</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>a16z Show</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--text-muted);">9 lines &middot; header only</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── THEMES TAB (L10: sort/filter added) ─── -->
+      <div class="editorial-tab" id="tab-themes">
+        <div class="search-bar">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" placeholder="Search themes... (name, evidence, cross-connections)">
+        </div>
+        <div class="filter-row">
+          <span class="filter-pill active">All (26)</span>
+          <span class="filter-pill">Active this week (8)</span>
+          <span class="filter-pill" style="border-color: var(--warning); color: var(--warning);">Stale &gt;3 sessions (4)</span>
+          <div class="sort-toggle">
+            Sort:
+            <select>
+              <option>Last updated</option>
+              <option>Evidence count</option>
+              <option>Alphabetical</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0 var(--sp-6);">
+          <!-- Theme 1 — expanded -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T01</span>
+              Enterprise Diffusion Gap
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">34 docs &middot; Updated Session 15</span>
+              <span class="expand-chevron open">&#9656;</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Recent evidence (last 3 sessions)</h4>
+              <div class="evidence-block">
+                <div class="evidence-source">Session 15 &middot; AI Daily Brief (19 March)</div>
+                <div class="evidence-text">Anthropic 81,000-person survey &mdash; benefits are experiential, fears are hypothetical. 91% of those citing learning benefits had experienced them vs 46% of those fearing cognitive atrophy.</div>
+              </div>
+              <div class="evidence-block">
+                <div class="evidence-source">Session 15 &middot; Cognitive Revolution/Zvi (19 March)</div>
+                <div class="evidence-text">Model release fatigue &mdash; even GPT-5.4 got muted reception. Benchmarks 'kind of over' as useful signals. Reinforces that the bottleneck is organisational absorption.</div>
+              </div>
+              <h4>Cross-connections</h4>
+              <div class="cross-connection"><strong>T05</strong> &mdash; model release fatigue + Google's integration problem both illustrate that capability without organisational absorption is wasted</div>
+              <div class="cross-connection"><strong>T10</strong> &mdash; independent workers capturing value while institutional employees don't extends the displacement evidence</div>
+              <div class="cross-connection"><strong>T23</strong> &mdash; intelligence abundance without organisational absorption = the diffusion gap</div>
+              <div style="margin-top: var(--sp-3); display: flex; gap: var(--sp-4); font-size: 12px; align-items: center;">
+                <span class="draft-link" onclick="showPage('draft')"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Draft T01 analysis</span>
+                <a href="#" style="color: var(--text-muted); text-decoration: none;">Show archived evidence (Sessions 1&ndash;12) &rarr;</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Theme — collapsed -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T03</span>
+              Agentic Architecture &amp; Deployment
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">28 docs &middot; Updated Session 15</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+          </div>
+
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T05</span>
+              Commoditisation &amp; Platform Competition
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">31 docs &middot; Updated Session 15</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+          </div>
+
+          <!-- Stale theme (issue #9: rotation candidate) -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px; border-color: var(--warning); color: var(--warning);">T12</span>
+              Enterprise Data Strategy
+              <span style="font-size: 11px; color: var(--warning); font-family: Poppins, sans-serif; margin-left: auto;">&#9888; 6 docs &middot; Last updated Session 9 &middot; <em>Rotation candidate</em></span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+          </div>
+
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T23</span>
+              Abundance Displacement
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">15 docs &middot; Updated Session 15</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── BACKLOG TAB (L12: search added, #5: Mark Published) ─── -->
+      <div class="editorial-tab" id="tab-backlog">
+        <div class="search-bar">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" placeholder="Search backlog... (title, themes, arguments)">
+        </div>
+        <div class="filter-row">
+          <span class="filter-pill active">Active (47)</span>
+          <span class="filter-pill">Published (31)</span>
+          <span class="filter-pill">Archived (13)</span>
+          <span class="filter-sep"></span>
+          <span class="filter-pill">quiet-observation</span>
+          <span class="filter-pill">news-decoder</span>
+          <span class="filter-pill">concept-contrast</span>
+          <span class="filter-pill">practitioners-take</span>
+        </div>
+
+        <!-- IMMEDIATE -->
+        <div class="priority-group">
+          <div class="priority-group-header">
+            <span class="badge badge-immediate">IMMEDIATE</span>
+            <span class="priority-count">1 post</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#91</span>
+              The Contract Clause Nobody Is Talking About
+              <span class="badge badge-format">quiet-observation</span>
+              <span class="badge badge-suggested">suggested</span>
+              <span class="expand-chevron open">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #122</span>
+              <span style="color: var(--danger);">very-timely</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Core argument</h4>
+              <p>The all-lawful-use contract language being inserted into every government AI procurement contract means unlimited use, no refusal rights, no termination. This is a structural governance shift that affects every AI vendor and enterprise buyer.</p>
+              <h4>Editorial risks</h4>
+              <p>Political territory. Must be framed as procurement/governance analysis, not political commentary. Test: could this post be shared by a risk/compliance officer without appearing to take a political side?</p>
+              <!-- Full action set: approve, draft, publish, archive -->
+              <div style="margin-top: var(--sp-3); display: flex; gap: var(--sp-2); align-items: center;">
+                <button class="btn btn-primary btn-sm">Approve</button>
+                <button class="btn btn-secondary btn-sm" onclick="showPage('draft')">
+                  <svg viewBox="0 0 24 24" style="width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  Draft in editor
+                </button>
+                <button class="btn btn-secondary btn-sm" style="color: var(--sage); border-color: rgba(111,165,132,0.3);">Mark published</button>
+                <button class="btn btn-ghost btn-sm">Archive</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HIGH -->
+        <div class="priority-group">
+          <div class="priority-group-header">
+            <span class="badge badge-high">HIGH</span>
+            <span class="priority-count">3 posts</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#82</span>
+              Exposure Is Not Displacement
+              <span class="badge badge-format">concept-contrast</span>
+              <span class="badge badge-suggested">suggested</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 14</span>
+              <span>Sources: #108, #110</span>
+              <span style="color: var(--warning);">&#9888; Karpathy peg fading</span>
+            </div>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#88</span>
+              The Benefits Are Real, the Fears Are Imagined
+              <span class="badge badge-format">news-decoder</span>
+              <span class="badge badge-suggested">suggested</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #120</span>
+              <span>timely-evergreen</span>
+              <span style="color: var(--blue);">&rarr; Sequence after #82</span>
+            </div>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#89</span>
+              Google's Culture Problem Is an AI Problem
+              <span class="badge badge-format">news-decoder</span>
+              <span class="expand-chevron">&#9656;</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #122</span>
+              <span>timely-evergreen</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Published — dimmed -->
+        <div class="priority-group" style="opacity: 0.5;">
+          <div class="priority-group-header">
+            <span class="badge badge-published">PUBLISHED</span>
+            <span class="priority-count">2 shown of 31</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="list-item-id">#43</span>
+              Multi-agent team dysfunction
+              <span class="badge badge-published">published 15 Mar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── DECISIONS TAB — new (issue #1) ─── -->
+      <div class="editorial-tab" id="tab-decisions">
+        <div class="filter-row">
+          <span class="filter-pill active">All sessions</span>
+          <span class="filter-pill">Session 16</span>
+          <span class="filter-pill">Session 15</span>
+          <span class="filter-pill">Session 14</span>
+        </div>
+
+        <div class="card">
+          <div style="font-family: Poppins, sans-serif; font-size: 14px; font-weight: 600; margin-bottom: var(--sp-4); display: flex; align-items: center; gap: var(--sp-2);">
+            Session 15 <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">20 March 2026 &middot; 7 decisions</span>
+          </div>
+
+          <div class="decision-item">
+            <div class="decision-id">Decision 15.1</div>
+            <div class="decision-title">Tier classification of new documents</div>
+            <div class="decision-body">4 Tier 1, 2 Tier 2, 1 STUB. Tier 1: AI Daily Brief, Cognitive Revolution/Zvi, EV Newsletter/Azhar. Tier 2: Complex Systems, Intelligence Squared. STUB: a16z Superpowers &mdash; header only, 9 lines.</div>
+            <div class="decision-reasoning">Complex Systems debt collection episode has no direct AI content but offers a useful structural analogy (automation amplifies dysfunction). Intelligence Squared folk culture has no AI/enterprise relevance. Both filed as Tier 2 background.</div>
+          </div>
+
+          <div class="decision-item">
+            <div class="decision-id">Decision 15.5</div>
+            <div class="decision-title">Priority elevation &mdash; #91 to IMMEDIATE</div>
+            <div class="decision-body">#91 elevated to IMMEDIATE tier. The all-lawful-use contract language is an active, evolving development with implications for every AI vendor and enterprise buyer.</div>
+            <div class="decision-reasoning">If the contract template becomes standard before the market notices, the governance implications are locked in. The Quiet Observation format is appropriate &mdash; understated, not alarmist.</div>
+          </div>
+
+          <div class="decision-item">
+            <div class="decision-id">Decision 15.7</div>
+            <div class="decision-title">'Robust as a pair' &mdash; natural validation from practitioner evidence</div>
+            <div class="decision-body">Zvi's two-model verification workflow (GPT-5.4 + Opus 4.6, treating cross-model agreement as a trust signal) is independent validation of Brightbeam's methodology. Not a post in itself, but useful supporting evidence.</div>
+            <div class="decision-reasoning">When a respected independent practitioner converges on the same methodology from first principles, that's strong evidence the methodology is sound.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ACTIVITY TAB — #2-4 trigger buttons, L13 layout fix ─── -->
+      <div class="editorial-tab" id="tab-activity">
+        <!-- #2-4: Manual trigger buttons -->
+        <div class="trigger-group">
+          <button class="btn btn-primary btn-md">Run ANALYSE</button>
+          <button class="btn btn-secondary btn-md">Run DISCOVER</button>
+          <button class="btn btn-secondary btn-md">Generate Draft</button>
+          <span style="margin-left: auto; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted);">
+            Next scheduled: ANALYSE Thu 18:00 &middot; DRAFT Thu 20:00
+          </span>
+        </div>
+
+        <!-- L13: Cost/prompt as horizontal strip, then full-width feed -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-4);">
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">Cost This Week</div>
+            <div style="font-family: Poppins, sans-serif; font-size: 28px; font-weight: 700;">$24.30</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: var(--sp-3);">of $60 budget</div>
+            <div class="cost-bar-container" style="margin: 0;">
+              <div class="cost-bar-bg">
+                <div class="cost-bar-fill" style="width: 40.5%; background: var(--sage);"></div>
+              </div>
+              <div class="cost-labels"><span>$0</span><span style="color: var(--warning);">$40</span><span>$60</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">Cost Breakdown</div>
+            <div class="cost-breakdown" style="margin-top: 0;">
+              <div class="cost-row"><span>ANALYSE (18 calls)</span><span>$18.40</span></div>
+              <div class="cost-row"><span>DISCOVER</span><span>$0.80</span></div>
+              <div class="cost-row"><span>DRAFT + critique</span><span>$4.20</span></div>
+              <div class="cost-row"><span>Revision</span><span>$0.90</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">Prompt Versions</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">
+              <div style="display: flex; justify-content: space-between; margin-bottom: var(--sp-2);"><span>editorial-analyse</span><span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span></div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: var(--sp-2);"><span>editorial-draft</span><span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span></div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: var(--sp-2);"><span>editorial-critique</span><span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span></div>
+              <div style="display: flex; justify-content: space-between;"><span>editorial-context</span><span style="color: var(--sage); font-family: Poppins, sans-serif;">v1 (Scott)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full-width processing feed -->
+        <div class="card">
+          <div class="card-header">Processing Feed</div>
+
+          <!-- #8: In-flight progress indicator -->
+          <div class="activity-item" style="background: var(--terra-bg); margin: 0 calc(-1 * var(--sp-6)); padding: 14px var(--sp-6); border-radius: var(--radius);">
+            <span class="activity-dot running" style="background: var(--terra); animation: pulse 1.5s infinite;"></span>
+            <div class="activity-content">
+              <div class="activity-title" style="color: var(--terra);">ANALYSE Session 16 in progress</div>
+              <div class="activity-detail">
+                3 of 18 transcripts &middot; Current: Moonshots &mdash; AI and Defence<br>
+                <div style="display: flex; align-items: center; gap: var(--sp-2); margin-top: 4px;">
+                  <div style="flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                    <div style="width: 17%; height: 100%; background: var(--terra); border-radius: 2px;"></div>
+                  </div>
+                  <span style="font-size: 11px; color: var(--terra);">17%</span>
+                </div>
+              </div>
+            </div>
+            <span class="activity-time">now</span>
+          </div>
+
+          <div class="activity-item">
+            <span class="activity-dot draft"></span>
+            <div class="activity-content">
+              <div class="activity-title">DRAFT Week 12 complete</div>
+              <div class="activity-detail">
+                Opus v1 draft &rarr; Gemini critique (REVISE) + GPT critique (REVISE) &rarr; Opus revision (PUBLISH)<br>
+                5 critique points accepted &middot; 2 rejected &middot; Final: 2,847 words
+              </div>
+            </div>
+            <span class="activity-time">45m ago</span>
+          </div>
+
+          <div class="activity-item">
+            <span class="activity-dot discover"></span>
+            <div class="activity-content">
+              <div class="activity-title">DISCOVER Session 15</div>
+              <div class="activity-detail">
+                43 story references &middot; 38 articles found &middot; 5 paywalled (logged)<br>
+                Articles written to data/verified/ for Week 12
+              </div>
+            </div>
+            <span class="activity-time">1h ago</span>
+          </div>
+
+          <!-- #7: Expandable error with retry -->
+          <div class="activity-item">
+            <span class="activity-dot error"></span>
+            <div class="activity-content">
+              <div class="activity-title" style="color: var(--danger);">ANALYSE: Opus JSON validation failed</div>
+              <div class="activity-detail">
+                Transcript: Moonshots &mdash; AI and Defence (18 March)<br>
+                Error: theme code T99 not found in registry. Retried with correction prompt &mdash; succeeded.
+                <div style="margin-top: 4px;">
+                  <a href="#" style="color: var(--terra-light); text-decoration: none; font-size: 11px;">View full error &rarr;</a>
+                </div>
+              </div>
+            </div>
+            <span class="activity-time">3h ago</span>
+          </div>
+
+          <div class="activity-item">
+            <span class="activity-dot analyse"></span>
+            <div class="activity-content">
+              <div class="activity-title">ANALYSE Session 15 complete</div>
+              <div class="activity-detail">6 transcripts &middot; 4 Tier 1 &middot; 2 Tier 2 &middot; 1 STUB &middot; 8 themes updated &middot; 4 post candidates</div>
+            </div>
+            <span class="activity-time">Yesterday</span>
+          </div>
+
+          <div class="activity-item">
+            <span class="activity-dot track"></span>
+            <div class="activity-content">
+              <div class="activity-title">TRACK: #43 published to LinkedIn</div>
+              <div class="activity-detail">Multi-agent team dysfunction &middot; Marked published by Scott</div>
+            </div>
+            <span class="activity-time">15 Mar</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /editorial-content -->
+
+    <!-- ─── Contextual Opus 4.6 Chat Panel ─── -->
+    <div class="editorial-chat">
+      <div class="editorial-chat-header">
+        <span class="model-badge">O</span>
+        <span class="chat-title">Opus 4.6</span>
+        <span class="chat-context">
+          Context:
+          <span class="chat-context-tag" id="chat-context-label">State &middot; #122</span>
+        </span>
+      </div>
+
+      <div class="editorial-chat-messages">
+        <!-- Context-aware conversation example -->
+        <div class="chat-msg user">
+          What's the strongest evidence for T01 this session? And is it strong enough for a standalone post?
+        </div>
+        <div class="chat-msg assistant">
+          The strongest Session 15 evidence for T01 (Enterprise Diffusion Gap) comes from two sources that reinforce each other:
+
+          <div style="margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3); background: var(--card-bg); border-left: 2px solid var(--terra); border-radius: 0 4px 4px 0; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--terra-light);">Anthropic survey (#120):</strong> The experiential-hypothetical gap &mdash; 91% of those citing learning benefits had experienced them vs 46% of those fearing cognitive atrophy. This isn't sentiment; it's an empirical pattern about how exposure changes perception.
+          </div>
+          <div style="margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3); background: var(--card-bg); border-left: 2px solid var(--terra); border-radius: 0 4px 4px 0; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--terra-light);">Zvi interview (#122):</strong> Model release fatigue &mdash; even the AI-enthusiast community can't muster excitement. The bottleneck has shifted from capability to organisational absorption.
+          </div>
+
+          Together these make a <strong>strong case for #88 (The Benefits Are Real, the Fears Are Imagined)</strong>, which is already in the backlog at HIGH. The Anthropic survey gives it a concrete news peg. I'd say it's ready &mdash; the evidence base is sufficient for a news-decoder format post.
+
+          <div style="margin-top: var(--sp-2);">
+            <span class="draft-link" onclick="showPage('draft')"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Draft #88 now</span>
+          </div>
+
+          <div class="chat-msg-footer">
+            <span class="model-badge">O</span>
+            Opus 4.6 &middot; 612 tokens
+          </div>
+        </div>
+
+        <div class="chat-msg user">
+          Good call. But #82 should go first &mdash; they're a sequenced pair. How's the Karpathy peg holding up?
+        </div>
+        <div class="chat-msg assistant">
+          Fading. The Karpathy event was 16 March &mdash; five days ago. For a news-decoder, you want to publish within 3&ndash;4 days of the news peg. At this point you have two options:
+
+          <div style="margin: var(--sp-2) 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+            <strong>Option A:</strong> Publish #82 today or tomorrow with a soft open that acknowledges the timing ('Last week's Karpathy conversation surfaced a distinction that deserves more attention...'). Still works but loses the urgency.<br><br>
+            <strong>Option B:</strong> Fold #82's strongest evidence into #88 and publish #88 as a standalone. The concept-contrast argument ('exposure is not displacement') becomes a section within the broader piece rather than a separate post.
+          </div>
+
+          Decision 15.3 anticipated this risk. I'd recommend Option B at this point &mdash; the Karpathy peg isn't strong enough to carry a standalone post five days later.
+
+          <div class="chat-msg-footer">
+            <span class="model-badge">O</span>
+            Opus 4.6 &middot; 489 tokens
+          </div>
+        </div>
+      </div>
+
+      <div class="editorial-chat-input">
+        <textarea placeholder="Ask Opus about themes, evidence, post ideas..." rows="1"></textarea>
+        <button class="btn btn-primary btn-md">Send</button>
+      </div>
+    </div>
+    </div><!-- /editorial-split -->
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DATABASE — renamed from Articles, podcasts added
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-database">
+    <div class="page-header">
+      <div class="page-header-row">
+        <h1>Database</h1>
+        <button class="btn btn-primary btn-md">+ Ingest URL</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <!-- Tabs: Articles, Podcasts, Flagged -->
+      <div style="display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4);">
+        <div class="tabs" style="margin-bottom: 0; border-bottom: none; flex-shrink: 0;">
+          <button class="tab active" onclick="showDbTab('articles')">Articles <span class="tab-count">(147)</span></button>
+          <button class="tab" onclick="showDbTab('podcasts')">Podcasts <span class="tab-count">(20)</span></button>
+          <button class="tab" onclick="showDbTab('flagged')">Flagged <span class="tab-count">(12)</span></button>
+        </div>
+        <div class="search-bar" style="margin-bottom: 0; flex: 1;">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" placeholder="Search database...">
+        </div>
+      </div>
+
+      <!-- ARTICLES TAB -->
+      <div class="db-tab active" id="db-articles">
+        <div class="articles-filter-bar">
+          <select><option>All sectors</option><option>general</option><option>biopharma</option><option>medtech</option><option>manufacturing</option><option>insurance</option></select>
+          <div style="display: flex; gap: 4px; background: var(--terra-bg); border-radius: var(--radius); padding: 3px;">
+            <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px;">This week</button>
+            <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px; background: var(--terra); color: white; border-color: transparent;">Last 7d</button>
+            <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px;">Last 30d</button>
+            <button class="btn btn-sm btn-ghost" style="padding: 4px 10px; border-radius: 6px; font-size: 11px;">All time</button>
+          </div>
+          <span style="margin-left: auto; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted);">Last updated: 12m ago</span>
+        </div>
+
+        <table class="articles-table">
+          <thead>
+            <tr>
+              <th style="width: 24px;"><input type="checkbox" style="accent-color: var(--terra);"></th>
+              <th>Article</th>
+              <th>Sector</th>
+              <th>Date</th>
+              <th>Score</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" style="accent-color: var(--terra);"></td>
+              <td>
+                <div class="article-title">Anthropic publishes 81,000-person AI attitudes survey</div>
+                <div class="article-source">reuters.com</div>
+              </td>
+              <td><span class="badge badge-tier1" style="font-size: 10px;">general</span></td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="article-score high">0.91 <span class="score-label">High</span></span></td>
+              <td style="font-size: 12px;"><button class="btn btn-sm btn-ghost">&#9872;</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" style="accent-color: var(--terra);"></td>
+              <td>
+                <div class="article-title">Apple Mac Mini M4 Pro sold out across major US retailers</div>
+                <div class="article-source">macrumors.com</div>
+              </td>
+              <td><span class="badge" style="background: var(--brown-15); color: var(--brown); font-size: 10px;">manufacturing</span></td>
+              <td style="font-size: 12px; color: var(--text-secondary);">18 Mar</td>
+              <td><span class="article-score medium">0.72 <span class="score-label">Med</span></span></td>
+              <td style="font-size: 12px;"><button class="btn btn-sm btn-ghost">&#9872;</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" style="accent-color: var(--terra);"></td>
+              <td>
+                <div class="article-title">New study shows limited AI adoption among mid-market manufacturers</div>
+                <div class="article-source">industryweek.com</div>
+              </td>
+              <td><span class="badge" style="background: var(--brown-15); color: var(--brown); font-size: 10px;">manufacturing</span></td>
+              <td style="font-size: 12px; color: var(--text-secondary);">17 Mar</td>
+              <td><span class="article-score low">0.34 <span class="score-label">Low</span></span></td>
+              <td style="font-size: 12px;"><button class="btn btn-sm btn-ghost">&#9872;</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted); margin-top: var(--sp-4); display: flex; justify-content: space-between;">
+          <span>Showing 1&ndash;25 of 147</span>
+          <span>&#9664; Prev &middot; Next &#9654;</span>
+        </div>
+      </div>
+
+      <!-- PODCASTS TAB -->
+      <div class="db-tab" id="db-podcasts" style="display: none;">
+        <div class="articles-filter-bar">
+          <select>
+            <option>All sources</option>
+            <option>AI Daily Brief</option>
+            <option>Cognitive Revolution</option>
+            <option>Moonshots</option>
+            <option>Exponential View</option>
+            <option>Complex Systems</option>
+            <option>a16z</option>
+          </select>
+          <div class="filter-row" style="margin-bottom: 0;">
+            <span class="filter-pill active">All</span>
+            <span class="filter-pill">Tier 1</span>
+            <span class="filter-pill">Tier 2</span>
+            <span class="filter-pill">STUB</span>
+          </div>
+          <span style="margin-left: auto; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted);">Session 16 &middot; 20 transcripts</span>
+        </div>
+
+        <table class="articles-table">
+          <thead>
+            <tr>
+              <th>Episode</th>
+              <th>Source</th>
+              <th>Date</th>
+              <th>Tier</th>
+              <th>Themes</th>
+              <th>Stories</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="cursor: pointer;" onclick="showPage('editorial')">
+              <td>
+                <div class="article-title">Zvi's Mic Works &mdash; Recursive Self-Improvement, Live Player</div>
+                <div class="article-source">3h 12m &middot; Session 15 &middot; #122</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">Cognitive Revolution</td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="badge badge-tier1">Tier 1</span></td>
+              <td>
+                <span class="theme-tag" data-name="Enterprise Diffusion Gap">T01</span>
+                <span class="theme-tag" data-name="Agentic Architecture">T03</span>
+                <span class="theme-tag" data-name="Commoditisation">T05</span>
+                <span style="font-size: 11px; color: var(--text-muted);">+3</span>
+              </td>
+              <td style="font-family: Poppins, sans-serif; font-size: 13px;">6 <span style="font-size: 11px; color: var(--text-muted);">(5 found)</span></td>
+              <td><span class="draft-link" onclick="showPage('draft')"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="article-title">What People Really Want From AI</div>
+                <div class="article-source">28m &middot; Session 15 &middot; #120</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">AI Daily Brief</td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="badge badge-tier1">Tier 1</span></td>
+              <td>
+                <span class="theme-tag" data-name="Enterprise Diffusion Gap">T01</span>
+                <span class="theme-tag" data-name="Displacement">T10</span>
+                <span class="theme-tag" data-name="Abundance">T23</span>
+                <span style="font-size: 11px; color: var(--text-muted);">+1</span>
+              </td>
+              <td style="font-family: Poppins, sans-serif; font-size: 13px;">4 <span style="font-size: 11px; color: var(--text-muted);">(4 found)</span></td>
+              <td><span class="draft-link"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open</span></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="article-title">Why I Changed My Mind About Apple</div>
+                <div class="article-source">45m &middot; Session 15 &middot; #124</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">Exponential View</td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="badge badge-tier1">Tier 1</span></td>
+              <td>
+                <span class="theme-tag" data-name="Agentic Architecture">T03</span>
+                <span class="theme-tag" data-name="Commoditisation">T05</span>
+                <span class="theme-tag" data-name="Abundance">T23</span>
+              </td>
+              <td style="font-family: Poppins, sans-serif; font-size: 13px;">3 <span style="font-size: 11px; color: var(--text-muted);">(3 found)</span></td>
+              <td><span class="draft-link"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open</span></td>
+            </tr>
+            <tr style="opacity: 0.6;">
+              <td>
+                <div class="article-title">Understanding Consumer Debt Collections</div>
+                <div class="article-source">52m &middot; Session 15 &middot; #123</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">Complex Systems</td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="badge badge-tier2">Tier 2</span></td>
+              <td style="font-size: 12px; color: var(--text-muted);">&mdash;</td>
+              <td style="font-size: 12px; color: var(--text-muted);">&mdash;</td>
+              <td></td>
+            </tr>
+            <tr style="opacity: 0.4;">
+              <td>
+                <div class="article-title">AI Just Gave You Superpowers. Now What?</div>
+                <div class="article-source">9 lines &middot; Session 15 &middot; #121</div>
+              </td>
+              <td style="font-size: 12px; color: var(--text-secondary);">a16z Show</td>
+              <td style="font-size: 12px; color: var(--text-secondary);">19 Mar</td>
+              <td><span class="badge badge-stub">STUB</span></td>
+              <td style="font-size: 12px; color: var(--text-muted);">&mdash;</td>
+              <td style="font-size: 12px; color: var(--text-muted);">&mdash;</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted); margin-top: var(--sp-4); display: flex; justify-content: space-between;">
+          <span>Showing 1&ndash;20 of 20</span>
+        </div>
+      </div>
+
+      <!-- FLAGGED TAB -->
+      <div class="db-tab" id="db-flagged" style="display: none;">
+        <div class="articles-filter-bar">
+          <select><option>All sectors</option><option>general</option><option>biopharma</option><option>medtech</option><option>manufacturing</option><option>insurance</option></select>
+          <span style="margin-left: auto; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted);">12 flagged articles</span>
+        </div>
+        <div class="card" style="text-align: center; padding: var(--sp-10); color: var(--text-muted); font-family: Poppins, sans-serif; font-size: 13px;">
+          Flagged articles table &mdash; same columns as Articles tab, filtered to flagged only
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CO-PILOT — CP1-CP5 improvements shown
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-copilot">
+    <div class="page-header">
+      <div class="page-header-row">
+        <h1>Co-pilot</h1>
+        <div style="display: flex; align-items: center; gap: var(--sp-3);">
+          <div class="week-nav">
+            <button>&laquo;</button>
+            <span>Week 12</span>
+            <button disabled>&raquo;</button>
+          </div>
+          <!-- CP2: Model toggle in toolbar -->
+          <div class="version-toggle">
+            <button>Sonnet</button>
+            <button class="active">Opus</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="page-content" style="padding-top: 0;">
+      <!-- CP4: Context indicator -->
+      <div class="copilot-context-bar">
+        <span style="color: var(--text-muted);">Context:</span>
+        <span class="context-item">Week 12 articles <span class="token-count">(8.2k)</span></span>
+        <span class="context-item">Theme Registry <span class="token-count">(4.1k)</span></span>
+        <span class="context-item">Post Backlog <span class="token-count">(2.8k)</span></span>
+        <span class="context-item">Draft v1 <span class="token-count">(6.4k)</span></span>
+        <!-- CP5: Full-width usage bar with text -->
+        <div style="display: flex; align-items: center; gap: var(--sp-2); margin-left: auto;">
+          <div class="usage-bar-full" style="width: 120px;">
+            <div class="fill" style="width: 34%;"></div>
+          </div>
+          <span class="usage-text">22k / 64k tokens</span>
+        </div>
+      </div>
+
+      <div class="copilot-layout" style="height: calc(100vh - 220px);">
+        <!-- CP1: Narrower thread sidebar -->
+        <div class="copilot-threads">
+          <div style="padding: var(--sp-3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-family: Poppins, sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Threads</span>
+            <button class="btn btn-sm btn-primary" style="font-size: 10px; padding: 2px 8px;">+ New</button>
+          </div>
+          <div style="padding: var(--sp-2);">
+            <div style="padding: 8px 10px; background: var(--terra-bg); border-radius: var(--radius); font-family: Poppins, sans-serif; font-size: 12px; color: var(--terra); margin-bottom: 2px; cursor: pointer;">
+              Week 12 draft review
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">6 messages</div>
+            </div>
+            <div style="padding: 8px 10px; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; cursor: pointer; border-radius: var(--radius);">
+              Post #91 framing
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">3 messages</div>
+            </div>
+            <div style="padding: 8px 10px; font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius);">
+              Karpathy angle research
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">8 messages</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat area -->
+        <div class="copilot-main">
+          <div style="flex: 1; overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3);">
+            <!-- User message -->
+            <div style="align-self: flex-end; max-width: 85%; background: var(--terra-bg); padding: 10px 14px; border-radius: var(--radius-lg); font-family: Poppins, sans-serif; font-size: 13px;">
+              Is the transition from the contract clause to the Anthropic survey working? It feels abrupt.
+            </div>
+            <!-- Assistant message -->
+            <div style="align-self: flex-start; max-width: 85%; background: var(--surface); padding: 10px 14px; border-radius: var(--radius-lg); font-size: 13px; line-height: 1.6;">
+              You're right &mdash; the jump from government procurement to user experience data needs connective tissue. The link is: both are about who gets to define what AI is used for. The contract clause defines it legally; the survey defines it experientially. One bridging sentence would do it:
+              <div style="margin: var(--sp-2) 0; padding: var(--sp-2) var(--sp-3); background: var(--card-bg); border-left: 2px solid var(--terra); border-radius: 0 4px 4px 0; font-style: italic; font-size: 12px; color: var(--text-secondary);">
+                "The contract defines what AI providers must allow. The survey reveals what users actually want."
+              </div>
+              <div style="margin-top: var(--sp-2); font-family: Poppins, sans-serif; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: var(--sp-3);">
+                <span style="background: var(--terra-15); color: var(--terra); padding: 1px 6px; border-radius: 4px; font-weight: 600;">O</span>
+                Opus 4.6 &middot; 847 tokens
+              </div>
+            </div>
+          </div>
+          <!-- Input area -->
+          <div style="padding: var(--sp-3); border-top: 1px solid var(--border); display: flex; align-items: flex-end; gap: var(--sp-2);">
+            <div style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2) var(--sp-3); font-family: Poppins, sans-serif; font-size: 13px; color: var(--text-muted); min-height: 36px;">Ask the co-pilot...</div>
+            <button class="btn btn-primary btn-md">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SOURCES — S1-S5 improvements indicated
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-sources">
+    <div class="page-header">
+      <div class="page-header-row">
+        <h1>Sources</h1>
+        <select style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-secondary); font-family: Poppins, sans-serif; font-size: 13px; padding: 6px 12px;">
+          <option>2026-03-20 (latest)</option>
+          <option>2026-03-19</option>
+          <option>2026-03-18</option>
+        </select>
+      </div>
+    </div>
+    <div class="page-content">
+      <!-- S5: Health promoted to top -->
+      <div class="health-strip">
+        <div class="health-item"><span class="health-dot green"></span> Reuters API</div>
+        <div class="health-item"><span class="health-dot green"></span> TechCrunch</div>
+        <div class="health-item"><span class="health-dot green"></span> Ars Technica</div>
+        <div class="health-item"><span class="health-dot amber"></span> FT (3 paywalled)</div>
+        <div class="health-item"><span class="health-dot green"></span> PubMed</div>
+        <div class="health-item"><span class="health-dot red"></span> IndustryWeek (timeout)</div>
+        <div class="health-item"><span class="health-dot green"></span> RSS feeds (12/12)</div>
+      </div>
+
+      <div style="font-family: Poppins, sans-serif; font-size: 13px; color: var(--text-secondary); margin-bottom: var(--sp-4);">
+        147 saved, 3 errors, 5 paywalled &mdash; 4m 7s
+      </div>
+
+      <div class="card" style="text-align: center; padding: var(--sp-10); color: var(--text-muted); font-family: Poppins, sans-serif; font-size: 13px;">
+        Articles chart and layer breakdown &mdash; existing functionality, responsive SVG with viewBox (S1 fix)
+      </div>
+      <div class="card" style="text-align: center; padding: var(--sp-10); color: var(--text-muted); font-family: Poppins, sans-serif; font-size: 13px;">
+        Query table with pagination (S4 fix) &mdash; existing functionality
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CONFIG — C1-C5 improvements indicated
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-config">
+    <div class="page-header">
+      <div class="page-header-row">
+        <h1>Config</h1>
+        <button class="btn btn-primary btn-md" disabled>Save</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="tabs">
+        <!-- C1: Dirty indicator on tab -->
+        <button class="tab active">Off-limits</button>
+        <button class="tab config-tab-dirty">Sources</button>
+        <button class="tab">Sectors</button>
+      </div>
+
+      <div class="card">
+        <!-- C3: Week number with date range -->
+        <div style="font-family: Poppins, sans-serif; font-size: 14px; font-weight: 600; margin-bottom: var(--sp-4);">
+          Week 12 <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">14&ndash;20 March 2026</span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; font-family: Poppins, sans-serif; font-size: 11px; color: var(--text-muted); text-transform: uppercase; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border);">Company</th>
+              <th style="text-align: left; font-family: Poppins, sans-serif; font-size: 11px; color: var(--text-muted); text-transform: uppercase; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border);">Topic</th>
+              <th style="width: 40px; border-bottom: 1px solid var(--border);"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);">Anthropic</td>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);">DoW contract dispute</td>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);"><button class="btn btn-sm btn-ghost" style="color: var(--danger);">&times;</button></td>
+            </tr>
+            <tr>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);">DeepSeek</td>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);">V4 benchmarks (embargo)</td>
+              <td style="padding: var(--sp-3); border-bottom: 1px solid var(--border);"><button class="btn btn-sm btn-ghost" style="color: var(--danger);">&times;</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- C2: Wider input for adding -->
+        <div style="display: flex; gap: var(--sp-2); margin-top: var(--sp-3);">
+          <input type="text" placeholder="Company" style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px; padding: var(--sp-2) var(--sp-3);">
+          <input type="text" placeholder="Topic" style="flex: 2; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px; padding: var(--sp-2) var(--sp-3);">
+          <button class="btn btn-secondary btn-md">Add</button>
+        </div>
+      </div>
+
+      <!-- C4: Toast preview -->
+      <div style="margin-top: var(--sp-4); font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted);">
+        &#8505; Config changes are saved with confirmation toast (X1). Unsaved changes shown with dot indicator on tab label.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast example (X1) -->
+<div class="toast-container">
+  <div class="toast success">&#10003; Draft saved &mdash; 2,847 words</div>
+</div>
+
+<script>
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  // Find the matching nav item and activate it
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + name + "'")) {
+      n.classList.add('active');
+    }
+  });
+}
+
+function showEditorialTab(name) {
+  document.querySelectorAll('.editorial-tab').forEach(t => { t.classList.remove('active'); t.style.display = 'none'; });
+  const el = document.getElementById('tab-' + name);
+  el.classList.add('active');
+  el.style.display = 'block';
+  document.querySelectorAll('#page-editorial .tabs .tab').forEach(t => t.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  // Update chat context label
+  const contextLabels = {
+    state: 'Analysis Index',
+    themes: 'Theme Registry',
+    backlog: 'Post Backlog',
+    decisions: 'Decision Log',
+    activity: 'Activity Feed'
+  };
+  const label = document.getElementById('chat-context-label');
+  if (label) label.textContent = contextLabels[name] || name;
+}
+
+function showDbTab(name) {
+  document.querySelectorAll('.db-tab').forEach(t => { t.classList.remove('active'); t.style.display = 'none'; });
+  const el = document.getElementById('db-' + name);
+  el.classList.add('active');
+  el.style.display = 'block';
+  document.querySelectorAll('#page-database .tabs .tab, #page-database .tab').forEach(t => t.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+}
+</script>
+</body>
+</html>

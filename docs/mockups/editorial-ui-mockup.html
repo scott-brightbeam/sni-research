@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNI Editorial Intelligence — UI Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --terra: #D4714E;
+    --terra-light: #E89B7D;
+    --terra-dark: #B85A3A;
+    --terra-15: rgba(212,113,78,0.15);
+    --terra-25: rgba(212,113,78,0.25);
+    --pampas: #1a1816;
+    --card-bg: #242220;
+    --surface: #2c2a27;
+    --border: #3a3835;
+    --text-primary: #e8e6dc;
+    --text-secondary: #a09e94;
+    --text-muted: #706e66;
+    --sage: #6FA584;
+    --sage-15: rgba(111,165,132,0.15);
+    --blue: #7CADD6;
+    --blue-15: rgba(124,173,214,0.15);
+    --brown: #A08B6D;
+    --brown-15: rgba(160,139,109,0.15);
+    --purple: #ADA0D0;
+    --purple-15: rgba(173,160,208,0.15);
+    --success: #2ecc71;
+    --success-bg: rgba(46,204,113,0.12);
+    --warning: #f1c40f;
+    --warning-bg: rgba(241,196,15,0.12);
+    --danger: #e74c3c;
+    --danger-bg: rgba(231,76,60,0.12);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow-subtle: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Lora', serif;
+    background: var(--pampas);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-brand {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    padding: 0 20px 20px;
+    color: var(--terra);
+    letter-spacing: -0.5px;
+  }
+  .sidebar-brand span { color: var(--text-secondary); font-weight: 400; font-size: 12px; display: block; margin-top: 2px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--surface); color: var(--text-primary); }
+  .nav-item.active { color: var(--terra); border-left-color: var(--terra); background: var(--terra-15); }
+  .nav-item .icon { width: 18px; text-align: center; font-size: 14px; }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .sidebar-status {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Poppins', sans-serif;
+  }
+  .sidebar-status .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); margin-right: 6px; }
+
+  /* Main content */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .page-header {
+    padding: 20px 32px 0;
+    font-family: 'Poppins', sans-serif;
+  }
+  .page-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-header .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+  .page-content { flex: 1; overflow-y: auto; padding: 20px 32px 32px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    font-family: 'Poppins', sans-serif;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--terra); border-bottom-color: var(--terra); }
+  .tab .tab-count { font-size: 11px; color: var(--text-muted); margin-left: 6px; }
+
+  /* Cards */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Stat grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .stat-label { font-family: 'Poppins', sans-serif; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stat-value { font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 700; }
+  .stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  /* Badges */
+  .badge-immediate { background: var(--danger-bg); color: var(--danger); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-high { background: var(--warning-bg); color: var(--warning); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-medium-high { background: var(--blue-15); color: var(--blue); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-medium { background: var(--brown-15); color: var(--brown); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-tier1 { background: var(--sage-15); color: var(--sage); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-tier2 { background: var(--purple-15); color: var(--purple); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-stub { background: rgba(112,110,102,0.15); color: var(--text-muted); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-suggested { background: var(--blue-15); color: var(--blue); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-published { background: var(--sage-15); color: var(--sage); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .badge-format { background: var(--terra-15); color: var(--terra-light); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'Poppins', sans-serif; font-weight: 500; }
+
+  /* Theme tags */
+  .theme-tag {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    margin: 2px 4px 2px 0;
+  }
+
+  /* List items */
+  .list-item {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: var(--surface); margin: 0 -20px; padding: 16px 20px; border-radius: var(--radius); }
+  .list-item-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .list-item-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .list-item-summary {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .list-item-themes { margin-top: 8px; }
+
+  /* Expanded detail */
+  .expanded-detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-top: 12px;
+  }
+  .expanded-detail h4 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    margin-top: 12px;
+  }
+  .expanded-detail h4:first-child { margin-top: 0; }
+  .expanded-detail p { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+  .cross-connection {
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border-left: 3px solid var(--terra);
+    margin: 6px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-radius: 0 4px 4px 0;
+  }
+  .cross-connection strong { color: var(--terra-light); font-family: 'Poppins', sans-serif; }
+
+  /* Notification card */
+  .notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .notification-item:last-child { border-bottom: none; }
+  .notification-icon { font-size: 16px; margin-top: 2px; }
+  .notification-content { flex: 1; }
+  .notification-title { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .notification-desc { font-size: 12px; color: var(--text-secondary); }
+  .notification-time { font-size: 11px; color: var(--text-muted); font-family: 'Poppins', sans-serif; white-space: nowrap; }
+
+  /* Draft page */
+  .draft-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: calc(100vh - 140px); }
+  .draft-editor {
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    font-family: 'Lora', serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+  }
+  .draft-panel { display: flex; flex-direction: column; }
+  .draft-panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Poppins', sans-serif;
+    background: var(--card-bg);
+  }
+  .draft-panel-tab {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .draft-panel-tab:hover { color: var(--text-primary); }
+  .draft-panel-tab.active { color: var(--terra); border-bottom-color: var(--terra); }
+  .draft-panel-content { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* Critique view */
+  .critique-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .critique-col h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .critique-point {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .critique-point.accepted { border-left: 3px solid var(--sage); }
+  .critique-point.rejected { border-left: 3px solid var(--text-muted); opacity: 0.6; }
+  .critique-verdict {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+  .critique-verdict.accepted { color: var(--sage); }
+  .critique-verdict.rejected { color: var(--text-muted); }
+  .critique-quote {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+    margin-bottom: 6px;
+  }
+
+  /* Activity feed */
+  .activity-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .activity-dot.analyse { background: var(--terra); }
+  .activity-dot.discover { background: var(--blue); }
+  .activity-dot.draft { background: var(--sage); }
+  .activity-dot.error { background: var(--danger); }
+  .activity-content { flex: 1; }
+  .activity-title { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .activity-detail { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  .activity-time { font-size: 11px; color: var(--text-muted); font-family: 'Poppins', sans-serif; white-space: nowrap; margin-top: 2px; }
+
+  /* Cost tracker */
+  .cost-bar-container { margin: 12px 0; }
+  .cost-bar-bg {
+    height: 8px;
+    background: var(--surface);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .cost-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  .cost-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  /* Search */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 16px;
+  }
+  .search-bar input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    outline: none;
+  }
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-icon { color: var(--text-muted); font-size: 14px; }
+
+  /* Filter pills */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: none;
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { border-color: var(--text-secondary); }
+  .filter-pill.active { background: var(--terra-15); border-color: var(--terra); color: var(--terra); }
+
+  /* Version toggle */
+  .version-toggle {
+    display: inline-flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+  }
+  .version-toggle button {
+    padding: 6px 14px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .version-toggle button:hover { color: var(--text-primary); }
+  .version-toggle button.active { background: var(--terra); color: white; }
+
+  /* Draft toolbar */
+  .draft-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .draft-toolbar-left { display: flex; align-items: center; gap: 12px; }
+  .week-selector {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .btn {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .btn-primary { background: var(--terra); color: white; border-color: var(--terra); }
+  .btn-primary:hover { background: var(--terra-dark); }
+
+  /* Hidden pages */
+  .page { display: none; }
+  .page.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+  /* Backlog priority groups */
+  .priority-group { margin-bottom: 24px; }
+  .priority-group-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Evidence block */
+  .evidence-block {
+    background: var(--surface);
+    border-left: 3px solid var(--terra);
+    padding: 10px 14px;
+    margin: 6px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .evidence-source {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--terra-light);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .evidence-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* Dashboard grid */
+  .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .dashboard-grid .full-width { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    SNI Research
+    <span>Editorial Intelligence</span>
+  </div>
+
+  <div class="nav-item" onclick="showPage('dashboard')">
+    <span class="icon">◫</span> Dashboard
+  </div>
+  <div class="nav-item" onclick="showPage('articles')">
+    <span class="icon">☰</span> Articles
+  </div>
+  <div class="nav-item active" onclick="showPage('draft')">
+    <span class="icon">✎</span> Draft
+  </div>
+  <div class="nav-item" onclick="showPage('editorial')">
+    <span class="icon">◈</span> Editorial
+    <span class="badge">2</span>
+  </div>
+  <div class="nav-item" onclick="showPage('copilot')">
+    <span class="icon">◉</span> Co-pilot
+  </div>
+  <div class="nav-item" onclick="showPage('sources')">
+    <span class="icon">⟐</span> Sources
+  </div>
+  <div class="nav-item" onclick="showPage('config')">
+    <span class="icon">⚙</span> Config
+  </div>
+
+  <div class="sidebar-status">
+    <span class="dot"></span> Pipeline healthy<br>
+    Last run: 12m ago
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div class="page" id="page-dashboard">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <div class="subtitle">Week 12 · 14–20 March 2026</div>
+    </div>
+    <div class="page-content">
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Articles this week</div>
+          <div class="stat-value">147</div>
+          <div class="stat-sub">across 5 sectors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Transcripts processed</div>
+          <div class="stat-value">18</div>
+          <div class="stat-sub">Session 16 · 2 remaining</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Stories discovered</div>
+          <div class="stat-value">43</div>
+          <div class="stat-sub">38 found · 5 paywalled</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Weekly cost</div>
+          <div class="stat-value" style="color: var(--sage);">$24</div>
+          <div class="stat-sub">of $60 budget</div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">Editorial Draft Status</div>
+          <div style="display: flex; gap: 24px; align-items: center;">
+            <div>
+              <div style="font-family: Poppins, sans-serif; font-size: 14px; font-weight: 600; margin-bottom: 4px;">Week 12 — Draft ready</div>
+              <div style="font-size: 13px; color: var(--text-secondary);">Opus drafted · Gemini + GPT critiqued · Opus revised</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Critique verdict: REVISE → PUBLISH after revision</div>
+            </div>
+            <div style="margin-left: auto;">
+              <button class="btn btn-primary" onclick="showPage('draft')">Open draft →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- NEW: Post candidates card -->
+        <div class="card">
+          <div class="card-header">
+            Post Candidates
+            <span style="font-size: 11px; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 400;">this week</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">⚡</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #92 The Contract Clause Nobody Is Talking About
+                <span class="badge-immediate" style="margin-left: 4px;">IMMEDIATE</span>
+              </div>
+              <div class="notification-desc">All-lawful-use contract language in government AI procurement. Governance analysis, not political commentary.</div>
+            </div>
+            <span class="notification-time">2h ago</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">⬆</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #89 Google's Culture Problem Is an AI Problem
+                <span class="badge-high" style="margin-left: 4px;">HIGH</span>
+              </div>
+              <div class="notification-desc">The scaffolding gap, not the model gap. Recursive self-improvement as the real differentiator.</div>
+            </div>
+            <span class="notification-time">3h ago</span>
+          </div>
+          <div class="notification-item">
+            <span class="notification-icon">⬆</span>
+            <div class="notification-content">
+              <div class="notification-title">
+                #90 The 4K Ceiling
+                <span class="badge-high" style="margin-left: 4px;">HIGH</span>
+              </div>
+              <div class="notification-desc">When local inference is good enough, value shifts from model quality to platform control.</div>
+            </div>
+            <span class="notification-time">3h ago</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DRAFT PAGE (REWORKED) ==================== -->
+  <div class="page active" id="page-draft">
+    <div class="page-header">
+      <div class="draft-toolbar">
+        <div class="draft-toolbar-left">
+          <select class="week-selector">
+            <option>Week 12</option>
+            <option>Week 11</option>
+            <option>Week 10</option>
+          </select>
+          <div class="version-toggle">
+            <button>v1 (pre-critique)</button>
+            <button class="active">Final</button>
+          </div>
+          <button class="btn">Compare pipeline draft</button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span style="font-size: 12px; color: var(--text-secondary); font-family: Poppins, sans-serif; align-self: center;">2,847 words</span>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+    <div class="draft-layout">
+      <!-- Editor side -->
+      <div class="draft-editor">
+        <div style="color: var(--text-muted); font-family: Poppins, sans-serif; font-size: 11px; margin-bottom: 16px;">EDITORIAL DRAFT · WEEK 12</div>
+
+<div style="font-family: Poppins, sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px;">tl;dr</div>
+
+<div style="margin-bottom: 16px;">The most consequential AI development this week wasn't a model release — it was a contract clause. While the industry debated whether GPT-5.4 deserved the 'best model' crown (the market yawned; benchmarks are, as Zvi Mowshowitz put it, 'kind of over'), the US Department of Work quietly inserted 'all lawful use' language into every government AI procurement contract. Any vendor signing up agrees to unlimited use, no refusal rights, no termination.</div>
+
+<div style="margin-bottom: 16px;">Meanwhile, Anthropic's 81,000-person survey revealed something enterprise leaders should find uncomfortable: the people actually using AI report real benefits at roughly double the rate that non-users experience real harm. The gap isn't between AI optimists and pessimists — it's between those with experience and those with theories. Independent workers capture economic value at three times the rate of institutional employees. The institution itself appears to be the adoption barrier.</div>
+
+<div style="margin-bottom: 16px;">And in Cupertino, Apple's Mac Mini shortage tells a story the company didn't intend to write. OpenClaw agents are driving delivery times from 3 days to 8 weeks for 64GB configurations. When local inference is good enough for most daily tasks, the question flips from 'which model?' to 'whose device?'</div>
+
+<div style="font-family: Poppins, sans-serif; font-size: 16px; font-weight: 700; margin: 24px 0 12px;">General AI</div>
+
+<div style="margin-bottom: 10px;">• <span style="color: var(--blue);">Anthropic publishes largest qualitative AI survey</span> — 81,000 people interviewed by Claude across 159 countries. Benefits are experiential; fears are hypothetical.</div>
+<div style="margin-bottom: 10px;">• <span style="color: var(--blue);">GPT-5.4 launches to market indifference</span> — 'Arguably the best model in the world' and nobody paid attention. Model release fatigue is the new normal.</div>
+<div style="margin-bottom: 10px;">• <span style="color: var(--blue);">Mac Mini 64GB delivery times hit 8 weeks</span> — OpenClaw agent demand drives Apple hardware shortage. Best Buy shelves empty.</div>
+<div style="margin-bottom: 10px;">• <span style="color: var(--blue);">DeepSeek V4 positioned as China litmus test</span> — If it doesn't compete with Opus/GPT-5.4, Chinese labs go 'back in the pack with the open source league.'</div>
+
+<div style="color: var(--text-muted); margin-top: 24px;">[ ... sector sections and podcast synthesis continue ... ]</div>
+      </div>
+
+      <!-- Panel side -->
+      <div class="draft-panel">
+        <div class="draft-panel-tabs">
+          <div class="draft-panel-tab active">Critique</div>
+          <div class="draft-panel-tab">Preview</div>
+          <div class="draft-panel-tab">Review</div>
+          <div class="draft-panel-tab">Links</div>
+        </div>
+        <div class="draft-panel-content">
+          <div style="font-family: Poppins, sans-serif; font-size: 12px; color: var(--text-muted); margin-bottom: 16px; display: flex; justify-content: space-between;">
+            <span>5 points accepted · 2 rejected · Verdict: PUBLISH</span>
+          </div>
+
+          <div class="critique-grid">
+            <div class="critique-col">
+              <h3><span style="color: var(--blue);">●</span> Gemini 3.1</h3>
+              <div class="critique-point accepted">
+                <div class="critique-quote">'the people actually using AI report real benefits at roughly double the rate'</div>
+                The 'roughly double' framing is imprecise. The survey found 91% vs 46% — that's closer to 2:1 for this specific tension pair but varies across others. Suggest: 'consistently higher rates' or cite the specific ratio.
+                <div class="critique-verdict accepted">✓ Accepted — tightened to specific ratio</div>
+              </div>
+              <div class="critique-point accepted">
+                <div class="critique-quote">'the institution itself appears to be the adoption barrier'</div>
+                Strong claim. Supported by the independent worker data (3x rate) but the survey doesn't control for role complexity. Add hedge: 'the evidence suggests' or 'the pattern implies'.
+                <div class="critique-verdict accepted">✓ Accepted — added 'the survey data suggests'</div>
+              </div>
+              <div class="critique-point rejected">
+                Podcast section's second theme block reads more as episode recap than analysis. Needs stronger enterprise framing.
+                <div class="critique-verdict rejected">✗ Rejected — theme block already frames through enterprise lens; restructuring would weaken the narrative flow</div>
+              </div>
+            </div>
+            <div class="critique-col">
+              <h3><span style="color: var(--sage);">●</span> GPT-5.4</h3>
+              <div class="critique-point accepted">
+                Introduction opens with the contract clause, which is strong, but the transition to the Anthropic survey feels abrupt. The connective tissue between 'government procurement' and 'user experience data' needs one sentence.
+                <div class="critique-verdict accepted">✓ Accepted — added bridging sentence</div>
+              </div>
+              <div class="critique-point accepted">
+                UK English check: 'organization' appears twice in the sector sections. Should be 'organisation'.
+                <div class="critique-verdict accepted">✓ Accepted — corrected</div>
+              </div>
+              <div class="critique-point rejected">
+                Consider adding a 'what to watch' forward-looking section at the end.
+                <div class="critique-verdict rejected">✗ Rejected — not part of the established newsletter format; would feel grafted on</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== EDITORIAL PAGE ==================== -->
+  <div class="page" id="page-editorial">
+    <div class="page-header">
+      <h1>Editorial Intelligence</h1>
+      <div class="subtitle">Session 16 · 125 documents · 26 themes · 91 post candidates</div>
+      <div class="tabs">
+        <div class="tab active" onclick="showEditorialTab('state')">State<span class="tab-count">125</span></div>
+        <div class="tab" onclick="showEditorialTab('themes')">Themes<span class="tab-count">26</span></div>
+        <div class="tab" onclick="showEditorialTab('backlog')">Backlog<span class="tab-count">91</span></div>
+        <div class="tab" onclick="showEditorialTab('activity')">Activity</div>
+      </div>
+    </div>
+    <div class="page-content">
+
+      <!-- STATE TAB -->
+      <div class="editorial-tab active" id="tab-state">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search analysis index... (title, source, themes, summary)">
+        </div>
+        <div class="filter-row">
+          <span class="filter-pill active">All</span>
+          <span class="filter-pill">Tier 1</span>
+          <span class="filter-pill">Tier 2</span>
+          <span class="filter-pill">STUB</span>
+          <span style="border-left: 1px solid var(--border); margin: 0 4px;"></span>
+          <span class="filter-pill">Session 16</span>
+          <span class="filter-pill">Session 15</span>
+          <span class="filter-pill">Session 14</span>
+        </div>
+
+        <div class="card" style="padding: 0 20px;">
+          <!-- Entry 1 - expanded -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#122</span>
+              Zvi's Mic Works — Recursive Self-Improvement, Live Player
+              <span class="badge-tier1">Tier 1</span>
+              <span style="font-size: 11px; color: var(--sage); font-family: Poppins, sans-serif;">★ Highest value</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Cognitive Revolution</span>
+              <span>Zvi Mowshowitz</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--sage);">Post potential: very-high</span>
+            </div>
+            <div class="list-item-themes">
+              <span class="theme-tag">T01</span>
+              <span class="theme-tag">T03</span>
+              <span class="theme-tag">T04</span>
+              <span class="theme-tag">T05</span>
+              <span class="theme-tag">T07</span>
+              <span class="theme-tag">T25</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Summary</h4>
+              <p>3+ hour conversation covering the full AI landscape. Five enterprise-relevant threads. (a) Lab competition: Only Big Three (Anthropic, OpenAI, Google) matter in the West. xAI disqualified by talent acquisition failure. Meta should license rather than build frontier. (b) Google in danger of falling from top tier — not a model quality claim but a scaffolding/integration/culture claim. Gemini models 'deeply psychologically screwed up and paranoid.' Recursive self-improvement gap compounds everything. (c) Model release fatigue is the new normal. Even GPT-5.4 got muted reception. (d) Anthropic-DoW: the real red line was domestic mass surveillance. 'All lawful use' contract language across every government AI contract. (e) Personal productivity: flow-state preservation through context-switching elimination. Trust in dual-model verification.</p>
+              <h4>Post potential reasoning</h4>
+              <p>Multiple angles: Google's cultural problem, model release fatigue, all-lawful-use contracts, context-switching productivity. Each could be a standalone post.</p>
+            </div>
+          </div>
+
+          <!-- Entry 2 - collapsed -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#120</span>
+              What People Really Want From AI
+              <span class="badge-tier1">Tier 1</span>
+            </div>
+            <div class="list-item-meta">
+              <span>AI Daily Brief</span>
+              <span>Nathaniel Whittemore</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--sage);">Post potential: high</span>
+            </div>
+            <div class="list-item-themes">
+              <span class="theme-tag">T01</span>
+              <span class="theme-tag">T10</span>
+              <span class="theme-tag">T23</span>
+              <span class="theme-tag">T25</span>
+            </div>
+          </div>
+
+          <!-- Entry 3 -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#124</span>
+              Why I Changed My Mind About Apple
+              <span class="badge-tier1">Tier 1</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Exponential View</span>
+              <span>Azeem Azhar</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--brown);">Post potential: medium-high</span>
+            </div>
+            <div class="list-item-themes">
+              <span class="theme-tag">T03</span>
+              <span class="theme-tag">T05</span>
+              <span class="theme-tag">T23</span>
+            </div>
+          </div>
+
+          <!-- Entry 4 - Tier 2 -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#123</span>
+              Understanding Consumer Debt Collections
+              <span class="badge-tier2">Tier 2</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Complex Systems</span>
+              <span>Patrick McKenzie</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--text-muted);">Post potential: low</span>
+            </div>
+          </div>
+
+          <!-- Entry 5 - Stub -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#121</span>
+              AI Just Gave You Superpowers. Now What?
+              <span class="badge-stub">STUB</span>
+            </div>
+            <div class="list-item-meta">
+              <span>a16z Show</span>
+              <span>19 Mar 2026</span>
+              <span>Session 15</span>
+              <span style="color: var(--text-muted);">9 lines · header only</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THEMES TAB -->
+      <div class="editorial-tab" id="tab-themes" style="display:none;">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search themes... (name, evidence, cross-connections)">
+        </div>
+
+        <div class="card" style="padding: 0 20px;">
+          <!-- Theme 1 - expanded -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T01</span>
+              Enterprise Diffusion Gap
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">34 docs · Updated Session 15</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Recent evidence (last 3 sessions)</h4>
+              <div class="evidence-block">
+                <div class="evidence-source">Session 15 · AI Daily Brief (19 March)</div>
+                <div class="evidence-text">Anthropic 81,000-person survey — benefits are experiential, fears are hypothetical. 91% of those citing learning benefits had experienced them vs 46% of those fearing cognitive atrophy. The experiential-hypothetical gap maps directly onto the enterprise adoption challenge.</div>
+              </div>
+              <div class="evidence-block">
+                <div class="evidence-source">Session 15 · Cognitive Revolution/Zvi (19 March)</div>
+                <div class="evidence-text">Model release fatigue — even GPT-5.4 got muted reception. Benchmarks 'kind of over' as useful signals. Reinforces that the bottleneck is organisational absorption, not technical advancement.</div>
+              </div>
+              <h4>Cross-connections</h4>
+              <div class="cross-connection">
+                <strong>T05</strong> — model release fatigue + Google's integration problem both illustrate that capability without organisational absorption is wasted
+              </div>
+              <div class="cross-connection">
+                <strong>T10</strong> — independent workers capturing value while institutional employees don't extends the displacement evidence — the institution is the barrier
+              </div>
+              <div class="cross-connection">
+                <strong>T23</strong> — intelligence abundance without organisational absorption = the diffusion gap
+              </div>
+            </div>
+          </div>
+
+          <!-- Theme 2 - collapsed -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T03</span>
+              Agentic Architecture & Deployment
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">28 docs · Updated Session 15</span>
+            </div>
+          </div>
+
+          <!-- Theme 3 -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T05</span>
+              Commoditisation & Platform Competition
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">31 docs · Updated Session 15</span>
+            </div>
+          </div>
+
+          <!-- Theme with stale indicator -->
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T12</span>
+              Enterprise Data Strategy
+              <span style="font-size: 11px; color: var(--warning); font-family: Poppins, sans-serif; margin-left: auto;">⚠ 6 docs · Last updated Session 9</span>
+            </div>
+          </div>
+
+          <div class="list-item">
+            <div class="list-item-title">
+              <span class="theme-tag" style="font-size: 12px;">T23</span>
+              Abundance Displacement
+              <span style="font-size: 11px; color: var(--text-muted); font-family: Poppins, sans-serif; margin-left: auto;">15 docs · Updated Session 15</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKLOG TAB -->
+      <div class="editorial-tab" id="tab-backlog" style="display:none;">
+        <div class="filter-row">
+          <span class="filter-pill active">Active</span>
+          <span class="filter-pill">Published</span>
+          <span class="filter-pill">Archived</span>
+          <span style="border-left: 1px solid var(--border); margin: 0 4px;"></span>
+          <span class="filter-pill">quiet-observation</span>
+          <span class="filter-pill">news-decoder</span>
+          <span class="filter-pill">concept-contrast</span>
+          <span class="filter-pill">practitioners-take</span>
+        </div>
+
+        <!-- IMMEDIATE -->
+        <div class="priority-group">
+          <div class="priority-group-header">
+            <span class="badge-immediate">IMMEDIATE</span>
+            <span style="color: var(--text-muted); font-weight: 400;">1 post</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#91</span>
+              The Contract Clause Nobody Is Talking About
+              <span class="badge-format">quiet-observation</span>
+              <span class="badge-suggested">suggested</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #122</span>
+              <span style="color: var(--danger);">very-timely</span>
+            </div>
+            <div class="expanded-detail">
+              <h4>Core argument</h4>
+              <p>The all-lawful-use contract language being inserted into every government AI procurement contract means unlimited use, no refusal rights, no termination. This is a structural governance shift that affects every AI vendor and enterprise buyer, regardless of the specific Anthropic-DoW conflict that surfaced it.</p>
+              <h4>Editorial risks</h4>
+              <p>Political territory. Must be framed as procurement/governance analysis, not political commentary or Anthropic advocacy. Test: could this post be shared by a risk/compliance officer without appearing to take a political side?</p>
+              <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button class="btn btn-primary">Approve</button>
+                <button class="btn">Start drafting</button>
+                <button class="btn">Archive</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HIGH -->
+        <div class="priority-group">
+          <div class="priority-group-header">
+            <span class="badge-high">HIGH</span>
+            <span style="color: var(--text-muted); font-weight: 400;">3 posts</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#82</span>
+              Exposure Is Not Displacement
+              <span class="badge-format">concept-contrast</span>
+              <span class="badge-suggested">suggested</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 14</span>
+              <span>Sources: #108, #110</span>
+              <span style="color: var(--warning);">timely-evergreen ⚠ Karpathy peg fading</span>
+            </div>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#88</span>
+              The Benefits Are Real, the Fears Are Imagined
+              <span class="badge-format">news-decoder</span>
+              <span class="badge-suggested">suggested</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #120</span>
+              <span>timely-evergreen</span>
+              <span style="color: var(--blue);">→ Sequence after #82</span>
+            </div>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#89</span>
+              Google's Culture Problem Is an AI Problem
+              <span class="badge-format">news-decoder</span>
+              <span class="badge-suggested">suggested</span>
+            </div>
+            <div class="list-item-meta">
+              <span>Session 15</span>
+              <span>Sources: #122</span>
+              <span>timely-evergreen</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Published examples -->
+        <div class="priority-group" style="opacity: 0.5;">
+          <div class="priority-group-header">
+            <span class="badge-published">PUBLISHED</span>
+            <span style="color: var(--text-muted); font-weight: 400;">2 posts</span>
+          </div>
+          <div class="list-item">
+            <div class="list-item-title">
+              <span style="color: var(--text-muted); font-size: 12px;">#43</span>
+              Multi-agent team dysfunction
+              <span class="badge-published">published</span>
+            </div>
+            <div class="list-item-meta"><span>Published 15 Mar</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY TAB -->
+      <div class="editorial-tab" id="tab-activity" style="display:none;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+          <div class="card">
+            <div class="card-header">Processing feed</div>
+
+            <div class="activity-item">
+              <span class="activity-dot analyse"></span>
+              <div class="activity-content">
+                <div class="activity-title">ANALYSE Session 16 complete</div>
+                <div class="activity-detail">
+                  18 transcripts processed · 4 Tier 1 · 2 Tier 2 · 1 STUB<br>
+                  6 themes updated (T01, T03, T05, T07, T10, T25) · 3 post candidates surfaced<br>
+                  Highest value: #127 Cognitive Revolution/Zvi — 6 themes, 3 posts
+                </div>
+              </div>
+              <span class="activity-time">2h ago</span>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot discover"></span>
+              <div class="activity-content">
+                <div class="activity-title">DISCOVER Session 16</div>
+                <div class="activity-detail">
+                  43 story references · 38 articles found · 5 paywalled (logged)<br>
+                  Articles written to data/verified/ for Week 12
+                </div>
+              </div>
+              <span class="activity-time">1h ago</span>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot draft"></span>
+              <div class="activity-content">
+                <div class="activity-title">DRAFT Week 12 complete</div>
+                <div class="activity-detail">
+                  Opus v1 draft → Gemini critique (REVISE) + GPT critique (REVISE) → Opus revision (PUBLISH)<br>
+                  5 critique points accepted · 2 rejected · Final: 2,847 words
+                </div>
+              </div>
+              <span class="activity-time">45m ago</span>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot error"></span>
+              <div class="activity-content">
+                <div class="activity-title">ANALYSE: Opus JSON validation failed</div>
+                <div class="activity-detail">
+                  Transcript: Moonshots — AI and Defence (18 March)<br>
+                  Error: theme code T99 not found in registry. Retried with correction prompt — succeeded.
+                </div>
+              </div>
+              <span class="activity-time">3h ago</span>
+            </div>
+
+            <div class="activity-item">
+              <span class="activity-dot analyse"></span>
+              <div class="activity-content">
+                <div class="activity-title">ANALYSE Session 15 complete</div>
+                <div class="activity-detail">
+                  6 transcripts · 4 Tier 1 · 2 Tier 2 · 1 STUB · 8 themes updated · 4 posts
+                </div>
+              </div>
+              <span class="activity-time">Yesterday</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">Cost this week</div>
+              <div style="font-family: Poppins, sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 4px;">$24.30</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">of $60 weekly budget</div>
+              <div class="cost-bar-container">
+                <div class="cost-bar-bg">
+                  <div class="cost-bar-fill" style="width: 40.5%; background: var(--sage);"></div>
+                </div>
+                <div class="cost-labels">
+                  <span>$0</span>
+                  <span style="color: var(--warning);">$40 alert</span>
+                  <span>$60 cap</span>
+                </div>
+              </div>
+              <div style="margin-top: 16px; font-size: 12px; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ANALYSE (18 calls)</span><span>$18.40</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>DISCOVER</span><span>$0.80</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>DRAFT + critique</span><span>$4.20</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Revision</span><span>$0.90</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">Prompt versions</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>editorial-analyse</span>
+                  <span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>editorial-draft</span>
+                  <span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <span>editorial-critique</span>
+                  <span style="color: var(--sage); font-family: Poppins, sans-serif;">v1</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span>editorial-context</span>
+                  <span style="color: var(--sage); font-family: Poppins, sans-serif;">v1 (Scott)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Placeholder pages -->
+  <div class="page" id="page-articles">
+    <div class="page-header"><h1>Articles</h1><div class="subtitle">Existing page — unchanged</div></div>
+    <div class="page-content"><div class="card" style="color: var(--text-muted); text-align: center; padding: 60px;">Existing Articles page — no changes proposed</div></div>
+  </div>
+  <div class="page" id="page-copilot">
+    <div class="page-header"><h1>Co-pilot</h1><div class="subtitle">Existing page — editorial state added to context</div></div>
+    <div class="page-content"><div class="card" style="color: var(--text-muted); text-align: center; padding: 60px;">Existing Co-pilot page — no visual changes. Editorial state documents (themes, backlog, analysis index) injected into context assembly automatically.</div></div>
+  </div>
+  <div class="page" id="page-sources">
+    <div class="page-header"><h1>Sources</h1><div class="subtitle">Existing page — unchanged</div></div>
+    <div class="page-content"><div class="card" style="color: var(--text-muted); text-align: center; padding: 60px;">Existing Sources page — no changes proposed</div></div>
+  </div>
+  <div class="page" id="page-config">
+    <div class="page-header"><h1>Config</h1><div class="subtitle">Existing page — unchanged</div></div>
+    <div class="page-content"><div class="card" style="color: var(--text-muted); text-align: center; padding: 60px;">Existing Config page — no changes proposed</div></div>
+  </div>
+</div>
+
+<script>
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function showEditorialTab(name) {
+  document.querySelectorAll('.editorial-tab').forEach(t => t.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+</script>
+</body>
+</html>

@@ -23,19 +23,20 @@ Use this theme to frame the tl;dr intro, connect stories across sectors in the b
 
 ## Story selection — hard limits
 
-Select **exactly 12–15 stories** from the research pack. This is a hard ceiling – do not write 16 or more stories under any circumstances, even if the research pack contains 30+ articles. Count your stories before you begin writing. If you have more than 15, cut until you reach 15. Fewer stories with deeper analysis always beats more stories with shallow coverage.
+Select **exactly 25–30 stories** from the research pack. This is a hard ceiling – do not write 31 or more stories under any circumstances, even if the research pack contains 50+ articles. Count your stories before you begin writing. If you have more than 30, cut until you reach 30. Rank stories by editorial strength and include only the strongest.
 
-**Sector allocation** (must sum to 12–15 total):
-- AI & tech: 4–6 stories
-- Each vertical sector: 2–3 stories
-- If a vertical has only 1 article, include it. If zero, skip it.
+**Sector allocation** (must sum to 25–30 total):
+- AI & tech: 5–10 stories
+- Each vertical sector: 5 stories minimum
+- If a vertical has fewer than 5 articles, include all available. If zero, skip it.
+- Within each sector, select the strongest-scoring stories first. The editor will trim — your job is to provide the best 5+ options per sector.
 
 **Word budget check** — verify before writing:
-- Total report target: 3,000–4,000 words. Do not exceed 4,000.
-- AI & tech body: 800–1,500 words
-- Each vertical body: 300–700 words
-- tl;dr + transitions: ~400 words
-- If your planned story count × 180 words average exceeds 3,500 words of body content, cut the weakest story in the largest section.
+- Total report target: 5,000–7,000 words. Do not exceed 7,000.
+- AI & tech body: 1,000–2,000 words
+- Each vertical body: 500–1,000 words (must accommodate 5 stories minimum)
+- tl;dr + transitions: ~500 words
+- If your planned story count × 150 words average exceeds 6,000 words of body content, tighten the analysis per story rather than cutting stories.
 
 **tl;dr/body alignment**: The tl;dr section weaves key stories into narrative prose — not every story needs a 1:1 mapping between tl;dr and body. Stories referenced in the tl;dr prose must appear in the body. Stories in the body that are not in the tl;dr must appear in the sector bullet summaries. The sector bullets capture additional stories not already covered in the tl;dr prose.
 

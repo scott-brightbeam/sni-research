@@ -1,12 +1,15 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, unlinkSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs'
+import { join, resolve } from 'path'
+import { getDb } from '../lib/db.js'
+import * as eq from '../lib/editorial-queries.js'
+import { getISOWeek } from '../lib/week.js'
 import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
 import { DRAFT_TOOLS, executeTool } from '../lib/editorial-tools.js'
 import config from '../lib/config.js'
-import { withStateLock } from '../lib/state-lock.js'
 
-const ROOT = config.ROOT
+const ROOT = resolve(import.meta.dir, '../../..')
+
 function editorialDir() {
   return process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
 }
@@ -23,58 +26,7 @@ function readJSON(path) {
   }
 }
 
-function getState() {
-  return readJSON(join(editorialDir(), 'state.json'))
-}
-
-function getPublished() {
-  return readJSON(join(editorialDir(), 'published.json'))
-}
-
-function getNotifications() {
-  return readJSON(join(editorialDir(), 'notifications.json')) || []
-}
-
-function writeState(state) {
-  const statePath = join(editorialDir(), 'state.json')
-  const tmpPath = statePath + '.tmp'
-  const bakPath = statePath + '.bak'
-
-  // Phase 1: Write and validate tmp file
-  try {
-    writeFileSync(tmpPath, JSON.stringify(state, null, 2))
-    JSON.parse(readFileSync(tmpPath, 'utf-8'))
-  } catch (err) {
-    try { unlinkSync(tmpPath) } catch { /* cleanup best-effort */ }
-    throw new Error(`Failed to write editorial state: ${err.message}`)
-  }
-
-  // Phase 2: Atomic swap — recover if mid-swap failure
-  try {
-    if (existsSync(statePath)) renameSync(statePath, bakPath)
-    renameSync(tmpPath, statePath)
-  } catch (err) {
-    // If state.json was moved to .bak but .tmp rename failed, restore from .bak
-    if (!existsSync(statePath) && existsSync(bakPath)) {
-      try { renameSync(bakPath, statePath) } catch { /* last-resort recovery failed */ }
-    }
-    try { unlinkSync(tmpPath) } catch { /* cleanup best-effort */ }
-    throw new Error(`Failed to swap editorial state file: ${err.message}`)
-  }
-}
-
 const STALE_LOCK_MS = 30 * 60 * 1000 // 30 minutes
-
-/** Guard: reject state writes while the ANALYSE pipeline is running. */
-function guardAgainstPipelineWrite() {
-  const lock = checkLock('analyse')
-  if (lock) {
-    throw Object.assign(
-      new Error('ANALYSE pipeline is running; cannot modify state. Try again shortly.'),
-      { status: 409 }
-    )
-  }
-}
 
 function checkLock(stage) {
   const lockPath = join(editorialDir(), `.${stage}.lock`)
@@ -84,12 +36,11 @@ function checkLock(stage) {
 
   const age = Date.now() - new Date(lockData.timestamp).getTime()
   if (age > STALE_LOCK_MS) {
-    // Stale lock — clean it up
     try {
       unlinkSync(lockPath)
     } catch (err) {
       console.error(`[editorial] Failed to clean up stale lock ${lockPath}: ${err.message}`)
-      return lockData // Lock file still exists on disk
+      return lockData
     }
     return null
   }
@@ -98,6 +49,7 @@ function checkLock(stage) {
 }
 
 function spawnStage(script) {
+  const config = { PIPELINE_ENABLED: process.env.PIPELINE_ENABLED !== 'false', ROOT }
   if (!config.PIPELINE_ENABLED) {
     throw Object.assign(new Error('Pipeline execution disabled on this server'), { status: 403 })
   }
@@ -105,14 +57,10 @@ function spawnStage(script) {
   if (!existsSync(scriptPath)) {
     throw Object.assign(new Error(`Script not found: ${script}`), { status: 500 })
   }
-  // In test mode, return a fake process instead of spawning real pipeline scripts.
-  // This prevents tests from making real Opus API calls ($85+ per test run).
   if (process.env.SNI_TEST_MODE || process.env.NODE_ENV === 'test') {
     console.log(`[editorial] TEST MODE — skipping spawn of ${script}`)
     return { pid: -1, exited: Promise.resolve(0) }
   }
-  // Sanitise subprocess environment — only pass safe variables.
-  // Pipeline scripts load their own API keys via loadEnvKey() from .env.
   const safeEnv = Object.fromEntries(
     ['PATH', 'HOME', 'USER', 'SHELL', 'TERM', 'LANG', 'NODE_ENV', 'SNI_TEST_MODE']
       .filter(k => process.env[k])
@@ -130,34 +78,112 @@ function spawnStage(script) {
   return proc
 }
 
-function matchesSearch(entry, query) {
-  if (!query) return true
-  const q = query.toLowerCase()
-  const hay = [
-    entry.title,
-    entry.source,
-    entry.host,
-    entry.keyThemes,
-    entry.summary,
-    ...(entry.themes || []),
-  ].filter(Boolean).join(' ').toLowerCase()
-  return hay.includes(q)
+// ── snake_case → camelCase conversion ────────────────────
+//
+// The DB uses snake_case column names; the UI expects camelCase
+// to match the original state.json format.
+
+const COLUMN_MAP = {
+  date_processed: 'dateProcessed',
+  key_themes: 'keyThemes',
+  post_potential: 'postPotential',
+  post_potential_reasoning: 'postPotentialReasoning',
+  created_at: 'createdAt',
+  updated_at: 'updatedAt',
+  created_session: 'createdSession',
+  last_updated_session: 'lastUpdatedSession',
+  document_count: 'documentCount',
+  evidence_count: 'evidenceCount',
+  latest_evidence_session: 'latestEvidenceSession',
+  working_title: 'workingTitle',
+  core_argument: 'coreArgument',
+  date_added: 'dateAdded',
+  source_documents: 'sourceDocuments',
+  source_urls: 'sourceUrls',
+  date_published: 'datePublished',
+  theme_code: 'themeCode',
+  from_code: 'fromCode',
+  to_code: 'toCode',
+  post_id: 'postId',
+  total_documents: 'totalDocuments',
+  active_tier1: 'activeTier1',
+  active_tier2: 'activeTier2',
+  reference_documents: 'referenceDocuments',
+  active_themes: 'activeThemes',
+  total_posts: 'totalPosts',
+  posts_published: 'postsPublished',
+  posts_approved: 'postsApproved',
+  session_id: 'sessionId',
+  source_type: 'sourceType',
+}
+
+// Columns stored as JSON strings that need parsing
+const JSON_COLUMNS = new Set([
+  'themes', 'key_themes', 'keyThemes',
+  'source_documents', 'sourceDocuments',
+  'source_urls', 'sourceUrls',
+  'participants',
+  'costs',
+])
+
+/**
+ * Convert a single DB row from snake_case to camelCase,
+ * parsing JSON string columns as needed.
+ */
+function toCamelCase(row) {
+  if (!row) return row
+  const out = {}
+  for (const [key, value] of Object.entries(row)) {
+    const camelKey = COLUMN_MAP[key] || key
+    if (JSON_COLUMNS.has(key) && typeof value === 'string') {
+      try {
+        out[camelKey] = JSON.parse(value)
+      } catch {
+        out[camelKey] = value
+      }
+    } else {
+      out[camelKey] = value
+    }
+  }
+  return out
+}
+
+/**
+ * Convert an array of DB rows.
+ */
+function rowsToCamelCase(rows) {
+  return (rows || []).map(toCamelCase)
 }
 
 // ── GET /api/editorial/state ─────────────────────────────
 
 export async function getEditorialState({ section, week, showArchived } = {}) {
-  const state = getState()
-  if (!state) return { error: 'No editorial state found', data: null }
+  const db = getDb()
 
   if (!section) {
+    const [counters, corpusStats] = await Promise.all([
+      eq.getCounters(db),
+      eq.getCorpusStats(db),
+    ])
+
+    // Counts for summary view
+    const [entriesResult, themesResult, postsResult] = await Promise.all([
+      db.execute('SELECT COUNT(*) AS cnt FROM analysis_entries WHERE archived = 0'),
+      db.execute('SELECT COUNT(*) AS cnt FROM themes WHERE archived = 0'),
+      db.execute('SELECT COUNT(*) AS cnt FROM posts'),
+    ])
+
+    // Rotation candidates from the table
+    const rotResult = await db.execute('SELECT content FROM rotation_candidates')
+    const rotationCandidates = rotResult.rows.map(r => r.content)
+
     return {
-      counters: state.counters,
-      corpusStats: state.corpusStats,
-      rotationCandidates: state.rotationCandidates || [],
-      entryCount: Object.keys(state.analysisIndex || {}).length,
-      themeCount: Object.keys(state.themeRegistry || {}).length,
-      postCount: Object.keys(state.postBacklog || {}).length,
+      counters,
+      corpusStats: toCamelCase(corpusStats),
+      rotationCandidates,
+      entryCount: Number(entriesResult.rows[0].cnt),
+      themeCount: Number(themesResult.rows[0].cnt),
+      postCount: Number(postsResult.rows[0].cnt),
     }
   }
 
@@ -165,41 +191,43 @@ export async function getEditorialState({ section, week, showArchived } = {}) {
 
   switch (section) {
     case 'analysisIndex': {
-      let entries = Object.entries(state.analysisIndex || {}).map(([id, entry]) => ({
-        id: Number(id),
-        ...entry,
-      }))
-      if (!includeArchived) entries = entries.filter(e => !e.archived)
-      entries.sort((a, b) => b.id - a.id)
-      return { entries }
+      const rows = await eq.getAnalysisEntries(db, { showArchived: includeArchived })
+      return { entries: rowsToCamelCase(rows) }
     }
     case 'themeRegistry': {
-      let themes = Object.entries(state.themeRegistry || {}).map(([code, theme]) => ({
-        code,
-        ...theme,
+      const rows = await eq.getThemes(db, { showArchived: includeArchived })
+      // Enrich each theme with evidence and connections for full API compatibility
+      const themes = await Promise.all(rows.map(async (row) => {
+        const detail = await eq.getThemeWithEvidence(db, row.code)
+        const theme = toCamelCase(row)
+        if (detail) {
+          theme.evidence = rowsToCamelCase(detail.evidence)
+          theme.crossConnections = detail.connections.map(c => ({
+            theme: c.from_code === row.code ? c.to_code : c.from_code,
+            reasoning: c.reasoning,
+          }))
+        } else {
+          theme.evidence = []
+          theme.crossConnections = []
+        }
+        // Map DB field names to legacy API names
+        theme.created = theme.createdSession || theme.createdAt
+        theme.lastUpdated = theme.lastUpdatedSession || theme.updatedAt
+        return theme
       }))
-      if (!includeArchived) themes = themes.filter(t => !t.archived)
-      // Sort by most recently cited (latest evidence session) — newest first
-      const latestSession = (t) => Math.max(0, ...(t.evidence || []).map(e => e.session || 0))
-      themes.sort((a, b) => latestSession(b) - latestSession(a))
       return { themes }
     }
     case 'postBacklog': {
-      const posts = Object.entries(state.postBacklog || {}).map(([id, post]) => ({
-        id: Number(id),
-        ...post,
-      }))
-      posts.sort((a, b) => b.id - a.id)
-      return { posts }
+      const rows = await eq.getPosts(db, {})
+      return { posts: rowsToCamelCase(rows) }
     }
     case 'decisionLog': {
-      let decisions = [...(state.decisionLog || [])]
-      if (!includeArchived) decisions = decisions.filter(d => !d.archived)
-      // Reverse so newest first
-      return { decisions: decisions.reverse() }
+      const rows = await eq.getDecisions(db, { showArchived: includeArchived })
+      return { decisions: rowsToCamelCase(rows) }
     }
     case 'corpusStats': {
-      return { corpusStats: state.corpusStats || {} }
+      const stats = await eq.getCorpusStats(db)
+      return { corpusStats: toCamelCase(stats) }
     }
     default:
       return { error: `Unknown section: ${section}`, data: null }
@@ -209,91 +237,54 @@ export async function getEditorialState({ section, week, showArchived } = {}) {
 // ── GET /api/editorial/search ────────────────────────────
 
 export async function searchEditorial({ q } = {}) {
-  const state = getState()
-  if (!state || !q) return { results: [] }
-
-  const results = []
-
-  // Search Analysis Index (skip archived)
-  for (const [id, entry] of Object.entries(state.analysisIndex || {})) {
-    if (entry.archived) continue
-    if (matchesSearch(entry, q)) {
-      results.push({ type: 'analysisIndex', id: Number(id), title: entry.title, source: entry.source, tier: entry.tier })
-    }
-  }
-
-  // Search Theme Registry (skip archived)
-  for (const [code, theme] of Object.entries(state.themeRegistry || {})) {
-    if (theme.archived) continue
-    const hay = [theme.name, ...(theme.evidence || []).map(e => e.content)].join(' ').toLowerCase()
-    if (hay.includes(q.toLowerCase())) {
-      results.push({ type: 'theme', code, name: theme.name, documentCount: theme.documentCount })
-    }
-  }
-
-  // Search Post Backlog
-  for (const [id, post] of Object.entries(state.postBacklog || {})) {
-    const hay = [post.title, post.workingTitle, post.coreArgument, post.notes].filter(Boolean).join(' ').toLowerCase()
-    if (hay.includes(q.toLowerCase())) {
-      results.push({ type: 'post', id: Number(id), title: post.title, status: post.status, priority: post.priority })
-    }
-  }
-
+  if (!q) return { results: [] }
+  const db = getDb()
+  const results = await eq.searchEditorial(db, q)
+  // searchEditorial already returns camelCase-friendly shape
+  // (type, id, title, source, match) — no snake_case conversion needed
   return { results, query: q }
 }
 
 // ── GET /api/editorial/backlog ───────────────────────────
 
 export async function getEditorialBacklog({ priority, status, format } = {}) {
-  const state = getState()
-  if (!state) return { posts: [] }
-
-  let posts = Object.entries(state.postBacklog || {}).map(([id, post]) => ({
-    id: Number(id),
-    ...post,
-  }))
-
-  if (priority) posts = posts.filter(p => p.priority === priority)
-  if (status) posts = posts.filter(p => p.status === status)
-  if (format) posts = posts.filter(p => p.format === format)
-
-  posts.sort((a, b) => b.id - a.id)
-  return { posts }
+  const db = getDb()
+  const rows = await eq.getPosts(db, { priority, status, format })
+  return { posts: rowsToCamelCase(rows) }
 }
 
 // ── GET /api/editorial/themes ────────────────────────────
 
 export async function getEditorialThemes({ active, stale, showArchived } = {}) {
-  const state = getState()
-  if (!state) return { themes: [] }
+  const db = getDb()
+  const counters = await eq.getCounters(db)
+  const currentSession = (counters.nextSession || 1) - 1
 
-  let themes = Object.entries(state.themeRegistry || {}).map(([code, theme]) => ({
-    code,
-    ...theme,
+  const rows = await eq.getThemes(db, {
+    active: active === 'true',
+    stale: stale === 'true',
+    showArchived: showArchived === 'true',
+    currentSession,
+  })
+
+  // Enrich with evidence and connections
+  const themes = await Promise.all(rows.map(async (row) => {
+    const detail = await eq.getThemeWithEvidence(db, row.code)
+    const theme = toCamelCase(row)
+    if (detail) {
+      theme.evidence = rowsToCamelCase(detail.evidence)
+      theme.crossConnections = detail.connections.map(c => ({
+        theme: c.from_code === row.code ? c.to_code : c.from_code,
+        reasoning: c.reasoning,
+      }))
+    } else {
+      theme.evidence = []
+      theme.crossConnections = []
+    }
+    theme.created = theme.createdSession || theme.createdAt
+    theme.lastUpdated = theme.lastUpdatedSession || theme.updatedAt
+    return theme
   }))
-
-  // Filter archived unless explicitly requested
-  if (showArchived !== 'true') themes = themes.filter(t => !t.archived)
-
-  // 'active' = has evidence in last 3 sessions
-  if (active === 'true' && state.counters) {
-    const recentSession = state.counters.nextSession - 1
-    themes = themes.filter(t =>
-      (t.evidence || []).some(e => e.session >= recentSession - 2)
-    )
-  }
-
-  // 'stale' = no evidence in last 3 sessions
-  if (stale === 'true' && state.counters) {
-    const recentSession = state.counters.nextSession - 1
-    themes = themes.filter(t =>
-      !(t.evidence || []).some(e => e.session >= recentSession - 2)
-    )
-  }
-
-  // Sort by most recently cited (latest evidence session) — newest first
-  const latestSession = (t) => Math.max(0, ...(t.evidence || []).map(e => e.session || 0))
-  themes.sort((a, b) => latestSession(b) - latestSession(a))
 
   return { themes }
 }
@@ -301,19 +292,21 @@ export async function getEditorialThemes({ active, stale, showArchived } = {}) {
 // ── GET /api/editorial/notifications ─────────────────────
 
 export async function getEditorialNotifications() {
-  const notifications = getNotifications()
-  return { notifications }
+  const db = getDb()
+  const rows = await eq.getNotifications(db, { showDismissed: false })
+  return { notifications: rowsToCamelCase(rows) }
 }
 
 // ── PUT /api/editorial/notifications/:id/dismiss ─────────
 
 export async function dismissNotification(id) {
-  // For now, notifications are append-only from the pipeline.
-  // Dismissal is tracked client-side (localStorage) until Phase E4 adds write endpoints.
+  const db = getDb()
+  await eq.dismissNotification(db, id)
   return { ok: true, id }
 }
 
 // ── GET /api/editorial/status ────────────────────────────
+// Stays on filesystem — reads lock files
 
 export async function getEditorialStatus() {
   const stages = ['analyse', 'discover', 'draft']
@@ -321,7 +314,7 @@ export async function getEditorialStatus() {
   const progress = {}
 
   for (const stage of stages) {
-    const lockData = checkLock(stage) // handles stale lock cleanup
+    const lockData = checkLock(stage)
     locks[stage] = !!lockData
     if (lockData) {
       progress[stage] = {
@@ -339,11 +332,11 @@ export async function getEditorialStatus() {
 // ── GET /api/editorial/cost ──────────────────────────────
 
 export async function getEditorialCost({ week } = {}) {
-  // Cost data will be written by pipeline scripts as they run.
-  // Read from cost-log files when they exist.
-  const costFile = join(editorialDir(), 'cost-log.json')
-  const costData = readJSON(costFile)
-  if (!costData) {
+  const db = getDb()
+
+  // Read from cost_log table
+  const result = await db.execute('SELECT * FROM cost_log ORDER BY timestamp DESC')
+  if (result.rows.length === 0) {
     return {
       weeklyTotal: 0,
       budget: 50,
@@ -351,76 +344,92 @@ export async function getEditorialCost({ week } = {}) {
     }
   }
 
+  // Group by week using the timestamp field
+  const weeks = {}
+  for (const row of result.rows) {
+    const ts = row.timestamp
+    if (!ts) continue
+    const d = new Date(ts)
+    const weekKey = `${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2, '0')}`
+
+    if (!weeks[weekKey]) {
+      weeks[weekKey] = { weeklyTotal: 0, budget: 50, breakdown: {} }
+    }
+    const stage = row.stage || 'unknown'
+    weeks[weekKey].breakdown[stage] = (weeks[weekKey].breakdown[stage] || 0) + (row.total || 0)
+    weeks[weekKey].weeklyTotal += row.total || 0
+  }
+
   if (week) {
-    const weekData = costData.weeks?.[week]
-    return weekData || { weeklyTotal: 0, budget: 50, breakdown: {} }
+    return weeks[week] || { weeklyTotal: 0, budget: 50, breakdown: {} }
   }
 
   // Return most recent week
-  const weeks = Object.keys(costData.weeks || {}).sort()
-  const latest = weeks[weeks.length - 1]
-  return costData.weeks?.[latest] || { weeklyTotal: 0, budget: 50, breakdown: {} }
+  const weekKeys = Object.keys(weeks).sort()
+  const latest = weekKeys[weekKeys.length - 1]
+  return weeks[latest] || { weeklyTotal: 0, budget: 50, breakdown: {} }
 }
 
 // ── GET /api/editorial/activity ──────────────────────────
 
 export async function getEditorialActivity({ limit = 20 } = {}) {
-  const activityFile = join(editorialDir(), 'activity.json')
-  const activities = readJSON(activityFile) || []
-
-  // Return most recent N entries
+  const db = getDb()
   const lim = Math.min(Math.max(parseInt(limit) || 20, 1), 100)
-  return { activities: activities.slice(-lim).reverse() }
+  const rows = await eq.getActivity(db, lim)
+  return { activities: rowsToCamelCase(rows) }
 }
 
 // ── GET /api/editorial/render ────────────────────────────
 
 export async function renderEditorialSection({ section, id } = {}) {
-  const state = getState()
-  if (!state) return { markdown: '' }
+  const db = getDb()
 
   switch (section) {
     case 'analysisIndex': {
       if (id) {
-        const entry = state.analysisIndex?.[id]
+        const entry = await eq.getAnalysisEntry(db, Number(id))
         if (!entry) return { markdown: `*Entry #${id} not found*` }
+        const e = toCamelCase(entry)
         return {
           markdown: [
-            `## #${id}: ${entry.title}`,
-            `**Source:** ${entry.source} · **Host:** ${entry.host || 'N/A'} · **Date:** ${entry.date}`,
-            `**Tier:** ${entry.tier} · **Session:** ${entry.session} · **Post potential:** ${entry.postPotential || 'N/A'}`,
-            `**Themes:** ${(entry.themes || []).join(', ')}`,
+            `## #${e.id}: ${e.title}`,
+            `**Source:** ${e.source} · **Host:** ${e.host || 'N/A'} · **Date:** ${e.date}`,
+            `**Tier:** ${e.tier} · **Session:** ${e.session} · **Post potential:** ${e.postPotential || 'N/A'}`,
+            `**Themes:** ${Array.isArray(e.themes) ? e.themes.join(', ') : (e.themes || '')}`,
             '',
-            entry.summary || '*No summary*',
-          ].join('\n')
+            e.summary || '*No summary*',
+          ].join('\n'),
         }
       }
       // Render full index
+      const rows = await eq.getAnalysisEntries(db, { showArchived: false })
       const lines = ['# Analysis Index\n']
-      for (const [docId, entry] of Object.entries(state.analysisIndex || {})) {
-        lines.push(`### #${docId}: ${entry.title}`)
-        lines.push(`${entry.source} · Tier ${entry.tier} · Session ${entry.session}\n`)
+      for (const row of rows) {
+        lines.push(`### #${row.id}: ${row.title}`)
+        lines.push(`${row.source} · Tier ${row.tier} · Session ${row.session}\n`)
       }
       return { markdown: lines.join('\n') }
     }
     case 'themeRegistry': {
       if (id) {
-        const theme = state.themeRegistry?.[id]
-        if (!theme) return { markdown: `*Theme ${id} not found*` }
+        const detail = await eq.getThemeWithEvidence(db, id)
+        if (!detail) return { markdown: `*Theme ${id} not found*` }
+        const t = toCamelCase(detail.theme)
         const lines = [
-          `## ${id}: ${theme.name}`,
-          `**Documents:** ${theme.documentCount} · **Last updated:** ${theme.lastUpdated}`,
+          `## ${id}: ${t.name}`,
+          `**Documents:** ${t.documentCount} · **Last updated:** ${t.lastUpdatedSession || t.updatedAt}`,
           '',
           '### Evidence',
         ]
-        for (const ev of (theme.evidence || []).slice(-3)) {
+        for (const ev of (detail.evidence || []).slice(-3)) {
           lines.push(`> **Session ${ev.session} · ${ev.source}**`)
           lines.push(`> ${ev.content}\n`)
         }
-        if (theme.crossConnections?.length) {
+        if (detail.connections?.length) {
           lines.push('### Cross-connections')
-          for (const cc of theme.crossConnections) {
-            lines.push(`- **${cc.theme}** — ${cc.reasoning}`)
+          for (const cc of detail.connections) {
+            const otherCode = cc.from_code === id ? cc.to_code : cc.from_code
+            lines.push(`- **${otherCode}** — ${cc.reasoning}`)
           }
         }
         return { markdown: lines.join('\n') }
@@ -433,11 +442,11 @@ export async function renderEditorialSection({ section, id } = {}) {
 }
 
 // ── GET /api/editorial/discover ─────────────────────────
+// Stays on filesystem — reads discover-progress-session-N.json
 
 export async function getDiscoverProgress({ session } = {}) {
   let sessionNum = session ? parseInt(session, 10) : null
 
-  // Find latest session if not specified
   if (sessionNum == null) {
     const files = existsSync(editorialDir())
       ? readdirSync(editorialDir())
@@ -459,6 +468,7 @@ export async function getDiscoverProgress({ session } = {}) {
 }
 
 // ── GET /api/editorial/draft ────────────────────────────
+// Stays on filesystem — reads draft/critique/metrics files
 
 export async function getEditorialDraft({ session } = {}) {
   const draftsDir = join(editorialDir(), 'drafts')
@@ -466,7 +476,6 @@ export async function getEditorialDraft({ session } = {}) {
 
   let sessionNum = session ? parseInt(session, 10) : null
 
-  // Find latest session if not specified
   if (sessionNum == null) {
     const files = readdirSync(draftsDir)
       .filter(f => /^draft-session-\d+-final\.md$/.test(f))
@@ -495,6 +504,7 @@ export async function getEditorialDraft({ session } = {}) {
 }
 
 // ── POST /api/editorial/trigger/:stage ────────────────────
+// Stays on filesystem — spawns pipeline scripts
 
 export async function postTriggerAnalyse() {
   const lock = checkLock('analyse')
@@ -540,33 +550,12 @@ export async function putBacklogStatus(id, body) {
     throw Object.assign(new Error(`Invalid status: ${body.status}. Must be one of: ${VALID_STATUSES.join(', ')}`), { status: 400 })
   }
 
-  return withStateLock(() => {
-    guardAgainstPipelineWrite()
-    const state = getState()
-    if (!state) {
-      throw Object.assign(new Error('No editorial state found'), { status: 404 })
-    }
-
-    const post = state.postBacklog?.[id]
-    if (!post) {
-      throw Object.assign(new Error(`Post ${id} not found in backlog`), { status: 404 })
-    }
-
-    post.status = body.status
-    if (body.status === 'published') {
-      post.publishedDate = new Date().toISOString().split('T')[0]
-    }
-
-    try {
-      writeState(state)
-    } catch (err) {
-      throw Object.assign(
-        new Error(`Failed to save status change for post ${id}: ${err.message}`),
-        { status: 500 }
-      )
-    }
-    return { ok: true, id, status: body.status }
-  })
+  const db = getDb()
+  const updated = await eq.updatePostStatus(db, Number(id), body.status)
+  if (!updated) {
+    throw Object.assign(new Error(`Post ${id} not found in backlog`), { status: 404 })
+  }
+  return { ok: true, id, status: body.status }
 }
 
 // ── PUT /api/editorial/analysis/:id/archive ─────────────────
@@ -576,22 +565,17 @@ export async function putAnalysisArchive(id, body) {
     throw Object.assign(new Error('id must be numeric'), { status: 400 })
   }
 
-  return withStateLock(() => {
-    guardAgainstPipelineWrite()
-    const state = getState()
-    if (!state) {
-      throw Object.assign(new Error('No editorial state found'), { status: 404 })
-    }
+  const db = getDb()
 
-    const entry = state.analysisIndex?.[id]
-    if (!entry) {
-      throw Object.assign(new Error(`Analysis entry ${id} not found`), { status: 404 })
-    }
+  // Check entry exists
+  const entry = await eq.getAnalysisEntry(db, Number(id))
+  if (!entry) {
+    throw Object.assign(new Error(`Analysis entry ${id} not found`), { status: 404 })
+  }
 
-    entry.archived = body?.archived !== false
-    writeState(state)
-    return { ok: true, id, archived: entry.archived }
-  })
+  const archived = body?.archived !== false ? 1 : 0
+  await eq.setAnalysisArchived(db, Number(id), archived)
+  return { ok: true, id, archived: !!archived }
 }
 
 // ── PUT /api/editorial/themes/:code/archive ─────────────────
@@ -601,22 +585,17 @@ export async function putThemeArchive(code, body) {
     throw Object.assign(new Error('code must match T{number} (e.g. T01)'), { status: 400 })
   }
 
-  return withStateLock(() => {
-    guardAgainstPipelineWrite()
-    const state = getState()
-    if (!state) {
-      throw Object.assign(new Error('No editorial state found'), { status: 404 })
-    }
+  const db = getDb()
 
-    const theme = state.themeRegistry?.[code]
-    if (!theme) {
-      throw Object.assign(new Error(`Theme ${code} not found`), { status: 404 })
-    }
+  // Check theme exists
+  const detail = await eq.getThemeWithEvidence(db, code)
+  if (!detail) {
+    throw Object.assign(new Error(`Theme ${code} not found`), { status: 404 })
+  }
 
-    theme.archived = body?.archived !== false
-    writeState(state)
-    return { ok: true, code, archived: theme.archived }
-  })
+  const archived = body?.archived !== false ? 1 : 0
+  await eq.setThemeArchived(db, code, archived)
+  return { ok: true, code, archived: !!archived }
 }
 
 // ── POST /api/editorial/decisions ───────────────────────────
@@ -629,62 +608,39 @@ export async function postDecision(body) {
     throw Object.assign(new Error('decision is required'), { status: 400 })
   }
 
-  return withStateLock(() => {
-    guardAgainstPipelineWrite()
-    const state = getState()
-    if (!state) {
-      throw Object.assign(new Error('No editorial state found'), { status: 404 })
-    }
+  const db = getDb()
+  const counters = await eq.getCounters(db)
+  const session = Math.max(1, (counters.nextSession || 1) - 1)
 
-    if (!Array.isArray(state.decisionLog)) state.decisionLog = []
-
-    const session = Math.max(1, (state.counters?.nextSession || 1) - 1)
-    const sessionDecisions = state.decisionLog.filter(d => d.session === session)
-    const id = `${session}.${sessionDecisions.length + 1}`
-
-    state.decisionLog.push({
-      id,
-      session,
-      title: body.title.trim(),
-      decision: body.decision.trim(),
-      reasoning: (body.reasoning || '').trim(),
-    })
-
-    writeState(state)
-    return { ok: true, id, session }
+  const result = await eq.addDecision(db, {
+    session,
+    title: body.title.trim(),
+    decision: body.decision.trim(),
+    reasoning: (body.reasoning || '').trim() || undefined,
   })
+
+  return { ok: true, id: result.id, session }
 }
 
 // ── PUT /api/editorial/decisions/:id/archive ────────────────
 
 export async function putDecisionArchive(id, body) {
-  return withStateLock(() => {
-    guardAgainstPipelineWrite()
-    const state = getState()
-    if (!state) {
-      throw Object.assign(new Error('No editorial state found'), { status: 404 })
-    }
+  const db = getDb()
 
-    const decision = (state.decisionLog || []).find(d => d.id === id)
-    if (!decision) {
-      throw Object.assign(new Error(`Decision ${id} not found`), { status: 404 })
-    }
+  // Check decision exists
+  const decisions = await eq.getDecisions(db, { showArchived: true })
+  const decision = decisions.find(d => d.id === id)
+  if (!decision) {
+    throw Object.assign(new Error(`Decision ${id} not found`), { status: 404 })
+  }
 
-    decision.archived = body?.archived !== false
-    writeState(state)
-    return { ok: true, id, archived: decision.archived }
-  })
+  const archived = body?.archived !== false ? 1 : 0
+  await eq.setDecisionArchived(db, id, archived)
+  return { ok: true, id, archived: !!archived }
 }
 
-// ── POST /api/editorial/chat ──────────────────────────────
+// ── Editorial Chat (streaming SSE) ─────────────────────
 
-/**
- * Stream an editorial chat response via SSE.
- *
- * @param {{ message: string, tab: string, history: Array, model?: string }} body
- * @param {Request} req — for abort signal
- * @returns {Response} — SSE stream
- */
 export async function postEditorialChat(body, req) {
   const { message, tab, history, injectContext, model, sourceRefs } = body
 
@@ -703,13 +659,10 @@ export async function postEditorialChat(body, req) {
     tokenEstimate = ctx.tokenEstimate
   }
 
-  // Trim history to budget
   const trimmedHistory = trimEditorialHistory(history || [])
 
   // Build messages array
   const sdkMessages = []
-
-  // First message: context preamble
   if (context && trimmedHistory.length === 0) {
     sdkMessages.push({
       role: 'user',
@@ -735,7 +688,6 @@ export async function postEditorialChat(body, req) {
     sdkMessages.push({ role: 'user', content: message.trim() })
   }
 
-  // Create abort controller — check if client already disconnected
   const abort = new AbortController()
   if (req.signal?.aborted) {
     abort.abort()
@@ -751,8 +703,6 @@ export async function postEditorialChat(body, req) {
     }), { status: 503, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': config.CORS_ORIGIN } })
   }
 
-  // Manual CORS headers required because SSE responses are raw Response objects
-  // whose headers cannot be modified by middleware
   const corsHeaders = {
     'Access-Control-Allow-Origin': config.CORS_ORIGIN,
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -777,14 +727,13 @@ export async function postEditorialChat(body, req) {
           ? 'claude-opus-4-6'
           : 'claude-sonnet-4-20250514'
 
-        // Draft mode: enable tool use so the model can fetch editorial detail on demand
         const isDraftMode = activeTab === 'draft'
         const MAX_TOOL_ROUNDS = 5
 
-        // Load editorial state for tool execution (only needed in draft mode)
+        // Load editorial state for tool execution (draft mode reads from DB)
         let editorialState = null
         if (isDraftMode) {
-          const statePath = join(config.ROOT, 'data/editorial/state.json')
+          const statePath = join(ROOT, 'data/editorial/state.json')
           try {
             editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
           } catch { editorialState = {} }
@@ -805,7 +754,6 @@ export async function postEditorialChat(body, req) {
             ...(isDraftMode && toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
           })
 
-          // Collect content blocks for this round (needed for tool_use responses)
           const contentBlocks = []
           let currentToolBlock = null
           let toolInputJson = ''
@@ -814,24 +762,20 @@ export async function postEditorialChat(body, req) {
           for await (const event of response) {
             if (abort.signal.aborted) break
 
-            // Text deltas — stream immediately to browser
             if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
               fullText += event.delta.text
               send({ type: 'delta', text: event.delta.text })
             }
 
-            // Tool use block starting
             if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
               currentToolBlock = { type: 'tool_use', id: event.content_block.id, name: event.content_block.name, input: {} }
               toolInputJson = ''
             }
 
-            // Tool input JSON accumulating
             if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
               toolInputJson += event.delta.partial_json
             }
 
-            // Content block finished
             if (event.type === 'content_block_stop') {
               if (currentToolBlock) {
                 try { currentToolBlock.input = JSON.parse(toolInputJson || '{}') } catch { currentToolBlock.input = {} }
@@ -841,29 +785,19 @@ export async function postEditorialChat(body, req) {
               }
             }
 
-            // Text block starting (track for contentBlocks)
-            if (event.type === 'content_block_start' && event.content_block?.type === 'text') {
-              // Will be captured via text_delta above; also record for round messages
-            }
-
-            // Message-level stop reason
             if (event.type === 'message_delta') {
               stopReason = event.delta?.stop_reason
             }
           }
 
-          // If the model didn't request tools, or we've been aborted, we're done
           if (stopReason !== 'tool_use' || abort.signal.aborted) {
             send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab })
             break
           }
 
-          // Tool use round — execute each tool call
           toolRound++
 
-          // Build assistant message with all content blocks (text + tool_use)
           const assistantContent = []
-          // Include any text the model produced before the tool call
           if (fullText) {
             assistantContent.push({ type: 'text', text: fullText })
           }
@@ -883,15 +817,12 @@ export async function postEditorialChat(body, req) {
             })
           }
 
-          // Append assistant + tool results for next round
           roundMessages = [
             ...roundMessages,
             { role: 'assistant', content: assistantContent },
             { role: 'user', content: toolResults },
           ]
 
-          // Reset fullText for the continuation (text from tool-use rounds was pre-tool)
-          // The model will generate new text after processing tool results
           fullText = ''
         }
       } catch (err) {
