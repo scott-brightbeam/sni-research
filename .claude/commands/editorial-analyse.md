@@ -1,4 +1,8 @@
-Process the OLDEST unprocessed podcast transcript through the Brightbeam editorial intelligence lens.
+Process ALL unprocessed podcast transcripts through the Brightbeam editorial intelligence lens, oldest first.
+
+**Batch processing:** Loop through every unprocessed transcript. Each one gets its own session number, analysis entry, theme evidence, and post candidates. Process them sequentially — do NOT skip any. If context runs low, report how many remain and stop cleanly (the next invocation picks up where you left off).
+
+**One session per transcript** — increment nextSession for each. Do not batch multiple transcripts into a single session.
 
 ## CRITICAL: Source Fidelity Rule
 
@@ -22,7 +26,7 @@ Label editorial inferences explicitly: "Editorial inference: [your analysis]" �
 3. Scan `~/Desktop/Podcast Transcripts/*.md` for files NOT already in `state.analysisIndex` (match on `filename` field, case-insensitive)
 4. If no unprocessed transcripts, report "No new transcripts to process" and stop
 
-For the OLDEST unprocessed file:
+**For EACH unprocessed file (oldest first, loop until all done or context exhausted):**
 
 5. Read the full transcript
 6. Extract the `**URL:**` field from the frontmatter. If present, this is the episode URL. If missing, search `~/Projects/Claude/HomeBrew/podcasts/episodes-log.json` for a matching episode (by title or date+feedId) to find the `episodeUrl`.
