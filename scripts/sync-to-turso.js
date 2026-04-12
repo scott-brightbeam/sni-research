@@ -674,6 +674,66 @@ async function syncPodcasts(db) {
 }
 
 // ---------------------------------------------------------------------------
+// Output file sync (fly ssh sftp → Fly volume at /app/data/output)
+// ---------------------------------------------------------------------------
+
+async function syncOutputFiles() {
+  const outputDir = join(ROOT, 'output')
+  if (!existsSync(outputDir)) {
+    log('Output: no output/ directory, skipping')
+    return
+  }
+
+  // Collect files to sync: drafts, links, reviews, evaluations, published
+  const filesToSync = []
+
+  const topFiles = readdirSync(outputDir).filter(f =>
+    (f.startsWith('draft-week-') || f.startsWith('links-week-') ||
+     f.startsWith('review-week-') || f.startsWith('evaluate-week-')) &&
+    (f.endsWith('.md') || f.endsWith('.json'))
+  )
+  for (const f of topFiles) {
+    filesToSync.push({ local: join(outputDir, f), remote: `/app/data/output/${f}` })
+  }
+
+  // Published newsletters
+  const pubDir = join(outputDir, 'published')
+  if (existsSync(pubDir)) {
+    const pubFiles = readdirSync(pubDir).filter(f =>
+      f.startsWith('week-') && (f.endsWith('.md') || f.endsWith('.json'))
+    )
+    for (const f of pubFiles) {
+      filesToSync.push({ local: join(pubDir, f), remote: `/app/data/output/published/${f}` })
+    }
+  }
+
+  if (filesToSync.length === 0) {
+    log('Output: no files to sync')
+    return
+  }
+
+  // Build SFTP commands
+  const sftpCommands = [
+    'mkdir /app/data/output',
+    'mkdir /app/data/output/published',
+    ...filesToSync.map(f => `put ${f.local} ${f.remote}`)
+  ].join('\n')
+
+  try {
+    const proc = Bun.spawn(['fly', 'ssh', 'sftp', 'shell', '-a', 'sni-research'], {
+      stdin: new Blob([sftpCommands]),
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` },
+    })
+    await proc.exited
+    log(`Output: ${filesToSync.length} files synced to Fly volume`)
+  } catch (err) {
+    console.error('[sync] Output sync failed (non-fatal):', err.message)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -695,6 +755,9 @@ async function main() {
     await syncArticles(db)
     await syncEditorialState(db)
     await syncPodcasts(db)
+
+    // Sync output/ files to Fly volume (draft, links, review, evaluate, published)
+    await syncOutputFiles()
 
     const elapsed = ((performance.now() - start) / 1000).toFixed(1)
     log(`Complete in ${elapsed}s`)

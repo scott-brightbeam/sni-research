@@ -14,9 +14,8 @@ const NAV_ROUTES = [
   '/',           // 1 = Dashboard
   '/database',   // 2 = Database
   '/editorial',  // 3 = Editorial
-  '/copilot',    // 4 = Co-pilot
-  '/sources',    // 5 = Sources
-  '/config',     // 6 = Config
+  '/sources',    // 4 = Sources
+  '/config',     // 5 = Config
 ]
 
 export default function Shell() {

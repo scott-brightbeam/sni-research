@@ -55,7 +55,10 @@ function spawnStage(script) {
   }
   const scriptPath = join(ROOT, script)
   if (!existsSync(scriptPath)) {
-    throw Object.assign(new Error(`Script not found: ${script}`), { status: 500 })
+    throw Object.assign(
+      new Error('Pipeline scripts run locally via Claude Code scheduled tasks, not on the cloud server.'),
+      { status: 503 }
+    )
   }
   if (process.env.SNI_TEST_MODE || process.env.NODE_ENV === 'test') {
     console.log(`[editorial] TEST MODE — skipping spawn of ${script}`)

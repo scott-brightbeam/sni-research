@@ -76,10 +76,79 @@ export default function Editorial() {
 
   async function handleExportState() {
     try {
-      const data = await apiFetch('/api/editorial/state')
+      toast('Generating export...', 'info')
+      const [summary, analysis, themes, posts, decisions] = await Promise.all([
+        apiFetch('/api/editorial/state'),
+        apiFetch('/api/editorial/state?section=analysisIndex&showArchived=true'),
+        apiFetch('/api/editorial/state?section=themeRegistry&showArchived=true'),
+        apiFetch('/api/editorial/backlog'),
+        apiFetch('/api/editorial/state?section=decisionLog&showArchived=true'),
+      ])
+
       const date = new Date().toISOString().slice(0, 10)
-      const filename = `editorial-state-${date}.json`
-      downloadFile(JSON.stringify(data, null, 2), filename, 'application/json')
+      const lines = []
+
+      lines.push(`# SNI Editorial State — ${date}\n`)
+      lines.push(`## Summary\n`)
+      lines.push(`- **Documents:** ${summary.totalEntries || 0}`)
+      lines.push(`- **Themes:** ${summary.totalThemes || 0}`)
+      lines.push(`- **Posts:** ${summary.totalPosts || 0}`)
+      lines.push(`- **Session:** ${summary.counters?.nextSession || 'N/A'}\n`)
+
+      lines.push(`---\n\n## Analysis Index (${(analysis || []).length} entries)\n`)
+      for (const e of (analysis || [])) {
+        lines.push(`### #${e.id}: ${e.title}`)
+        lines.push(`- **Source:** ${e.source || 'N/A'} · **Host:** ${e.host || 'N/A'}`)
+        lines.push(`- **Tier:** ${e.tier} · **Session:** ${e.session} · **Status:** ${e.status}`)
+        lines.push(`- **Themes:** ${Array.isArray(e.themes) ? e.themes.join(', ') : (e.themes || 'None')}`)
+        lines.push(`- **Post potential:** ${e.postPotential || 'N/A'}`)
+        if (e.summary) lines.push(`\n${e.summary}`)
+        if (e.url) lines.push(`\n[Source](${e.url})`)
+        lines.push('')
+      }
+
+      lines.push(`---\n\n## Theme Registry (${(themes || []).length} themes)\n`)
+      for (const t of (themes || [])) {
+        lines.push(`### ${t.code}: ${t.name}`)
+        lines.push(`- **Documents:** ${t.documentCount} · **Created:** ${t.createdSession} · **Last updated:** ${t.lastUpdatedSession}`)
+        if (t.evidence?.length) {
+          lines.push(`\n**Evidence (${t.evidence.length}):**`)
+          for (const ev of t.evidence) {
+            lines.push(`> **Session ${ev.session} · ${ev.source}:** ${ev.content}`)
+          }
+        }
+        if (t.crossConnections?.length) {
+          lines.push(`\n**Cross-connections:** ${t.crossConnections.map(c => c.theme || c.toCode).join(', ')}`)
+        }
+        lines.push('')
+      }
+
+      lines.push(`---\n\n## Post Backlog (${(posts || []).length} posts)\n`)
+      const grouped = {}
+      for (const p of (posts || [])) {
+        const s = p.status || 'unknown'
+        if (!grouped[s]) grouped[s] = []
+        grouped[s].push(p)
+      }
+      for (const [status, items] of Object.entries(grouped)) {
+        lines.push(`### ${status.charAt(0).toUpperCase() + status.slice(1)} (${items.length})\n`)
+        for (const p of items) {
+          lines.push(`- **#${p.id}: ${p.title}** [${p.priority}] [${p.format || 'N/A'}]`)
+          if (p.coreArgument) lines.push(`  ${p.coreArgument}`)
+        }
+        lines.push('')
+      }
+
+      lines.push(`---\n\n## Decision Log (${(decisions || []).length} decisions)\n`)
+      for (const d of (decisions || [])) {
+        lines.push(`### ${d.id}: ${d.title}`)
+        lines.push(`**Session ${d.session}:** ${d.decision}`)
+        if (d.reasoning) lines.push(`\n*${d.reasoning}*`)
+        lines.push('')
+      }
+
+      const filename = `editorial-state-${date}.md`
+      downloadFile(lines.join('\n'), filename, 'text/markdown')
       toast(`Exported ${filename}`)
     } catch (err) {
       toast(err.message, 'error')

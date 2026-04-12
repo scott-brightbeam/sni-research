@@ -114,7 +114,7 @@ export async function getThemes(db, { active, stale, showArchived, currentSessio
           LEFT JOIN theme_evidence te ON te.theme_code = t.code
           ${where}
           GROUP BY t.code
-          ORDER BY latest_evidence_session DESC, t.code ASC`,
+          ORDER BY t.created_at DESC, t.code DESC`,
     args,
   })
   return result.rows
