@@ -106,7 +106,7 @@ export default function SourceViewer() {
               <h3>{t.code}: {t.name}</h3>
               {t.evidence?.length > 0 && (
                 <div className="sv-evidence">
-                  {t.evidence.slice(-3).map((ev, i) => (
+                  {t.evidence.map((ev, i) => (
                     <blockquote key={i}>
                       <strong>Session {ev.session} · {ev.source}</strong>
                       <br />
