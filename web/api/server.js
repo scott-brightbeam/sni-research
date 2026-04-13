@@ -207,6 +207,13 @@ app.get('/api/editorial/status', async (c) => c.json(await getEditorialStatus())
 app.get('/api/editorial/cost', async (c) => c.json(await getEditorialCost(c.req.query())))
 app.get('/api/editorial/activity', async (c) => c.json(await getEditorialActivity(c.req.query())))
 app.get('/api/editorial/render', async (c) => c.json(await renderEditorialSection(c.req.query())))
+app.get('/api/editorial/entry/:id', async (c) => {
+  const { getDb } = await import('./lib/db.js')
+  const { getAnalysisEntry } = await import('./lib/editorial-queries.js')
+  const entry = await getAnalysisEntry(getDb(), Number(c.req.param('id')))
+  if (!entry) return c.json({ error: 'Not found' }, 404)
+  return c.json(entry)
+})
 app.get('/api/editorial/discover', async (c) => c.json(await getDiscoverProgress(c.req.query())))
 app.get('/api/editorial/draft', async (c) => c.json(await getEditorialDraft(c.req.query())))
 

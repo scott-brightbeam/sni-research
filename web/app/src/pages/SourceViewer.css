@@ -107,6 +107,25 @@
   font-size: 12px;
 }
 
+/* --- Transcript --- */
+.sv-transcript {
+  border-top: 2px solid var(--border);
+  padding-top: var(--sp-6);
+  margin-top: var(--sp-8);
+}
+.sv-transcript h2 {
+  margin-bottom: var(--sp-4);
+}
+.sv-transcript-content {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.sv-transcript-content p {
+  margin: 0 0 var(--sp-2);
+}
+
 /* Source link in backlog */
 .source-link {
   color: var(--terra);

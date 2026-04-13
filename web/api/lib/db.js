@@ -131,6 +131,7 @@ const BATCH_STATEMENTS = [
     key_themes TEXT,
     post_potential TEXT,
     post_potential_reasoning TEXT,
+    transcript TEXT,
     reconstructed INTEGER DEFAULT 0,
     archived INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),

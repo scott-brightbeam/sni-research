@@ -31,6 +31,16 @@ const warn = (msg) => console.warn(`[sync] ${msg}`)
 // Helpers
 // ---------------------------------------------------------------------------
 
+const TRANSCRIPT_DIR = join(process.env.HOME || '', 'Desktop/Podcast Transcripts')
+
+/** Load transcript from local file by filename. Returns null if not found. */
+function loadTranscript(filename) {
+  if (!filename) return null
+  try {
+    return readFileSync(join(TRANSCRIPT_DIR, filename), 'utf-8')
+  } catch { return null }
+}
+
 /** JSON.stringify arrays/objects, pass through primitives as-is. */
 function jsonify(val) {
   if (val === undefined || val === null) return null
@@ -258,8 +268,8 @@ async function syncEditorialState(db) {
                 id, title, source, host, participants, filename, url, date,
                 date_processed, session, tier, status, themes, summary,
                 key_themes, post_potential, post_potential_reasoning,
-                reconstructed, archived
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                reconstructed, archived, transcript
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           parseInt(id, 10),
           e.title || '',
@@ -280,6 +290,7 @@ async function syncEditorialState(db) {
           e.postPotentialReasoning || e.post_potential_reasoning || null,
           e._reconstructed ? 1 : 0,
           e.archived ? 1 : 0,
+          loadTranscript(e.filename),
         ],
       }))
       await db.batch(stmts)

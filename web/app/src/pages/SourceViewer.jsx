@@ -13,19 +13,10 @@ export default function SourceViewer() {
   useEffect(() => {
     async function load() {
       try {
-        // Fetch all analysis entries and find ours
-        const raw = await apiFetch(`/api/editorial/state?section=analysisIndex&showArchived=true`)
-        // API returns { entries: [...] } or bare array or object
-        const entries = raw?.entries || (Array.isArray(raw) ? raw : null)
-        let found = null
-        if (Array.isArray(entries)) {
-          found = entries.find(e => String(e.id) === String(id))
-        } else if (raw && typeof raw === 'object') {
-          found = raw[String(id)]
-          if (found) found = { ...found, id: Number(id) }
-        }
-        if (!found) {
-          setError(`Entry #${id} not found`)
+        // Dedicated endpoint returns full entry including transcript
+        const found = await apiFetch(`/api/editorial/entry/${id}`)
+        if (!found || found.error) {
+          setError(found?.error || `Entry #${id} not found`)
           setLoading(false)
           return
         }
@@ -92,18 +83,18 @@ export default function SourceViewer() {
         <h2>Metadata</h2>
         <div className="sv-grid">
           <div><strong>Themes</strong><br />{themesStr}</div>
-          <div><strong>Key Themes</strong><br />{entry.keyThemes || 'N/A'}</div>
-          <div><strong>Post Potential</strong><br />{entry.postPotential || 'N/A'}</div>
+          <div><strong>Key Themes</strong><br />{entry.key_themes || entry.keyThemes || 'N/A'}</div>
+          <div><strong>Post Potential</strong><br />{entry.post_potential || entry.postPotential || 'N/A'}</div>
           <div><strong>Status</strong><br />{entry.status}</div>
-          <div><strong>Date Processed</strong><br />{entry.dateProcessed || 'N/A'}</div>
+          <div><strong>Date Processed</strong><br />{entry.date_processed || entry.dateProcessed || 'N/A'}</div>
           {entry.filename && <div><strong>Filename</strong><br />{entry.filename}</div>}
         </div>
       </section>
 
-      {entry.postPotentialReasoning && (
+      {(entry.post_potential_reasoning || entry.postPotentialReasoning) && (
         <section className="sv-section">
           <h2>Post Potential Reasoning</h2>
-          <p>{entry.postPotentialReasoning}</p>
+          <p>{entry.post_potential_reasoning || entry.postPotentialReasoning}</p>
         </section>
       )}
 
@@ -126,6 +117,17 @@ export default function SourceViewer() {
               )}
             </div>
           ))}
+        </section>
+      )}
+
+      {entry.transcript && (
+        <section className="sv-section sv-transcript">
+          <h2>Full Transcript</h2>
+          <div className="sv-transcript-content">
+            {entry.transcript.split('\n').map((line, i) =>
+              line.trim() === '' ? <br key={i} /> : <p key={i}>{line}</p>
+            )}
+          </div>
         </section>
       )}
     </div>
