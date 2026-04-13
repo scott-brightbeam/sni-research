@@ -731,9 +731,9 @@ export async function postEditorialChat(body, req) {
           : 'claude-sonnet-4-20250514'
 
         const isDraftMode = activeTab === 'draft'
-        const MAX_TOOL_ROUNDS = 5
+        const MAX_TOOL_ROUNDS = 2  // Reduced from 5 — model was spending all rounds gathering data
 
-        // Load editorial state for tool execution (draft mode reads from DB)
+        // Load editorial state for tool execution
         let editorialState = null
         if (isDraftMode) {
           const statePath = join(ROOT, 'data/editorial/state.json')
@@ -745,13 +745,18 @@ export async function postEditorialChat(body, req) {
         let roundMessages = [...sdkMessages]
         let toolRound = 0
 
+        // Draft mode system addendum: instruct the model to draft, not just gather
+        const draftAddendum = isDraftMode
+          ? '\n\nIMPORTANT: You have a maximum of 2 tool rounds to gather source material. After gathering, you MUST generate the complete draft(s) in your response. Do not spend all rounds on data gathering — fetch what you need, then write.'
+          : ''
+
         while (true) {
           if (abort.signal.aborted) break
 
           const response = await client.messages.create({
             model: modelId,
-            max_tokens: model === 'opus' ? 4096 : 2048,
-            system: getEditorialSystemPrompt(),
+            max_tokens: model === 'opus' ? 8192 : 4096,  // Doubled — drafts need more output tokens
+            system: getEditorialSystemPrompt() + draftAddendum,
             messages: roundMessages,
             stream: true,
             ...(isDraftMode && toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
