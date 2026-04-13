@@ -126,6 +126,60 @@
   margin: 0 0 var(--sp-2);
 }
 
+/* --- Cross-connections --- */
+.sv-connections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.sv-connection {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sv-connection-reason {
+  color: var(--text-secondary);
+}
+.sv-archived {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* --- Linked entries --- */
+.sv-linked-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.sv-linked-entry {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.sv-linked-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.sv-linked-title {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sv-linked-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sv-linked-summary {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 /* Source link in backlog */
 .source-link {
   color: var(--terra);

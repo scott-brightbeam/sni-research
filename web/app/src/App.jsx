@@ -8,6 +8,7 @@ import Config from './pages/Config'
 import Sources from './pages/Sources'
 import BugReports from './pages/BugReports'
 import SourceViewer from './pages/SourceViewer'
+import ThemeViewer from './pages/ThemeViewer'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/sources" element={<Sources />} />
             <Route path="/bugs" element={<BugReports />} />
             <Route path="/source/:id" element={<SourceViewer />} />
+            <Route path="/theme/:code" element={<ThemeViewer />} />
           </Route>
         </Routes>
       </BrowserRouter>

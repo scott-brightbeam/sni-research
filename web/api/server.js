@@ -214,6 +214,21 @@ app.get('/api/editorial/entry/:id', async (c) => {
   if (!entry) return c.json({ error: 'Not found' }, 404)
   return c.json(entry)
 })
+app.get('/api/editorial/theme/:code', async (c) => {
+  const { getDb } = await import('./lib/db.js')
+  const { getThemeWithEvidence, getAnalysisEntries } = await import('./lib/editorial-queries.js')
+  const db = getDb()
+  const code = c.req.param('code').toUpperCase()
+  const detail = await getThemeWithEvidence(db, code)
+  if (!detail) return c.json({ error: 'Not found' }, 404)
+  // Also find all analysis entries that reference this theme
+  const allEntries = await getAnalysisEntries(db, { showArchived: true })
+  const linkedEntries = allEntries.filter(e => {
+    const themes = typeof e.themes === 'string' ? JSON.parse(e.themes || '[]') : (e.themes || [])
+    return themes.includes(code)
+  }).map(e => ({ id: e.id, title: e.title, source: e.source, date: e.date, session: e.session, tier: e.tier, summary: e.summary }))
+  return c.json({ ...detail, linkedEntries })
+})
 app.get('/api/editorial/discover', async (c) => c.json(await getDiscoverProgress(c.req.query())))
 app.get('/api/editorial/draft', async (c) => c.json(await getEditorialDraft(c.req.query())))
 

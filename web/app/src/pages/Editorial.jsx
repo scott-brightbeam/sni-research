@@ -292,7 +292,7 @@ function AnalysisEntry({ entry, onDraftRequest, refetch }) {
       {entry.themes?.length > 0 && (
         <div className="entry-themes">
           {entry.themes.map(t => (
-            <span key={t} className="theme-tag">{t}</span>
+            <a key={t} className="theme-tag" href={`/theme/${t}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>{t}</a>
           ))}
         </div>
       )}
@@ -400,7 +400,7 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
             <div className="cross-connections">
               <strong>Cross-connections:</strong>
               {theme.crossConnections.map((cc, i) => (
-                <span key={cc.theme || i} className="cross-link">{cc.theme}</span>
+                <a key={cc.theme || i} className="cross-link source-link" href={`/theme/${cc.theme}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>{cc.theme}</a>
               ))}
             </div>
           )}

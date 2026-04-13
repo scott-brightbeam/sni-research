@@ -53,7 +53,7 @@ export default function SourceViewer() {
   if (error) return <div className="source-viewer"><div className="sv-error">{error}</div></div>
   if (!entry) return null
 
-  const themesStr = Array.isArray(entry.themes) ? entry.themes.join(', ') : (entry.themes || 'None')
+  const themesCodes = Array.isArray(entry.themes) ? entry.themes : []
 
   return (
     <div className="source-viewer">
@@ -82,7 +82,10 @@ export default function SourceViewer() {
       <section className="sv-section">
         <h2>Metadata</h2>
         <div className="sv-grid">
-          <div><strong>Themes</strong><br />{themesStr}</div>
+          <div><strong>Themes</strong><br />{themesCodes.length > 0
+            ? themesCodes.map((t, i) => <span key={t}>{i > 0 && ', '}<a href={`/theme/${t}`} target="_blank" rel="noopener noreferrer" className="source-link">{t}</a></span>)
+            : 'None'
+          }</div>
           <div><strong>Key Themes</strong><br />{entry.key_themes || entry.keyThemes || 'N/A'}</div>
           <div><strong>Post Potential</strong><br />{entry.post_potential || entry.postPotential || 'N/A'}</div>
           <div><strong>Status</strong><br />{entry.status}</div>
