@@ -6,6 +6,7 @@ import Editorial from './pages/Editorial'
 // Copilot page removed — editorial chat sidebar handles all chat
 import Config from './pages/Config'
 import Sources from './pages/Sources'
+import BugReports from './pages/BugReports'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import './App.css'
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/copilot" element={<Navigate to="/editorial" replace />} />
             <Route path="/config" element={<Config />} />
             <Route path="/sources" element={<Sources />} />
+            <Route path="/bugs" element={<BugReports />} />
           </Route>
         </Routes>
       </BrowserRouter>

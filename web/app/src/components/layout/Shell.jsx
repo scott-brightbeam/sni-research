@@ -8,6 +8,9 @@ import { useStatus } from '../../hooks/useStatus'
 import { useEditorialStatus } from '../../hooks/useEditorialStatus'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { formatRelativeTime } from '../../lib/format'
+import { apiPost } from '../../lib/api'
+import { toast } from '../shared/Toast'
+import BugReportButton from '../shared/BugReportButton'
 import './Shell.css'
 
 const NAV_ROUTES = [
@@ -15,7 +18,8 @@ const NAV_ROUTES = [
   '/database',   // 2 = Database
   '/editorial',  // 3 = Editorial
   '/sources',    // 4 = Sources
-  '/config',     // 5 = Config
+  '/bugs',       // 5 = Bugs
+  '/config',     // 6 = Config
 ]
 
 export default function Shell() {
@@ -44,6 +48,16 @@ export default function Shell() {
 
   useKeyboardShortcuts(shortcuts)
 
+  const handleBugSubmit = useCallback(async (data) => {
+    try {
+      await apiPost('/api/bugs', data)
+      toast('Bug report submitted', 'success')
+    } catch (err) {
+      toast(err.message || 'Failed to submit bug', 'error')
+      throw err
+    }
+  }, [])
+
   let statusText = null
   if (error) statusText = 'API error'
   else if (status?.lastRun?.completedAt)
@@ -71,6 +85,7 @@ export default function Shell() {
         </ErrorBoundary>
       </main>
       <ToastContainer />
+      <BugReportButton onSubmit={handleBugSubmit} />
       <SearchModal open={searchOpen} onClose={closeSearch} />
     </div>
   )
