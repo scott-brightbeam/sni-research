@@ -13,20 +13,38 @@ export default function SourceViewer() {
   useEffect(() => {
     async function load() {
       try {
-        // Fetch the analysis entry
-        const state = await apiFetch(`/api/editorial/state?section=analysisIndex&showArchived=true`)
-        const found = (state || []).find(e => String(e.id) === String(id))
+        // Fetch all analysis entries and find ours
+        const rawEntries = await apiFetch(`/api/editorial/state?section=analysisIndex&showArchived=true`)
+        // API may return an array or an object keyed by ID
+        let found = null
+        if (Array.isArray(rawEntries)) {
+          found = rawEntries.find(e => String(e.id) === String(id))
+        } else if (rawEntries && typeof rawEntries === 'object') {
+          found = rawEntries[String(id)]
+          if (found) found = { ...found, id: Number(id) }
+        }
         if (!found) {
           setError(`Entry #${id} not found`)
           setLoading(false)
           return
         }
+        // Parse themes if stored as JSON string
+        if (typeof found.themes === 'string') {
+          try { found.themes = JSON.parse(found.themes) } catch { found.themes = [] }
+        }
         setEntry(found)
 
-        // Fetch theme details for each theme code
+        // Fetch theme details
         if (found.themes?.length) {
-          const themeData = await apiFetch(`/api/editorial/state?section=themeRegistry&showArchived=true`)
-          const relevant = (themeData || []).filter(t => found.themes.includes(t.code))
+          const rawThemes = await apiFetch(`/api/editorial/state?section=themeRegistry&showArchived=true`)
+          let relevant = []
+          if (Array.isArray(rawThemes)) {
+            relevant = rawThemes.filter(t => found.themes.includes(t.code))
+          } else if (rawThemes && typeof rawThemes === 'object') {
+            relevant = Object.entries(rawThemes)
+              .filter(([code]) => found.themes.includes(code))
+              .map(([code, t]) => ({ ...t, code }))
+          }
           setThemes(relevant)
         }
       } catch (err) {
