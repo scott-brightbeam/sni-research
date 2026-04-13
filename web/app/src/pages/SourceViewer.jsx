@@ -14,13 +14,14 @@ export default function SourceViewer() {
     async function load() {
       try {
         // Fetch all analysis entries and find ours
-        const rawEntries = await apiFetch(`/api/editorial/state?section=analysisIndex&showArchived=true`)
-        // API may return an array or an object keyed by ID
+        const raw = await apiFetch(`/api/editorial/state?section=analysisIndex&showArchived=true`)
+        // API returns { entries: [...] } or bare array or object
+        const entries = raw?.entries || (Array.isArray(raw) ? raw : null)
         let found = null
-        if (Array.isArray(rawEntries)) {
-          found = rawEntries.find(e => String(e.id) === String(id))
-        } else if (rawEntries && typeof rawEntries === 'object') {
-          found = rawEntries[String(id)]
+        if (Array.isArray(entries)) {
+          found = entries.find(e => String(e.id) === String(id))
+        } else if (raw && typeof raw === 'object') {
+          found = raw[String(id)]
           if (found) found = { ...found, id: Number(id) }
         }
         if (!found) {
@@ -36,12 +37,13 @@ export default function SourceViewer() {
 
         // Fetch theme details
         if (found.themes?.length) {
-          const rawThemes = await apiFetch(`/api/editorial/state?section=themeRegistry&showArchived=true`)
+          const rawT = await apiFetch(`/api/editorial/state?section=themeRegistry&showArchived=true`)
+          const themeList = rawT?.themes || (Array.isArray(rawT) ? rawT : null)
           let relevant = []
-          if (Array.isArray(rawThemes)) {
-            relevant = rawThemes.filter(t => found.themes.includes(t.code))
-          } else if (rawThemes && typeof rawThemes === 'object') {
-            relevant = Object.entries(rawThemes)
+          if (Array.isArray(themeList)) {
+            relevant = themeList.filter(t => found.themes.includes(t.code))
+          } else if (rawT && typeof rawT === 'object') {
+            relevant = Object.entries(rawT)
               .filter(([code]) => found.themes.includes(code))
               .map(([code, t]) => ({ ...t, code }))
           }
