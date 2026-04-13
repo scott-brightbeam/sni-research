@@ -18,6 +18,7 @@ import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './ro
 import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus, putAnalysisArchive, putThemeArchive, postDecision, putDecisionArchive } from './routes/editorial.js'
 import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recommendations.js'
 import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, triggerFetch } from './routes/subscriptions.js'
+import { listBugsHandler, getBugHandler, createBugHandler, updateBugHandler } from './routes/bugs.js'
 import { login, callback, me, logout } from './routes/auth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { audit } from './lib/audit.js'
@@ -283,6 +284,12 @@ app.post('/api/subscriptions/fetch', async (c) => {
   const body = await c.req.json().catch(() => ({}))
   return c.json(triggerFetch(body))
 })
+
+// --- Bugs ---
+app.get('/api/bugs', listBugsHandler)
+app.get('/api/bugs/:id', getBugHandler)
+app.post('/api/bugs', createBugHandler)
+app.put('/api/bugs/:id', updateBugHandler)
 
 // --- API 404 catch-all ---
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404))

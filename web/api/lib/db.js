@@ -8,7 +8,7 @@
  *   getDb()              — singleton; uses test DB when SNI_TEST_MODE=1
  */
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
@@ -321,6 +321,26 @@ const BATCH_STATEMENTS = [
     title TEXT NOT NULL,
     content TEXT NOT NULL
   )`,
+
+  // -- bug_reports
+  `CREATE TABLE IF NOT EXISTS bug_reports (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    component TEXT,
+    status TEXT DEFAULT 'open',
+    severity TEXT DEFAULT 'medium',
+    reported_by TEXT,
+    reported_by_name TEXT,
+    reported_at TEXT DEFAULT (datetime('now')),
+    resolved_at TEXT,
+    resolution_notes TEXT,
+    triage_notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_bug_reports_status ON bug_reports(status)`,
 
   // -- schema_version
   `CREATE TABLE IF NOT EXISTS schema_version (

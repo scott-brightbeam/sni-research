@@ -82,7 +82,7 @@ describe('db module', () => {
   it('sets schema_version', async () => {
     const result = await db.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
     expect(result.rows.length).toBe(1)
-    expect(result.rows[0].version).toBe(1)
+    expect(result.rows[0].version).toBe(2)
   })
 
   afterAll(() => db.close())
