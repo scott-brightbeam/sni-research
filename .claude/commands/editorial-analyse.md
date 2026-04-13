@@ -32,7 +32,7 @@ Label editorial inferences explicitly: "Editorial inference: [your analysis]" �
 6. Extract the `**URL:**` field from the frontmatter. If present, this is the episode URL. If missing, search `~/Projects/Claude/HomeBrew/podcasts/episodes-log.json` for a matching episode (by title or date+feedId) to find the `episodeUrl`.
 7. Increment `counters.nextSession` (this is your session number)
 8. Analyse through the Brightbeam editorial lens — read `config/prompts/editorial-context.v1.txt` for the full analytical framework
-9. **Actively discover new themes.** Do not just map content to existing T01-T26. Look for patterns, tensions, or phenomena that existing themes don't capture. A new theme is warranted when the content surfaces a recurring pattern, a genuine tension, or a distinct phenomenon. Create T27+ as needed.
+9. **Actively discover new themes.** Do not just map content to existing themes. Look for patterns, tensions, or phenomena that existing themes don't capture. A new theme is warranted when the content surfaces a recurring pattern, a genuine tension, or a distinct phenomenon. Create new themes (T52+) as needed. **Expected rate: approximately 1 new theme per 2-3 sessions.** If you have processed 5+ transcripts without creating any new themes, explicitly reconsider whether existing themes fully capture the content — they probably don't. Theme names should follow the style: descriptive noun phrase — analytical subtitle (see T37-T54 for examples).
 10. Produce these outputs:
 
 **Analysis entry** — add to `state.analysisIndex[String(nextDocument)]`:
@@ -66,11 +66,36 @@ Theme codes must match `T\d{2}` format.
 
 **Post candidates** — add to `state.postBacklog[String(nextPost)]`:
 ```json
-{ "title" (argumentative, not descriptive), "status": "suggested", "dateAdded": "YYYY-MM-DD",
-  "session", "coreArgument", "format" (one of six LinkedIn formats), "sourceDocuments": [],
-  "freshness", "priority", "notes" }
+{ "title": "HOOK — 20-80 chars, max 100. Provoke curiosity, never reveal the thesis.",
+  "status": "suggested",
+  "dateAdded": "YYYY-MM-DD",
+  "session": N,
+  "coreArgument": "Multi-sentence argumentative thesis (300+ chars). Brightbeam lens: what does this mean for enterprises adopting AI in regulated industries?",
+  "format": "One of the 6 LinkedIn formats (see below)",
+  "sourceDocuments": ["218"],
+  "freshness": "timely | evergreen | timely-evergreen | very-timely",
+  "priority": "immediate | high | medium-high | medium | low",
+  "notes": "Editor's brief (200+ chars): strongest source quote, which other D-numbers to pair with, why this angle works for Scott's enterprise audience, editorial hook."
+}
 ```
-Increment `counters.nextPost` after. Include MEDIUM-HIGH, HIGH and IMMEDIATE priority ideas.
+
+**TITLE RULES — NON-NEGOTIABLE:**
+- Target: 20-80 characters. Maximum 100 characters. NEVER longer.
+- The title is a HOOK, not a summary. It provokes curiosity without revealing the argument.
+- Good examples: "The 4K Ceiling", "AI is Air Cover", "The Kill Switch Problem", "The Benefits Are Real, the Fears Are Imagined", "Google's Problem Isn't Intelligence"
+- Techniques: name a phenomenon, invert expectations, state a sharp observation, create tension
+- NEVER cram the thesis into the title. That is the coreArgument's job.
+- NEVER start with `[EDITORIAL INFERENCE]`
+
+**THE 6 LINKEDIN POST FORMATS — use the canonical names below:**
+1. "Format 1: The Concept Contrast" — before/after comparison illuminating a shift. Best for: technology shifts, methodology changes.
+2. "Format 2: The News Decoder" — current event → deeper signal. Best for: product launches, market shifts.
+3. "Format 3: The Behavioural Paradox" — surprising human contradiction + psychology + framework. Best for: decision-making, adoption challenges.
+4. "Format 4: The Honest Confession" — genuine mistake or evolution in thinking. Best for: leadership lessons.
+5. "Format 5: The Quiet Observation" — smaller, sharper insight. Fewer words, more precision. Best for: industry patterns, market tells.
+6. "Format 6: The Practitioner's Take" — how you actually do something with specificity. Best for: frameworks, processes.
+
+Increment `counters.nextPost` after. Include MEDIUM-HIGH, HIGH and IMMEDIATE priority ideas only.
 
 **Story references** — save to `data/editorial/stories-session-N.json`:
 ```json
