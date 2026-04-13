@@ -19,6 +19,7 @@ import { join, basename, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { createSyncDb } from './lib/db.js'
 import { migrateSchema } from '../web/api/lib/db.js'
+import { validateEditorialState } from './validate-editorial-state.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -753,7 +754,30 @@ async function main() {
 
     // Sync all data types
     await syncArticles(db)
-    await syncEditorialState(db)
+
+    // Validate editorial state before syncing — block if errors found
+    const statePath = join(ROOT, 'data/editorial/state.json')
+    if (existsSync(statePath)) {
+      try {
+        const rawState = JSON.parse(readFileSync(statePath, 'utf8'))
+        const validation = validateEditorialState(rawState)
+        if (!validation.valid) {
+          console.error(`[sync] Editorial validation failed (${validation.errors.length} errors) — skipping editorial sync`)
+          validation.errors.slice(0, 5).forEach(e => console.error(`[sync]   ${e.message}`))
+          if (validation.errors.length > 5) console.error(`[sync]   ... and ${validation.errors.length - 5} more`)
+        } else {
+          await syncEditorialState(db)
+          if (validation.warnings.length > 0) {
+            log(`Editorial: synced with ${validation.warnings.length} warnings`)
+          }
+        }
+      } catch (err) {
+        console.error(`[sync] Editorial state parse error: ${err.message} — skipping editorial sync`)
+      }
+    } else {
+      log('Editorial: state.json not found — skipping')
+    }
+
     await syncPodcasts(db)
 
     // Sync output/ files to Fly volume (draft, links, review, evaluate, published)

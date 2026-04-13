@@ -137,4 +137,9 @@ If the audit finds FABRICATED or PROJECTED items:
 
 Do NOT proceed to the next transcript until the current one passes audit.
 
-13. Report what was processed and what was found
+13. **MANDATORY SCHEMA VALIDATION** — Run: `bun scripts/validate-editorial-state.js`
+    If it reports errors, fix them before proceeding to the next transcript.
+    If it reports warnings, note them in your session report but continue.
+    This catches: overlong titles, wrong format names, missing fields, invalid priorities.
+
+14. Report what was processed and what was found
