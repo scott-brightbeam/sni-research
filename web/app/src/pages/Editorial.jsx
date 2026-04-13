@@ -558,7 +558,28 @@ function PostCard({ post, onStatusChange, onDraftRequest }) {
           )}
           {post.sourceDocuments?.length > 0 && (
             <div className="post-sources">
-              <strong>Sources:</strong> {post.sourceDocuments.join(', ')}
+              <strong>Sources:</strong>{' '}
+              {post.sourceDocuments.map((sd, i) => {
+                const isNumeric = /^\d+$/.test(String(sd))
+                return (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    {isNumeric ? (
+                      <a
+                        href={`/source/${sd}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="source-link"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {sd}
+                      </a>
+                    ) : (
+                      String(sd)
+                    )}
+                  </span>
+                )
+              })}
             </div>
           )}
           <div className="post-actions" onClick={e => e.stopPropagation()}>
