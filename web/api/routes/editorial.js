@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs'
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, appendFileSync, mkdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { getDb } from '../lib/db.js'
 import * as eq from '../lib/editorial-queries.js'
@@ -24,6 +24,50 @@ function readJSON(path) {
     console.error(`[editorial] Failed to read/parse ${path}: ${err.message}`)
     return null
   }
+}
+
+// ── Editorial chat persistence ──────────────────────────
+
+const EDITORIAL_CHAT_DIR = join(ROOT, 'data/editorial/chats')
+
+function ensureChatDir() {
+  if (!existsSync(EDITORIAL_CHAT_DIR)) mkdirSync(EDITORIAL_CHAT_DIR, { recursive: true })
+}
+
+function readEditorialThreads() {
+  const file = join(EDITORIAL_CHAT_DIR, 'threads.json')
+  if (!existsSync(file)) return []
+  try { return JSON.parse(readFileSync(file, 'utf-8')) } catch { return [] }
+}
+
+function writeEditorialThreads(threads) {
+  ensureChatDir()
+  writeFileSync(join(EDITORIAL_CHAT_DIR, 'threads.json'), JSON.stringify(threads, null, 2))
+}
+
+function appendEditorialMessage(threadId, message) {
+  ensureChatDir()
+  appendFileSync(join(EDITORIAL_CHAT_DIR, `thread-${threadId}.jsonl`), JSON.stringify(message) + '\n')
+}
+
+function readEditorialHistory(threadId) {
+  const file = join(EDITORIAL_CHAT_DIR, `thread-${threadId}.jsonl`)
+  if (!existsSync(file)) return []
+  return readFileSync(file, 'utf-8')
+    .split('\n')
+    .filter(l => l.trim())
+    .map(l => { try { return JSON.parse(l) } catch { return null } })
+    .filter(Boolean)
+}
+
+export function getEditorialThreads() {
+  return readEditorialThreads()
+    .sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))
+    .slice(0, 30)
+}
+
+export function getEditorialChatHistory(threadId) {
+  return readEditorialHistory(threadId)
 }
 
 const STALE_LOCK_MS = 30 * 60 * 1000 // 30 minutes
@@ -645,7 +689,7 @@ export async function putDecisionArchive(id, body) {
 // ── Editorial Chat (streaming SSE) ─────────────────────
 
 export async function postEditorialChat(body, req) {
-  const { message, tab, history, injectContext, model, sourceRefs } = body
+  const { message, tab, history, injectContext, model, sourceRefs, threadId: inputThreadId } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
@@ -744,6 +788,7 @@ export async function postEditorialChat(body, req) {
 
         let roundMessages = [...sdkMessages]
         let toolRound = 0
+        let completeText = '' // accumulates across tool rounds for persistence
 
         // Draft mode system addendum: instruct the model to draft, not just gather
         const draftAddendum = isDraftMode
@@ -799,7 +844,56 @@ export async function postEditorialChat(body, req) {
           }
 
           if (stopReason !== 'tool_use' || abort.signal.aborted) {
-            send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab })
+            completeText += fullText
+            const actualThreadId = inputThreadId || crypto.randomUUID()
+            send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab, threadId: actualThreadId })
+
+            // Persist messages after streaming completes
+            try {
+              const now = new Date().toISOString()
+
+              // Auto-create thread if new
+              if (!inputThreadId) {
+                const newThreads = readEditorialThreads()
+                newThreads.unshift({
+                  id: actualThreadId,
+                  name: message.trim().slice(0, 40),
+                  tab: activeTab,
+                  created: now,
+                  updated: now,
+                  messageCount: 0,
+                })
+                writeEditorialThreads(newThreads)
+              }
+
+              // Append user message
+              appendEditorialMessage(actualThreadId, {
+                id: 'msg_' + crypto.randomUUID().slice(0, 8),
+                role: 'user',
+                content: message.trim(),
+                timestamp: now,
+              })
+
+              // Append assistant message
+              appendEditorialMessage(actualThreadId, {
+                id: 'msg_' + crypto.randomUUID().slice(0, 8),
+                role: 'assistant',
+                content: completeText,
+                timestamp: new Date().toISOString(),
+              })
+
+              // Update thread metadata
+              const updatedThreads = readEditorialThreads()
+              const thread = updatedThreads.find(t => t.id === actualThreadId)
+              if (thread) {
+                thread.updated = new Date().toISOString()
+                thread.messageCount = (thread.messageCount || 0) + 2
+                writeEditorialThreads(updatedThreads)
+              }
+            } catch (persistErr) {
+              console.error('[editorial-chat] Failed to persist messages:', persistErr.message)
+            }
+
             break
           }
 
@@ -831,6 +925,7 @@ export async function postEditorialChat(body, req) {
             { role: 'user', content: toolResults },
           ]
 
+          completeText += fullText
           fullText = ''
         }
       } catch (err) {

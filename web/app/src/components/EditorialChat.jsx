@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useEditorialChat } from '../hooks/useEditorialChat'
+import { formatRelativeTime } from '../lib/format'
 import './EditorialChat.css'
 
 const TOOL_LABELS = {
@@ -76,7 +77,7 @@ const SUGGESTIONS = {
 export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
   // Internal chat tab — follows parent tab, but pins to 'draft' independently when a draft request arrives
   const [chatTab, setChatTab] = useState(tab)
-  const { messages, loading, error, send, clear, model, setModel } = useEditorialChat(chatTab)
+  const { messages, loading, error, send, clear, model, setModel, recentThreads, activeThreadId, selectThread, createNewThread } = useEditorialChat(chatTab)
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
@@ -172,6 +173,28 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
           </button>
         </div>
       </div>
+
+      {recentThreads.length > 0 && (
+        <div className="ec-recents">
+          <div className="ec-recents-header">
+            <span>Recents</span>
+            <button className="ec-new-chat" onClick={createNewThread} title="New chat">+</button>
+          </div>
+          <div className="ec-recents-list">
+            {recentThreads.slice(0, 15).map(t => (
+              <button
+                key={t.id}
+                className={`ec-recent-item ${t.id === activeThreadId ? 'active' : ''}`}
+                onClick={() => selectThread(t.id)}
+                title={t.name}
+              >
+                <span className="ec-recent-name">{t.name}</span>
+                <span className="ec-recent-time">{formatRelativeTime(t.updated)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="chat-messages">
         {messages.length === 0 && (

@@ -1,15 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { apiStream, readSSEStream } from '../lib/api'
+import { apiFetch, apiStream, readSSEStream } from '../lib/api'
 
 let nextId = 1
 
 /**
- * Hook for editorial contextual chat with SSE streaming.
+ * Hook for editorial contextual chat with SSE streaming and thread persistence.
  * Maintains per-tab conversation threads — switching tabs preserves messages.
  * Context (editorial state) is only injected on the first message per tab.
+ * Threads persist to disk via the editorial chat API.
  *
  * @param {string} tab — current editorial tab for context assembly
- * @returns {{ messages, loading, error, send, clear }}
+ * @returns {{ messages, loading, error, send, clear, model, setModel, recentThreads, activeThreadId, selectThread, createNewThread }}
  */
 export function useEditorialChat(tab = 'state') {
   // Map of tab -> messages[]
@@ -22,12 +23,25 @@ export function useEditorialChat(tab = 'state') {
   const loadingRef = useRef(false)
   const threadsRef = useRef({})
 
+  // Persistent thread management
+  const [recentThreads, setRecentThreads] = useState([])
+  const [activeThreadId, setActiveThreadId] = useState(null)
+  const activeThreadIdRef = useRef(null)
+
   // Current tab's messages
   const messages = threads[tab] || []
 
   // Keep refs in sync with state
   useEffect(() => { threadsRef.current = threads }, [threads])
   useEffect(() => { loadingRef.current = loading }, [loading])
+  useEffect(() => { activeThreadIdRef.current = activeThreadId }, [activeThreadId])
+
+  // Load recent threads on mount
+  useEffect(() => {
+    apiFetch('/api/editorial/chat/threads')
+      .then(setRecentThreads)
+      .catch(() => {})
+  }, [])
 
   // Mounted guard + abort cleanup on unmount
   useEffect(() => {
@@ -37,6 +51,32 @@ export function useEditorialChat(tab = 'state') {
       if (abortRef.current) abortRef.current.abort()
     }
   }, [])
+
+  // Select a thread — load its history
+  const selectThread = useCallback(async (threadId) => {
+    try {
+      const history = await apiFetch(`/api/editorial/chat/history/${threadId}`)
+      const thread = recentThreads.find(t => t.id === threadId)
+      const threadTab = thread?.tab || tab
+
+      setActiveThreadId(threadId)
+      setThreads(prev => ({
+        ...prev,
+        [threadTab]: history,
+      }))
+    } catch (err) {
+      console.error('Failed to load thread:', err)
+    }
+  }, [recentThreads, tab])
+
+  // Create new thread (clear current conversation)
+  const createNewThread = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort()
+    setActiveThreadId(null)
+    setThreads(prev => ({ ...prev, [tab]: [] }))
+    setError(null)
+    setLoading(false)
+  }, [tab])
 
   const send = useCallback(async (text, sourceRefs = null, modelOverride = null, tabOverride = null) => {
     if (!text || typeof text !== 'string') return
@@ -76,6 +116,7 @@ export function useEditorialChat(tab = 'state') {
         model: effectiveModel,
         injectContext: isFirstMessage,
         history: currentHistory,
+        threadId: activeThreadIdRef.current || undefined,
         ...(sourceRefs ? { sourceRefs } : {}),
       }, controller.signal)
 
@@ -123,6 +164,14 @@ export function useEditorialChat(tab = 'state') {
                 : m
             )
           }))
+
+          // Capture threadId from server and refresh thread list
+          if (data.threadId && !activeThreadIdRef.current) {
+            setActiveThreadId(data.threadId)
+          }
+          apiFetch('/api/editorial/chat/threads')
+            .then(setRecentThreads)
+            .catch(() => {})
         } else if (data.type === 'error') {
           if (mountedRef.current) setError(data.error)
         }
@@ -147,9 +196,10 @@ export function useEditorialChat(tab = 'state') {
   const clear = useCallback(() => {
     if (abortRef.current) abortRef.current.abort()
     setThreads(prev => ({ ...prev, [tab]: [] }))
+    setActiveThreadId(null)
     setError(null)
     setLoading(false)
   }, [tab])
 
-  return { messages, loading, error, send, clear, model, setModel }
+  return { messages, loading, error, send, clear, model, setModel, recentThreads, activeThreadId, selectThread, createNewThread }
 }
