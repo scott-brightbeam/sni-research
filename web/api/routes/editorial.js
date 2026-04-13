@@ -747,7 +747,7 @@ export async function postEditorialChat(body, req) {
 
         // Draft mode system addendum: instruct the model to draft, not just gather
         const draftAddendum = isDraftMode
-          ? '\n\nIMPORTANT: You have a maximum of 2 tool rounds to gather source material. After gathering, you MUST generate the complete draft(s) in your response. Do not spend all rounds on data gathering — fetch what you need, then write.'
+          ? '\n\nIMPORTANT: You have a maximum of 2 tool rounds to gather source material. After gathering, you MUST generate ONE complete draft post — the format that best fits the material. Do not generate three drafts. The user can ask for alternatives if needed. Do not spend all rounds on data gathering — fetch what you need, then write.'
           : ''
 
         while (true) {
