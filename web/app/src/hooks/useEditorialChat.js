@@ -52,22 +52,20 @@ export function useEditorialChat(tab = 'state') {
     }
   }, [])
 
-  // Select a thread — load its history
+  // Select a thread — load its history into the CURRENT tab
   const selectThread = useCallback(async (threadId) => {
     try {
       const history = await apiFetch(`/api/editorial/chat/history/${threadId}`)
-      const thread = recentThreads.find(t => t.id === threadId)
-      const threadTab = thread?.tab || tab
-
       setActiveThreadId(threadId)
+      // Load into current tab so messages render immediately
       setThreads(prev => ({
         ...prev,
-        [threadTab]: history,
+        [tab]: history,
       }))
     } catch (err) {
       console.error('Failed to load thread:', err)
     }
-  }, [recentThreads, tab])
+  }, [tab])
 
   // Create new thread (clear current conversation)
   const createNewThread = useCallback(() => {
