@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useBugReports } from '../hooks/useBugReports'
+import { useExpandableCards } from '../hooks/useExpandableCards'
 import { formatRelativeTime } from '../lib/format'
 import './BugReports.css'
 
@@ -21,7 +22,7 @@ const SEVERITY_CLASSES = {
 
 export default function BugReports() {
   const [activeTab, setActiveTab] = useState('all')
-  const [expandedId, setExpandedId] = useState(null)
+  const { isExpanded, toggle, collapseAll, listRef } = useExpandableCards()
   const statusFilter = activeTab === 'all' ? undefined : activeTab
   const { bugs, loading, error } = useBugReports(statusFilter)
 
@@ -36,10 +37,6 @@ export default function BugReports() {
     }
   }
 
-  function toggleExpand(id) {
-    setExpandedId(prev => prev === id ? null : id)
-  }
-
   return (
     <div>
       <div className="page-header">
@@ -52,7 +49,7 @@ export default function BugReports() {
           <button
             key={tab}
             className={`tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => { setActiveTab(tab); setExpandedId(null) }}
+            onClick={() => { setActiveTab(tab); collapseAll() }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {activeTab === 'all' && tab !== 'all' && counts[tab] > 0 && (
@@ -73,10 +70,10 @@ export default function BugReports() {
         </div>
       )}
 
-      <div className="bug-list">
+      <div ref={listRef} className="bug-list">
         {bugs.map(bug => (
-          <div key={bug.id} className="bug-card" data-expanded={expandedId === bug.id || undefined}>
-            <button className="bug-card-header" onClick={() => toggleExpand(bug.id)}>
+          <div key={bug.id} className="bug-card" data-expanded={isExpanded(bug.id) || undefined}>
+            <button className="bug-card-header" onClick={() => toggle(bug.id)}>
               <span className="bug-status-dot" style={{ background: STATUS_COLOURS[bug.status] || 'var(--text-muted)' }} />
               <span className="bug-title">{bug.title}</span>
               <span className="bug-meta">
@@ -86,11 +83,11 @@ export default function BugReports() {
                 <span className="bug-component-badge">{bug.component}</span>
                 <span className="bug-time">{formatRelativeTime(bug.created_at)}</span>
               </span>
-              <span className="bug-chevron">{expandedId === bug.id ? '\u25B2' : '\u25BC'}</span>
+              <span className="bug-chevron">{isExpanded(bug.id) ? '\u25B2' : '\u25BC'}</span>
             </button>
 
-            {expandedId === bug.id && (
-              <div className="bug-detail">
+            {isExpanded(bug.id) && (
+              <div className="bug-detail" onClick={e => e.stopPropagation()}>
                 <div className="bug-detail-row">
                   <span className="bug-detail-label">Status</span>
                   <span className="bug-detail-value" style={{ color: STATUS_COLOURS[bug.status] }}>

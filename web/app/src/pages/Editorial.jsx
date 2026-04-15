@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useEditorialState, useEditorialActivity, useEditorialSearch, useEditorialCost } from '../hooks/useEditorialState'
 import { useEditorialStatus } from '../hooks/useEditorialStatus'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useOutsideClickSignal, useCloseOnSignal } from '../hooks/useExpandableCards'
 import { formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPut, apiPost } from '../lib/api'
 import { downloadFile } from '../lib/download'
@@ -215,6 +216,7 @@ export default function Editorial() {
 
 function AnalysisTab({ onDraftRequest }) {
   const [showArchived, setShowArchived] = useState(false)
+  const { closeSignal, listRef } = useOutsideClickSignal()
   const { data, loading, error, refetch } = useEditorialState('analysisIndex', {
     showArchived: showArchived ? 'true' : '',
   })
@@ -253,9 +255,9 @@ function AnalysisTab({ onDraftRequest }) {
       {entries.length === 0 ? (
         <EmptyState icon="📄" title="No analysis entries" description="Run ANALYSE to process transcripts and populate the index." />
       ) : (
-        <div className="analysis-list">
+        <div ref={listRef} className="analysis-list">
           {entries.map(entry => (
-            <AnalysisEntry key={entry.id} entry={entry} onDraftRequest={onDraftRequest} refetch={refetch} />
+            <AnalysisEntry key={entry.id} entry={entry} onDraftRequest={onDraftRequest} refetch={refetch} closeSignal={closeSignal} />
           ))}
         </div>
       )}
@@ -263,8 +265,9 @@ function AnalysisTab({ onDraftRequest }) {
   )
 }
 
-function AnalysisEntry({ entry, onDraftRequest, refetch }) {
+function AnalysisEntry({ entry, onDraftRequest, refetch, closeSignal }) {
   const [expanded, setExpanded] = useState(false)
+  useCloseOnSignal(closeSignal, () => setExpanded(false))
 
   async function handleArchiveToggle(e) {
     e.stopPropagation()
@@ -297,7 +300,7 @@ function AnalysisEntry({ entry, onDraftRequest, refetch }) {
         </div>
       )}
       {expanded && entry.summary && (
-        <div className="entry-summary">{entry.summary}</div>
+        <div className="entry-summary" onClick={e => e.stopPropagation()}>{entry.summary}</div>
       )}
       {expanded && (
         <div className="entry-actions" onClick={e => e.stopPropagation()}>
@@ -326,6 +329,7 @@ function AnalysisEntry({ entry, onDraftRequest, refetch }) {
 function ThemesTab({ onDraftRequest }) {
   const [showStale, setShowStale] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
+  const { closeSignal, listRef } = useOutsideClickSignal()
   const filters = {
     ...(showStale ? { stale: 'true' } : { active: 'true' }),
     showArchived: showArchived ? 'true' : '',
@@ -355,9 +359,9 @@ function ThemesTab({ onDraftRequest }) {
       {allThemes.length === 0 ? (
         <EmptyState icon="🔗" title="No themes registered" description="Themes are discovered automatically during DISCOVER stage." />
       ) : (
-        <div className="theme-list">
+        <div ref={listRef} className="theme-list">
           {allThemes.map(theme => (
-            <ThemeCard key={theme.code} theme={theme} onDraftRequest={onDraftRequest} refetch={refetch} />
+            <ThemeCard key={theme.code} theme={theme} onDraftRequest={onDraftRequest} refetch={refetch} closeSignal={closeSignal} />
           ))}
         </div>
       )}
@@ -365,8 +369,9 @@ function ThemesTab({ onDraftRequest }) {
   )
 }
 
-function ThemeCard({ theme, onDraftRequest, refetch }) {
+function ThemeCard({ theme, onDraftRequest, refetch, closeSignal }) {
   const [expanded, setExpanded] = useState(false)
+  useCloseOnSignal(closeSignal, () => setExpanded(false))
 
   async function handleArchiveToggle(e) {
     e.stopPropagation()
@@ -389,7 +394,7 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
         <div className="theme-meta">Last updated: {theme.lastUpdated}</div>
       )}
       {expanded && (
-        <div className="theme-details">
+        <div className="theme-details" onClick={e => e.stopPropagation()}>
           {(theme.evidence || []).slice(-3).map((ev, i) => (
             <div key={`${ev.session}-${ev.source || i}`} className="evidence-item">
               <span className="evidence-source">Session {ev.session} · {ev.source}</span>
@@ -428,6 +433,7 @@ function ThemeCard({ theme, onDraftRequest, refetch }) {
 
 function BacklogTab({ filter, setFilter, onDraftRequest }) {
   const { data, loading, error, refetch } = useEditorialState('postBacklog')
+  const { closeSignal, listRef } = useOutsideClickSignal()
 
   async function handleExportBacklog() {
     try {
@@ -499,9 +505,9 @@ function BacklogTab({ filter, setFilter, onDraftRequest }) {
       {posts.length === 0 ? (
         <EmptyState icon="📝" title="No posts match filters" description="Try adjusting the priority or format filters." />
       ) : (
-        <div className="backlog-list">
+        <div ref={listRef} className="backlog-list">
           {posts.map(post => (
-            <PostCard key={post.id} post={post} onStatusChange={refetch} onDraftRequest={onDraftRequest} />
+            <PostCard key={post.id} post={post} onStatusChange={refetch} onDraftRequest={onDraftRequest} closeSignal={closeSignal} />
           ))}
         </div>
       )}
@@ -509,8 +515,9 @@ function BacklogTab({ filter, setFilter, onDraftRequest }) {
   )
 }
 
-function PostCard({ post, onStatusChange, onDraftRequest }) {
+function PostCard({ post, onStatusChange, onDraftRequest, closeSignal }) {
   const [expanded, setExpanded] = useState(false)
+  useCloseOnSignal(closeSignal, () => setExpanded(false))
   const [updating, setUpdating] = useState(false)
   const [updateError, setUpdateError] = useState(null)
 
@@ -545,7 +552,7 @@ function PostCard({ post, onStatusChange, onDraftRequest }) {
         )}
       </div>
       {expanded && (
-        <div className="post-details">
+        <div className="post-details" onClick={e => e.stopPropagation()}>
           {post.coreArgument && (
             <div className="post-argument">
               <strong>Core argument:</strong> {post.coreArgument}

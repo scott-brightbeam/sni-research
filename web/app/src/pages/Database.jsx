@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import EditorialChat from '../components/EditorialChat'
 import { useArticles } from '../hooks/useArticles'
 import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
 import { usePodcasts } from '../hooks/usePodcasts'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useExpandableCards } from '../hooks/useExpandableCards'
 import SectorBadge from '../components/shared/SectorBadge'
 import { formatDate, formatRelativeTime } from '../lib/format'
 import { apiFetch, apiPatch, apiDelete, apiPost } from '../lib/api'
@@ -170,9 +171,9 @@ export default function Database() {
 // ── Podcasts Tab ──────────────────────────────────────────
 
 function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedChange, onDraftInChat, onReload }) {
+  const { isExpanded, toggle, listRef } = useExpandableCards()
   const [sourceFilter, setSourceFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
-  const [expandedIdx, setExpandedIdx] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
@@ -236,17 +237,20 @@ function PodcastsTab({ episodes, loading, error, showArchived, onShowArchivedCha
       {filtered.length === 0 ? (
         <div className="placeholder-text">No podcast episodes matching filters.</div>
       ) : (
-        <div className="podcast-list">
-          {filtered.map((ep, i) => (
-            <PodcastCard
-              key={ep.filename || i}
-              episode={ep}
-              expanded={expandedIdx === i}
-              onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
-              onDraftInChat={onDraftInChat}
-              onReload={onReload}
-            />
-          ))}
+        <div ref={listRef} className="podcast-list">
+          {filtered.map((ep, i) => {
+            const key = ep.filename || String(i)
+            return (
+              <PodcastCard
+                key={key}
+                episode={ep}
+                expanded={isExpanded(key)}
+                onToggle={() => toggle(key)}
+                onDraftInChat={onDraftInChat}
+                onReload={onReload}
+              />
+            )
+          })}
         </div>
       )}
     </>
@@ -259,22 +263,9 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
   const storiesExtracted = digest.stories?.length || ep.storiesExtracted || 0
   const storiesFound = ep.storiesFound || 0
   const themes = digest.themes || ep.themes || []
-  const cardRef = useRef(null)
 
-  // Close the expanded panel when the user clicks anywhere outside this card.
-  // Clicks inside the card's own toggle-header still flow through the normal
-  // onToggle path. Clicks inside the panel body are stopped from propagating
-  // (see .podcast-card-detail onClick) so links and buttons inside work.
-  useEffect(() => {
-    if (!expanded) return
-    function handleOutsideClick(e) {
-      if (cardRef.current && !cardRef.current.contains(e.target)) {
-        onToggle()
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [expanded, onToggle])
+  // Outside-click close is owned by the parent's useExpandableCards hook.
+  // Each card only toggles its own state; multiple cards can be open at once.
 
   async function handleArchive(e) {
     e.stopPropagation()
@@ -291,7 +282,7 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
   }
 
   return (
-    <div ref={cardRef} className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
+    <div className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
       <div className="podcast-card-header">
         <div className="podcast-card-title">
           {ep.title || ep.filename || 'Untitled episode'}
@@ -382,7 +373,7 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
 // ── Article Table (carried forward from Articles.jsx) ─────
 
 function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
-  const [expandedSlug, setExpandedSlug] = useState(null)
+  const { isExpanded, toggle, listRef } = useExpandableCards()
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [actionError, setActionError] = useState(null)
 
@@ -428,8 +419,7 @@ function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
   }
 
   function handleRowClick(a) {
-    const key = `${a.date_published}-${a.sector}-${a.slug}`
-    setExpandedSlug(expandedSlug === key ? null : key)
+    toggle(`${a.date_published}-${a.sector}-${a.slug}`)
   }
 
   function handleDraftInChat(a) {
@@ -453,10 +443,9 @@ function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
               <th>{tab === 'flagged' ? 'Reason' : 'Actions'}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={listRef}>
             {articles.map(a => {
               const key = `${a.date_published}-${a.sector}-${a.slug}`
-              const isExpanded = expandedSlug === key
               const isDeleting = deleteConfirm === key
 
               return (
@@ -464,7 +453,7 @@ function ArticleTable({ articles, tab, onReload, onDraftInChat }) {
                   key={key}
                   article={a}
                   tab={tab}
-                  isExpanded={isExpanded}
+                  isExpanded={isExpanded(key)}
                   isDeleting={isDeleting}
                   onRowClick={() => handleRowClick(a)}
                   onSectorChange={(s) => handleSectorChange(a, s)}
@@ -588,7 +577,7 @@ function ArticleRow({
         </td>
       </tr>
       {isExpanded && (
-        <tr className="detail-row">
+        <tr className="detail-row" onClick={e => e.stopPropagation()}>
           <td colSpan={5}>
             <ArticleDetail article={a} detail={detail} loading={detailLoading} error={detailError} />
           </td>
