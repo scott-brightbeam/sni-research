@@ -140,6 +140,17 @@ export function useEditorialChat(tab = 'state') {
                 : m
             )
           }))
+        } else if (data.type === 'warning') {
+          // Server-side soft warning (e.g. editorial state unavailable).
+          // Surface as a non-blocking note on the assistant message.
+          setThreads(prev => ({
+            ...prev,
+            [effectiveTab]: (prev[effectiveTab] || []).map(m =>
+              m.id === assistantId
+                ? { ...m, warnings: [...(m.warnings || []), data.message] }
+                : m
+            )
+          }))
         } else if (data.type === 'tool_result') {
           setThreads(prev => ({
             ...prev,

@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, appendFileSync, mkdirSync } from 'fs'
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, appendFileSync, mkdirSync, renameSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import { getDb } from '../lib/db.js'
 import * as eq from '../lib/editorial-queries.js'
@@ -30,6 +30,16 @@ function readJSON(path) {
 
 const EDITORIAL_CHAT_DIR = join(ROOT, 'data/editorial/chats')
 
+// threadIds must be full UUIDv4 to block path-traversal attempts.
+// Reject anything else at every entry point that builds a file path from the ID.
+const THREAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function assertValidThreadId(id) {
+  if (typeof id !== 'string' || !THREAD_ID_RE.test(id)) {
+    throw Object.assign(new Error('Invalid threadId'), { status: 400 })
+  }
+}
+
 function ensureChatDir() {
   if (!existsSync(EDITORIAL_CHAT_DIR)) mkdirSync(EDITORIAL_CHAT_DIR, { recursive: true })
 }
@@ -40,17 +50,36 @@ function readEditorialThreads() {
   try { return JSON.parse(readFileSync(file, 'utf-8')) } catch { return [] }
 }
 
+/**
+ * Atomically overwrite threads.json using the write-validate-swap pattern
+ * mandated by project convention (CLAUDE.md → "Config writes"). A direct
+ * writeFileSync could corrupt the file on crash and silently wipe every
+ * thread from the sidebar. Temp file → parse-back → .bak → rename.
+ */
 function writeEditorialThreads(threads) {
   ensureChatDir()
-  writeFileSync(join(EDITORIAL_CHAT_DIR, 'threads.json'), JSON.stringify(threads, null, 2))
+  const finalPath = join(EDITORIAL_CHAT_DIR, 'threads.json')
+  const tmpPath = finalPath + '.tmp'
+  const bakPath = finalPath + '.bak'
+  const payload = JSON.stringify(threads, null, 2)
+
+  writeFileSync(tmpPath, payload)
+  // Validate by parsing back — if this throws, we've written garbage.
+  JSON.parse(readFileSync(tmpPath, 'utf-8'))
+  if (existsSync(finalPath)) {
+    try { renameSync(finalPath, bakPath) } catch { /* first write */ }
+  }
+  renameSync(tmpPath, finalPath)
 }
 
 function appendEditorialMessage(threadId, message) {
+  assertValidThreadId(threadId)
   ensureChatDir()
   appendFileSync(join(EDITORIAL_CHAT_DIR, `thread-${threadId}.jsonl`), JSON.stringify(message) + '\n')
 }
 
 function readEditorialHistory(threadId) {
+  assertValidThreadId(threadId)
   const file = join(EDITORIAL_CHAT_DIR, `thread-${threadId}.jsonl`)
   if (!existsSync(file)) return []
   return readFileSync(file, 'utf-8')
@@ -688,12 +717,73 @@ export async function putDecisionArchive(id, body) {
 
 // ── Editorial Chat (streaming SSE) ─────────────────────
 
+// ── Chat safety limits ────────────────────────────────────
+// In-process rate limiter. CORS restricts the chat endpoint to
+// localhost:5173 but any local script can still spam it. Cap concurrent
+// streams and requests/minute so a runaway client or double-click storm
+// can't torch Scott's Claude Max credits. CLAUDE.md cites a $231
+// accidental-API-call incident; these are the guardrails for the chat
+// equivalent.
+const MAX_CONCURRENT_STREAMS = 3
+const MAX_REQUESTS_PER_MINUTE = 60
+let activeStreams = 0
+const requestTimestamps = []
+
+function acquireChatSlot() {
+  const now = Date.now()
+  while (requestTimestamps.length && now - requestTimestamps[0] > 60_000) requestTimestamps.shift()
+  if (requestTimestamps.length >= MAX_REQUESTS_PER_MINUTE) {
+    throw Object.assign(
+      new Error(`Rate limited: max ${MAX_REQUESTS_PER_MINUTE} chat requests/min. Try again shortly.`),
+      { status: 429 }
+    )
+  }
+  if (activeStreams >= MAX_CONCURRENT_STREAMS) {
+    throw Object.assign(
+      new Error(`Too many in-flight streams (limit ${MAX_CONCURRENT_STREAMS}). Wait for the current draft to finish.`),
+      { status: 429 }
+    )
+  }
+  activeStreams++
+  requestTimestamps.push(now)
+}
+
+function releaseChatSlot() {
+  if (activeStreams > 0) activeStreams--
+}
+
+// Cached state.json. Reading+parsing the 1MB state file on every request
+// wastes ~20-40ms and, worse, races with editorial-analyse.js rewrites,
+// which can make the chat read a partial file and silently return "not
+// found" for every ID. Cache by mtime so we re-parse only when the file
+// actually changes.
+const _stateCache = { content: null, mtime: 0 }
+
+function readEditorialState() {
+  const statePath = join(ROOT, 'data/editorial/state.json')
+  try {
+    const stat = statSync(statePath)
+    if (stat.mtimeMs !== _stateCache.mtime) {
+      _stateCache.content = JSON.parse(readFileSync(statePath, 'utf-8'))
+      _stateCache.mtime = stat.mtimeMs
+    }
+    return _stateCache.content
+  } catch {
+    return null // caller can detect and surface a warning via SSE
+  }
+}
+
 export async function postEditorialChat(body, req) {
   const { message, tab, history, injectContext, model, sourceRefs, threadId: inputThreadId } = body
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     throw Object.assign(new Error('message is required'), { status: 400 })
   }
+  if (inputThreadId !== undefined && inputThreadId !== null) {
+    assertValidThreadId(inputThreadId)
+  }
+
+  acquireChatSlot()
 
   const activeTab = tab || 'state'
 
@@ -744,6 +834,7 @@ export async function postEditorialChat(body, req) {
 
   const client = getClient()
   if (!client) {
+    releaseChatSlot() // no stream will start, so release early
     return new Response(JSON.stringify({
       type: 'error', code: 'ANTHROPIC_DISABLED',
       message: 'Editorial chat has moved to Claude Code.'
@@ -783,11 +874,15 @@ export async function postEditorialChat(body, req) {
 
         // Load editorial state so tool executors can serve requests.
         // Previously gated on isDraftMode — same problem as above.
-        let editorialState = null
-        const statePath = join(ROOT, 'data/editorial/state.json')
-        try {
-          editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
-        } catch { editorialState = {} }
+        // Cached+mtime-checked to avoid partial reads during analyse runs.
+        let editorialState = readEditorialState()
+        if (editorialState === null) {
+          // Surface to the UI so the user knows the model is working
+          // without live editorial data — previously every tool call
+          // returned "not found" with no explanation.
+          send({ type: 'warning', message: 'Editorial state unavailable — tool lookups may return nothing. Retry shortly.' })
+          editorialState = {}
+        }
 
         let roundMessages = [...sdkMessages]
         let toolRound = 0
@@ -933,6 +1028,9 @@ export async function postEditorialChat(body, req) {
         }
       } catch (err) {
         send({ type: 'error', error: err.message })
+      } finally {
+        // Always release the concurrency slot, even on abort or error.
+        releaseChatSlot()
       }
 
       try { controller.close() } catch { /* already closed */ }
