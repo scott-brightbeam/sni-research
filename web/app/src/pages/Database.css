@@ -204,9 +204,15 @@
   font-weight: 600;
 }
 
-.story-url {
-  color: var(--cloudy);
+a.story-url {
+  color: var(--sky, #8ab4f8);
   font-size: 11px;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+a.story-url:hover {
+  text-decoration: underline;
 }
 
 /* ── Article table (carried forward from Articles.css) ── */

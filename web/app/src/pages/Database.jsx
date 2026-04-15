@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import EditorialChat from '../components/EditorialChat'
 import { useArticles } from '../hooks/useArticles'
 import { useFlaggedArticles } from '../hooks/useFlaggedArticles'
@@ -15,6 +15,31 @@ import './Database.css'
 const SECTORS = ['', 'general', 'biopharma', 'medtech', 'manufacturing', 'insurance']
 
 const TIER_LABELS = { 1: 'Tier 1', 2: 'Tier 2' }
+
+// Podcast-platform hosts whose URLs are never valid "story" URLs —
+// they're always the episode page, not the article being discussed.
+// Newsletters (exponentialview.co, bigtechnology.com) are explicitly allowed.
+const PODCAST_PLATFORM_HOSTS = [
+  'podcasters.spotify.com', 'open.spotify.com',
+  'simplecast.com', 'blubrry.net', 'libsyn.com', 'buzzsprout.com',
+  'podbean.com', 'acast.com', 'art19.com', 'transistor.fm',
+  'anchor.fm', 'megaphone.fm', 'omnystudio.com',
+  'podcasts.apple.com', 'overcast.fm', 'pocketcasts.com',
+  'lexfridman.com', 'jimruttshow.com', 'dwarkesh.com',
+  'intelligencesquared.com', 'cognitiverevolution.ai',
+  'complexsystemspodcast.com',
+]
+
+function isPodcastPlatformUrl(url) {
+  if (!url) return false
+  try {
+    const { host, pathname } = new URL(url)
+    const h = host.toLowerCase().replace(/^www\./, '')
+    // YouTube search/handle-search fallback URLs — always contaminated
+    if (h === 'youtube.com' && /\/search\?|\/@[^/]+\/search/.test(pathname + url)) return true
+    return PODCAST_PLATFORM_HOSTS.some(p => h === p || h.endsWith('.' + p))
+  } catch { return false }
+}
 
 export default function Database() {
   const [sector, setSector] = useState('')
@@ -234,6 +259,22 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
   const storiesExtracted = digest.stories?.length || ep.storiesExtracted || 0
   const storiesFound = ep.storiesFound || 0
   const themes = digest.themes || ep.themes || []
+  const cardRef = useRef(null)
+
+  // Close the expanded panel when the user clicks anywhere outside this card.
+  // Clicks inside the card's own toggle-header still flow through the normal
+  // onToggle path. Clicks inside the panel body are stopped from propagating
+  // (see .podcast-card-detail onClick) so links and buttons inside work.
+  useEffect(() => {
+    if (!expanded) return
+    function handleOutsideClick(e) {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
+        onToggle()
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [expanded, onToggle])
 
   async function handleArchive(e) {
     e.stopPropagation()
@@ -250,7 +291,7 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
   }
 
   return (
-    <div className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
+    <div ref={cardRef} className={`podcast-card ${expanded ? 'expanded' : ''} ${ep.archived ? 'archived' : ''}`} onClick={onToggle}>
       <div className="podcast-card-header">
         <div className="podcast-card-title">
           {ep.title || ep.filename || 'Untitled episode'}
@@ -285,7 +326,7 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
       </div>
 
       {expanded && (
-        <div className="podcast-card-detail">
+        <div className="podcast-card-detail" onClick={e => e.stopPropagation()}>
           {digest.summary && (
             <div className="podcast-summary">{digest.summary}</div>
           )}
@@ -296,11 +337,20 @@ function PodcastCard({ episode, expanded, onToggle, onDraftInChat, onReload }) {
                 {digest.stories.map((s, i) => {
                   if (s == null) return null
                   const title = typeof s === 'string' ? s : (s.headline || s.title || 'Untitled')
+                  const url = typeof s === 'object' ? s.url : null
+                  const isRealStoryUrl = url && /^https?:\/\//.test(url) && !isPodcastPlatformUrl(url)
                   return (
                     <li key={i}>
                       {title}
                       {typeof s === 'object' && s.matched && <span className="story-matched"> (matched)</span>}
-                      {typeof s === 'object' && s.url && <span className="story-url"> — {s.url}</span>}
+                      {isRealStoryUrl && (
+                        <>
+                          {' — '}
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="story-url">
+                            {url}
+                          </a>
+                        </>
+                      )}
                     </li>
                   )
                 })}

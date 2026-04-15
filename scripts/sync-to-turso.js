@@ -79,8 +79,28 @@ function chunk(arr, size) {
 
 /**
  * Walk article directories and collect article records for upsert.
- * Only walks date directories from the last 7 days.
+ *
+ * Default behaviour: only walk date directories from the last 7 days
+ * (the automated pipeline produces thousands of articles per week and
+ * older ones don't change — re-scanning all of them would slow sync).
+ *
+ * Exception: editorial-discover articles are always included regardless
+ * of date. DISCOVER often resolves story references from older events
+ * (e.g. a podcast in April discussing a fundraise from January), and
+ * those articles must still be queryable in the Articles tab.
+ *
+ * Source types that always sync: editorial-discover, editorial-headlines,
+ * editorial-geographic-sweep, editorial-sector-search, manual.
+ * These are curated, comparatively rare, and high-value.
  */
+const ALWAYS_SYNC_SOURCE_TYPES = new Set([
+  'editorial-discover',
+  'editorial-headlines',
+  'editorial-geographic-sweep',
+  'editorial-sector-search',
+  'manual',
+])
+
 function collectArticles() {
   const cutoff = daysAgo(7)
   const articles = []
@@ -96,8 +116,9 @@ function collectArticles() {
     const dir = join(ROOT, base)
     if (!existsSync(dir)) continue
 
+    // Walk ALL date dirs — the per-file source_type decides whether to keep each.
     const dates = readdirSync(dir)
-      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= cutoff)
+      .filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d))
       .sort()
 
     for (const date of dates) {
@@ -117,13 +138,18 @@ function collectArticles() {
         for (const file of files) {
           try {
             const raw = JSON.parse(readFileSync(join(sectorPath, file), 'utf-8'))
+            const sourceType = sourceTypeOverride || raw.source_type || 'automated'
+            // Keep if within the recent window OR the source_type is one
+            // that always syncs regardless of date.
+            const keep = date >= cutoff || ALWAYS_SYNC_SOURCE_TYPES.has(sourceType)
+            if (!keep) continue
             const slug = basename(file, '.json')
             articles.push({
               slug,
               title: raw.title || slug,
               url: raw.url || null,
               source: raw.source || null,
-              source_type: sourceTypeOverride || raw.source_type || 'automated',
+              source_type: sourceType,
               date_published: raw.date_published || date,
               date_verified_method: raw.date_verified_method || null,
               date_confidence: raw.date_confidence || null,

@@ -62,7 +62,7 @@ Your output MUST be a single valid JSON object with these sections:
     {
       "headline": "Specific news story referenced in the transcript",
       "detail": "Additional context from the transcript about this story",
-      "url": "URL if mentioned in transcript, otherwise null",
+      "url": "URL of the actual story/article if explicitly quoted in transcript, otherwise null. NEVER use the podcast episode URL. NEVER use a podcast-platform URL (spotify, simplecast, blubrry, libsyn, acast, podcasts.apple.com, intelligencesquared, lexfridman.com, jimruttshow.*, dwarkesh.com, cognitiverevolution.ai, complexsystemspodcast.com). NEVER construct a search URL. When in doubt, write null — DISCOVER will find it via WebSearch.",
       "type": "survey|acquisition|product-launch|funding|research|regulation|partnership|other",
       "sector": "general-ai|biopharma|medtech|manufacturing|insurance"
     }

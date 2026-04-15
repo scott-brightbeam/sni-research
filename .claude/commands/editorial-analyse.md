@@ -99,8 +99,16 @@ Increment `counters.nextPost` after. Include MEDIUM-HIGH, HIGH and IMMEDIATE pri
 
 **Story references** — save to `data/editorial/stories-session-N.json`:
 ```json
-[{ "headline", "detail", "url" (if mentioned), "type", "sector", "sourceFile": "filename.md" }]
+[{ "headline", "detail", "url", "type", "sector", "sourceFile": "filename.md" }]
 ```
+
+**Story URL rules (NON-NEGOTIABLE):**
+- Set `url` ONLY if a specific article/source URL for THIS story is explicitly mentioned in the transcript (a speaker quotes a URL, the transcript includes a citation link).
+- Otherwise, `url` MUST be `null` — DISCOVER will find the original article via WebSearch.
+- **NEVER use the podcast episode's own URL as a story URL.** The podcast discussing a story is not the story's source. If tempted to fall back to the episode URL, write `null` instead.
+- **NEVER use a podcast-platform URL** as a story URL: spotify, simplecast, blubrry, libsyn, buzzsprout, podbean, acast, art19, transistor, anchor, megaphone, omnystudio, podcasts.apple.com, overcast, pocketcasts, lexfridman.com, jimruttshow.*, dwarkesh.com, intelligencesquared.com, cognitiverevolution.ai, complexsystemspodcast.com.
+- **NEVER construct a search URL** (e.g. `youtube.com/@author/search?query=...`) as a fallback — write `null`.
+- Newsletter URLs (exponentialview.co, bigtechnology.com newsletter posts) ARE valid story URLs when the transcript references the newsletter post directly.
 
 9. Recompute `state.corpusStats` (totalDocuments, activeTier1, activeThemes, totalPosts, etc.)
 10. Write state.json using write-validate-swap: write `.tmp`, parse back to validate, backup existing to `backups/`, rename

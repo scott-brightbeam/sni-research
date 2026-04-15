@@ -14,7 +14,20 @@ You are resolving story references from the editorial analysis pipeline. Each po
 ls -t data/editorial/stories-session-*.json | head -5
 ```
 
-Read the most recent file(s) that have unresolved stories (entries where `url` is null). If all files are empty or all stories have URLs, report 'No stories to discover' and stop.
+Read the most recent file(s) that have unresolved stories. **A story is "unresolved" if any of these apply:**
+
+- `url` is `null`, missing, or an empty string
+- `url` equals the podcast's own episodeUrl (contamination — the podcast is not the story's source)
+- `url` is on a podcast-platform host — these are ALWAYS unresolved, never article URLs:
+  - Platforms: `podcasters.spotify.com`, `open.spotify.com`, `*.simplecast.com`, `*.blubrry.net`, `*.libsyn.com`, `*.buzzsprout.com`, `*.podbean.com`, `*.acast.com`, `art19.com`, `*.transistor.fm`, `anchor.fm`, `megaphone.fm`, `omnystudio.com`, `podcasts.apple.com`, `overcast.fm`, `pocketcasts.com`
+  - Show sites: `lexfridman.com`, `jimruttshow.com`, `jimruttshow.blubrry.net`, `dwarkesh.com`, `intelligencesquared.com`, `cognitiverevolution.ai`, `complexsystemspodcast.com`
+- `url` is a YouTube search URL (`youtube.com/@*/search?query=...` or `youtube.com/search?...`)
+
+**Newsletter URLs are NOT unresolved** — these are valid story URLs:
+- `exponentialview.co` (Azeem Azhar's Exponential View newsletter)
+- `bigtechnology.com` (Alex Kantrowitz's newsletter)
+
+**Action:** For every story flagged as unresolved above, **null-out the existing `url` first** (so retry-sequences work cleanly), then process it through the three-tier search below. If all files are empty or every story already has a valid non-podcast URL, report 'No stories to discover' and stop.
 
 ## Step 2: Three-tier search for each unresolved story
 
