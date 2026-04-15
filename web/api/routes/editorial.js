@@ -775,24 +775,27 @@ export async function postEditorialChat(body, req) {
           : 'claude-sonnet-4-20250514'
 
         const isDraftMode = activeTab === 'draft'
-        const MAX_TOOL_ROUNDS = 2  // Reduced from 5 — model was spending all rounds gathering data
+        // Tools are available in EVERY tab (15 April 2026) — restricting
+        // them to the draft tab meant the chat couldn't fetch backlog/
+        // theme/entry details when users clicked 'Draft in chat' from
+        // other tabs, and fell back to general knowledge instead.
+        const MAX_TOOL_ROUNDS = 5
 
-        // Load editorial state for tool execution
+        // Load editorial state so tool executors can serve requests.
+        // Previously gated on isDraftMode — same problem as above.
         let editorialState = null
-        if (isDraftMode) {
-          const statePath = join(ROOT, 'data/editorial/state.json')
-          try {
-            editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
-          } catch { editorialState = {} }
-        }
+        const statePath = join(ROOT, 'data/editorial/state.json')
+        try {
+          editorialState = JSON.parse(readFileSync(statePath, 'utf-8'))
+        } catch { editorialState = {} }
 
         let roundMessages = [...sdkMessages]
         let toolRound = 0
         let completeText = '' // accumulates across tool rounds for persistence
 
-        // Draft mode system addendum: instruct the model to draft, not just gather
+        // Draft mode addendum encourages decisive drafting once data is in hand.
         const draftAddendum = isDraftMode
-          ? '\n\nIMPORTANT: You have a maximum of 2 tool rounds to gather source material. After gathering, you MUST generate ONE complete draft post — the format that best fits the material. Do not generate three drafts. The user can ask for alternatives if needed. Do not spend all rounds on data gathering — fetch what you need, then write.'
+          ? '\n\nIMPORTANT: You have a maximum of 5 tool rounds to gather source material. Fetch the backlog item / analysis entries / themes you need, then write ONE complete draft post in the format that best fits the material. The user can ask for alternatives if needed.'
           : ''
 
         while (true) {
@@ -800,11 +803,11 @@ export async function postEditorialChat(body, req) {
 
           const response = await client.messages.create({
             model: modelId,
-            max_tokens: model === 'opus' ? 8192 : 4096,  // Doubled — drafts need more output tokens
+            max_tokens: model === 'opus' ? 8192 : 8192,
             system: getEditorialSystemPrompt() + draftAddendum,
             messages: roundMessages,
             stream: true,
-            ...(isDraftMode && toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
+            ...(toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
           })
 
           const contentBlocks = []

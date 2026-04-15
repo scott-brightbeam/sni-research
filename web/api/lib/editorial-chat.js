@@ -17,8 +17,14 @@ const TRANSCRIPT_DIR = process.env.HOME
 const PARAM_RE = /^[\w-]+$/  // path component validation — matches validateParam in walk.js
 const EDITORIAL_DIR = process.env.SNI_EDITORIAL_DIR || join(ROOT, 'data/editorial')
 
-const CONTEXT_BUDGET = 30_000 // tokens
-const HISTORY_BUDGET = 8_000  // tokens for conversation history
+// Context budgets — substantially raised (15 April 2026) because the
+// previous 30k/8k limits meant the model couldn't see the full backlog
+// or evidence chain and ended up drafting from general knowledge when
+// specific IDs were referenced. The user explicitly authorised a large
+// increase. Claude Sonnet 4.5 and Opus 4.5 both accept 200k+ input;
+// 120k leaves headroom for output and tool-call responses.
+const CONTEXT_BUDGET = 120_000 // tokens for editorial state context
+const HISTORY_BUDGET = 20_000  // tokens for conversation history
 
 const EDITORIAL_SYSTEM_BASE = `You are an editorial intelligence assistant for Sector News Intelligence (SNI), a weekly AI newsletter covering five sectors: general AI, biopharma, medtech, manufacturing and insurance. The newsletter serves senior leaders, transformation professionals and AI-curious executives in regulated industries, with particular concentration in Ireland, the EU and the UK.
 
@@ -32,6 +38,21 @@ Your role:
 - When discussing the backlog: assess timeliness, audience relevance and originality. Recommend which items to prioritise for publication
 - When drafting: produce analytical prose in the FT editorial column style. Never produce bullet-point summaries. Every paragraph makes one argument supported by evidence.
 - Provide concise, actionable editorial guidance
+
+## Available tools (always on)
+
+You have four read-only tools to fetch detailed data from the editorial state on demand. **Use them proactively whenever a specific ID is referenced**, or when the tab context is missing detail you need:
+
+- **get_analysis_entry(id)** — full analysis entry + source transcript (up to 12k tokens of transcript)
+- **get_theme_detail(code)** — full theme evidence chain and cross-connections
+- **get_backlog_item(id)** — full post candidate (title, coreArgument, format, notes, sourceDocuments, themes)
+- **search_editorial(query, section?)** — keyword search across analysis / themes / backlog / all
+
+**Tool-use rules (NON-NEGOTIABLE):**
+1. When the user references a specific ID ('#258', 'T12', 'entry #42'), your FIRST action is to fetch that item — do not rely on the tab-level context which may be truncated.
+2. When drafting a post from a backlog item, ALWAYS call get_backlog_item first. Then fetch the source documents it references via get_analysis_entry. Only then draft — never from general knowledge.
+3. If you can't find an item by ID, try search_editorial with the title before reporting 'not found'.
+4. Quote specific evidence with IDs. 'Evidence #142 from Session 56' beats 'a previous podcast'.
 
 Style: UK English, spaced en-dashes, single quotes, active voice, contractions. Cite specific entries/themes by ID. Be concise — the editor values density over length.
 
@@ -762,6 +783,18 @@ Label each draft clearly with its format name. Present all three for selection.\
 
     default:
       sections.push('(Unknown tab context)')
+  }
+
+  // sourceRefs handling — ALL tabs (15 April 2026). Previously only
+  // some cases loaded them, which meant clicking 'Draft in chat' from
+  // the backlog tab lost the source-document context entirely.
+  if (sourceRefs?.length > 0 && !['articles', 'flagged', 'podcasts'].includes(tab)) {
+    const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+    if (srcDocs.length > 0) {
+      sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
+      for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
+    }
+    if (srcSkipped.length > 0) sections.push(`\n_Skipped: ${srcSkipped.join('; ')}_\n`)
   }
 
   const context = sections.join('\n')
