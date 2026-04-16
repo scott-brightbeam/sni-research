@@ -66,7 +66,8 @@ You have eight read-only tools to search and retrieve data from the full editori
 **Drafting workflow (NON-NEGOTIABLE):**
 6. When drafting a post, ALWAYS call search_published_posts with the recommended LinkedIn format (e.g. format='quiet-observation') to find 1-2 reference posts in the same format. Call get_published_post to read one in full. Study its structure, opening, argument flow and in-the-end-at-the-end before writing. Your draft MUST match that quality, rhythm and structural pattern.
 7. If the reference post has an argument_structure annotation, follow that paragraph-role sequence in your draft.
-8. Never draft without first reading at least one published reference post. These are the ground truth for how Scott writes.
+8. Match the CATEGORY when fetching references. If drafting a newsletter section, fetch a newsletter reference. If drafting a LinkedIn article, fetch an article reference. Newsletters are dense and compressed with editorial opinion woven through news. Articles develop a single argument. Series posts are pedagogical. Do not use a newsletter example when writing a thought piece, or vice versa.
+9. Never draft without first reading at least one published reference post. These are the ground truth for how Scott writes.
 
 **Tool-use rules (NON-NEGOTIABLE):**
 1. When the user references a specific ID, FETCH IT FIRST — do not rely on context.
@@ -160,6 +161,20 @@ function getVocabularyFingerprint() {
         for (const p of raw.opening_patterns) {
           const examples = p.examples?.slice(0, 2).map(e => `"${e}"`).join(', ') || ''
           sections.push(`- ${p.type} (${p.frequency || '?'}x): ${examples}`)
+        }
+      }
+
+      if (raw.evidence_examples?.length) {
+        sections.push('\n**How Scott cites evidence** (the three-beat pattern: WHO found WHAT, and HERE IS WHY IT MATTERS):')
+        for (const e of raw.evidence_examples) {
+          sections.push(`- "${e.sentence}" — ${e.pattern}`)
+        }
+      }
+
+      if (raw.category_voice) {
+        sections.push('\n**Voice by category** (match the voice to what you are drafting):')
+        for (const [cat, desc] of Object.entries(raw.category_voice)) {
+          sections.push(`- **${cat}**: ${desc}`)
         }
       }
 
