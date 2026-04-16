@@ -117,10 +117,67 @@ function getWritingPreferences() {
   }
 }
 
+// ── Vocabulary fingerprint (cached) ─────────────────────
+
+let _vocabCache = { content: null, mtime: 0 }
+
+function getVocabularyFingerprint() {
+  const vocabPath = join(EDITORIAL_DIR, 'vocabulary-fingerprint.json')
+  if (!existsSync(vocabPath)) return ''
+  try {
+    const stat = statSync(vocabPath)
+    if (stat.mtimeMs !== _vocabCache.mtime) {
+      const raw = JSON.parse(readFileSync(vocabPath, 'utf-8'))
+      const sections = ['## Scott\'s Vocabulary Fingerprint\n']
+
+      if (raw.signature_terms?.length) {
+        sections.push('**Prefer these terms** (Scott\'s distinctive choices):')
+        for (const t of raw.signature_terms.slice(0, 15)) {
+          sections.push(`- "${t.term}"${t.alternative ? ` over "${t.alternative}"` : ''} — ${t.context || ''}`)
+        }
+      }
+
+      if (raw.convention_breaks?.length) {
+        sections.push('\n**Convention breaks** (where Scott departs from standard business writing):')
+        for (const c of raw.convention_breaks) {
+          sections.push(`- ${c.pattern}`)
+        }
+      }
+
+      if (raw.avoided_terms?.length) {
+        sections.push(`\n**Never use** (beyond the prohibited list): ${raw.avoided_terms.slice(0, 20).join(', ')}`)
+      }
+
+      if (raw.distinctive_constructions?.length) {
+        sections.push('\n**Distinctive sentence constructions:**')
+        for (const c of raw.distinctive_constructions) {
+          sections.push(`- ${c.pattern}`)
+        }
+      }
+
+      if (raw.opening_patterns?.length) {
+        sections.push('\n**Opening-line patterns** (Scott almost always opens with a concrete noun or data point, never an abstract concept):')
+        for (const p of raw.opening_patterns) {
+          const examples = p.examples?.slice(0, 2).map(e => `"${e}"`).join(', ') || ''
+          sections.push(`- ${p.type} (${p.frequency || '?'}x): ${examples}`)
+        }
+      }
+
+      _vocabCache = { content: sections.join('\n'), mtime: stat.mtimeMs }
+    }
+    return _vocabCache.content
+  } catch {
+    return ''
+  }
+}
+
 export function getEditorialSystemPrompt() {
   const prefs = getWritingPreferences()
-  if (!prefs) return EDITORIAL_SYSTEM_BASE
-  return `${EDITORIAL_SYSTEM_BASE}\n\n## Writing Preferences\n\nWhen drafting or editing content, follow these rules:\n\n${prefs}`
+  const vocab = getVocabularyFingerprint()
+  let prompt = EDITORIAL_SYSTEM_BASE
+  if (prefs) prompt += `\n\n## Writing Preferences\n\nWhen drafting or editing content, follow these rules:\n\n${prefs}`
+  if (vocab) prompt += `\n\n${vocab}`
+  return prompt
 }
 
 // ── JSON reader ──────────────────────────────────────────
