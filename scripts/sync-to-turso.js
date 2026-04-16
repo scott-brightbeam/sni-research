@@ -717,13 +717,30 @@ async function syncPodcasts(db) {
 
 async function syncOutputFiles() {
   const outputDir = join(ROOT, 'output')
-  if (!existsSync(outputDir)) {
-    log('Output: no output/ directory, skipping')
-    return
+  const editorialDir = join(ROOT, 'data/editorial')
+
+  // Collect files to sync
+  const filesToSync = []
+
+  // Editorial state + supporting files — the chat handler reads these from
+  // the Fly volume, not Turso. If we don't sync them, the deployed chat
+  // sees a stale state and can't find recent backlog items / themes / entries.
+  const editorialFiles = ['state.json', 'activity.json', 'writing-preferences.md']
+  for (const f of editorialFiles) {
+    const local = join(editorialDir, f)
+    if (existsSync(local)) {
+      filesToSync.push({ local, remote: `/app/data/editorial/${f}` })
+    }
   }
 
-  // Collect files to sync: drafts, links, reviews, evaluations, published
-  const filesToSync = []
+  if (!existsSync(outputDir)) {
+    // Still sync editorial files even if output/ is missing
+    if (filesToSync.length > 0) {
+      await runSftp(filesToSync, ['mkdir /app/data/editorial'])
+    }
+    log('Output: no output/ directory, skipping output files')
+    return
+  }
 
   const topFiles = readdirSync(outputDir).filter(f =>
     (f.startsWith('draft-week-') || f.startsWith('links-week-') ||
@@ -750,11 +767,28 @@ async function syncOutputFiles() {
     return
   }
 
-  // Build SFTP commands
-  const sftpCommands = [
+  await runSftp(filesToSync, [
+    'mkdir /app/data/editorial',
     'mkdir /app/data/output',
     'mkdir /app/data/output/published',
-    ...filesToSync.map(f => `put ${f.local} ${f.remote}`)
+  ])
+  log(`Output: ${filesToSync.length} files synced to Fly volume`)
+}
+
+/**
+ * SFTP helper — push a list of {local, remote} files to the Fly volume.
+ *
+ * Fly's SFTP `put` refuses to overwrite existing files ("file exists on VM").
+ * Workaround: upload to `remote + '.new'`, then `fly ssh console` to `mv`
+ * each `.new` file into place. This is atomic-ish (mv is a rename on the
+ * same filesystem) and avoids the stale-file bug where state.json on Fly
+ * was 690KB while local was 1.2MB because `put` silently skipped it.
+ */
+async function runSftp(filesToSync, mkdirs = []) {
+  // Step 1: SFTP upload to .new paths
+  const sftpCommands = [
+    ...mkdirs,
+    ...filesToSync.map(f => `put ${f.local} ${f.remote}.new`)
   ].join('\n')
 
   try {
@@ -765,9 +799,25 @@ async function syncOutputFiles() {
       env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` },
     })
     await proc.exited
-    log(`Output: ${filesToSync.length} files synced to Fly volume`)
   } catch (err) {
-    console.error('[sync] Output sync failed (non-fatal):', err.message)
+    console.error('[sync] SFTP upload failed (non-fatal):', err.message)
+    return
+  }
+
+  // Step 2: Rename .new files into place on the VM
+  const mvCommands = filesToSync
+    .map(f => `mv ${f.remote}.new ${f.remote}`)
+    .join(' && ')
+
+  try {
+    const proc = Bun.spawn(
+      ['fly', 'ssh', 'console', '--command', mvCommands, '-a', 'sni-research'],
+      { stdout: 'pipe', stderr: 'pipe',
+        env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` } }
+    )
+    await proc.exited
+  } catch (err) {
+    console.error('[sync] SFTP rename failed (non-fatal):', err.message)
   }
 }
 
