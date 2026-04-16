@@ -329,29 +329,37 @@ export async function getCorpusStats(db) {
 export async function searchEditorial(db, query) {
   const pattern = `%${query.toLowerCase()}%`
 
-  const [entriesResult, themesResult, postsResult] = await Promise.all([
+  const [entriesResult, themesResult, themesByEvidenceResult, postsResult] = await Promise.all([
     db.execute({
       sql: `SELECT id, title, source, summary FROM analysis_entries
-            WHERE LOWER(title) LIKE ? OR LOWER(source) LIKE ? OR LOWER(summary) LIKE ?`,
-      args: [pattern, pattern, pattern],
+            WHERE LOWER(title) LIKE ? OR LOWER(source) LIKE ? OR LOWER(summary) LIKE ?
+              OR LOWER(host) LIKE ? OR LOWER(key_themes) LIKE ? OR LOWER(themes) LIKE ?`,
+      args: [pattern, pattern, pattern, pattern, pattern, pattern],
     }),
     db.execute({
       sql: `SELECT code, name FROM themes WHERE LOWER(name) LIKE ?`,
       args: [pattern],
     }),
     db.execute({
+      sql: `SELECT DISTINCT theme_code FROM theme_evidence WHERE LOWER(content) LIKE ?`,
+      args: [pattern],
+    }),
+    db.execute({
       sql: `SELECT id, title, core_argument FROM posts
-            WHERE LOWER(title) LIKE ? OR LOWER(core_argument) LIKE ?`,
-      args: [pattern, pattern],
+            WHERE LOWER(title) LIKE ? OR LOWER(core_argument) LIKE ?
+              OR LOWER(notes) LIKE ? OR LOWER(format) LIKE ? OR LOWER(source_documents) LIKE ?`,
+      args: [pattern, pattern, pattern, pattern, pattern],
     }),
   ])
 
   const results = []
 
   for (const row of entriesResult.rows) {
+    const q = query.toLowerCase()
     const matchField =
-      row.title.toLowerCase().includes(query.toLowerCase()) ? 'title' :
-      (row.source || '').toLowerCase().includes(query.toLowerCase()) ? 'source' : 'summary'
+      (row.title || '').toLowerCase().includes(q) ? 'title' :
+      (row.source || '').toLowerCase().includes(q) ? 'source' :
+      (row.summary || '').toLowerCase().includes(q) ? 'summary' : 'other'
     results.push({
       type: 'analysis',
       id: row.id,
@@ -361,13 +369,28 @@ export async function searchEditorial(db, query) {
     })
   }
 
+  const addedThemeCodes = new Set()
   for (const row of themesResult.rows) {
+    addedThemeCodes.add(row.code)
     results.push({
       type: 'theme',
       id: row.code,
       title: row.name,
       match: 'name',
     })
+  }
+
+  // Themes found via evidence content search (avoid duplicates)
+  for (const row of themesByEvidenceResult.rows) {
+    if (!addedThemeCodes.has(row.theme_code)) {
+      addedThemeCodes.add(row.theme_code)
+      results.push({
+        type: 'theme',
+        id: row.theme_code,
+        title: row.theme_code,
+        match: 'evidence',
+      })
+    }
   }
 
   for (const row of postsResult.rows) {
@@ -494,4 +517,171 @@ export async function setDecisionArchived(db, id, archived) {
     sql: 'UPDATE decisions SET archived = ? WHERE id = ?',
     args: [archived, id],
   })
+}
+
+// ---------------------------------------------------------------------------
+// Single-row lookups
+// ---------------------------------------------------------------------------
+
+/**
+ * Get a single post by id.
+ * @param {import('@libsql/client').Client} db
+ * @param {number|string} id
+ * @returns {Promise<object|null>}
+ */
+export async function getPost(db, id) {
+  const result = await db.execute({ sql: 'SELECT * FROM posts WHERE id = ?', args: [id] })
+  return result.rows[0] || null
+}
+
+/**
+ * Get a single article by id.
+ * @param {import('@libsql/client').Client} db
+ * @param {number|string} id
+ * @returns {Promise<object|null>}
+ */
+export async function getArticle(db, id) {
+  const result = await db.execute({ sql: 'SELECT * FROM articles WHERE id = ?', args: [id] })
+  return result.rows[0] || null
+}
+
+// ---------------------------------------------------------------------------
+// Article search
+// ---------------------------------------------------------------------------
+
+/**
+ * Search articles by keyword with optional filters.
+ * Searches title, snippet, source using LIKE (case-insensitive via LOWER).
+ * @param {import('@libsql/client').Client} db
+ * @param {object} opts
+ * @param {string} opts.query
+ * @param {string} [opts.sector]
+ * @param {string} [opts.dateFrom]
+ * @param {string} [opts.dateTo]
+ * @param {string} [opts.sourceType]
+ * @returns {Promise<object[]>}
+ */
+export async function searchArticles(db, { query, sector, dateFrom, dateTo, sourceType } = {}) {
+  const pattern = `%${(query || '').toLowerCase()}%`
+  const conditions = [
+    '(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source) LIKE ?)',
+  ]
+  const args = [pattern, pattern, pattern]
+
+  if (sector) {
+    conditions.push('sector = ?')
+    args.push(sector)
+  }
+  if (dateFrom) {
+    conditions.push('date_published >= ?')
+    args.push(dateFrom)
+  }
+  if (dateTo) {
+    conditions.push('date_published <= ?')
+    args.push(dateTo)
+  }
+  if (sourceType) {
+    conditions.push('source_type = ?')
+    args.push(sourceType)
+  }
+
+  const where = conditions.join(' AND ')
+  const result = await db.execute({
+    sql: `SELECT * FROM articles WHERE ${where} ORDER BY date_published DESC LIMIT 20`,
+    args,
+  })
+  return result.rows
+}
+
+// ---------------------------------------------------------------------------
+// Podcast search
+// ---------------------------------------------------------------------------
+
+/**
+ * Search episodes with story count, using keyword match on headline/title/summary.
+ * JOINs episodes with episode_stories for story count.
+ * @param {import('@libsql/client').Client} db
+ * @param {object} opts
+ * @param {string} opts.query
+ * @param {string} [opts.source]
+ * @param {string} [opts.dateFrom]
+ * @param {string} [opts.dateTo]
+ * @returns {Promise<object[]>}
+ */
+export async function searchPodcasts(db, { query, source, dateFrom, dateTo } = {}) {
+  const pattern = `%${(query || '').toLowerCase()}%`
+  const conditions = [
+    `(LOWER(e.title) LIKE ? OR LOWER(e.summary) LIKE ? OR e.id IN (
+      SELECT es.episode_id FROM episode_stories es WHERE LOWER(es.headline) LIKE ?
+    ))`,
+  ]
+  const args = [pattern, pattern, pattern]
+
+  if (source) {
+    conditions.push('LOWER(e.source) LIKE ?')
+    args.push(`%${source.toLowerCase()}%`)
+  }
+  if (dateFrom) {
+    conditions.push('e.date >= ?')
+    args.push(dateFrom)
+  }
+  if (dateTo) {
+    conditions.push('e.date <= ?')
+    args.push(dateTo)
+  }
+
+  const where = conditions.join(' AND ')
+  const result = await db.execute({
+    sql: `SELECT e.*, COUNT(es.id) AS story_count
+          FROM episodes e
+          LEFT JOIN episode_stories es ON es.episode_id = e.id
+          WHERE ${where}
+          GROUP BY e.id
+          ORDER BY e.date DESC
+          LIMIT 20`,
+    args,
+  })
+  return result.rows
+}
+
+// ---------------------------------------------------------------------------
+// Full podcast episode with stories + transcript
+// ---------------------------------------------------------------------------
+
+/**
+ * Get a podcast episode by id, including its stories and transcript.
+ * Transcript is looked up by matching the episode's filename against
+ * analysis_entries.filename to retrieve analysis_entries.transcript.
+ * @param {import('@libsql/client').Client} db
+ * @param {number|string} id
+ * @returns {Promise<{episode: object, stories: object[], transcript: string|null}|null>}
+ */
+export async function getPodcastEpisode(db, id) {
+  const epResult = await db.execute({
+    sql: 'SELECT * FROM episodes WHERE id = ?',
+    args: [id],
+  })
+  if (epResult.rows.length === 0) return null
+
+  const episode = epResult.rows[0]
+
+  const [storiesResult, transcriptResult] = await Promise.all([
+    db.execute({
+      sql: 'SELECT * FROM episode_stories WHERE episode_id = ? ORDER BY id',
+      args: [id],
+    }),
+    // Match filename to find the analysis entry's transcript
+    episode.filename
+      ? db.execute({
+          sql: 'SELECT transcript FROM analysis_entries WHERE filename = ? LIMIT 1',
+          args: [episode.filename],
+        })
+      : Promise.resolve({ rows: [] }),
+  ])
+
+  return {
+    episode,
+    stories: storiesResult.rows,
+    transcript: transcriptResult.rows[0]?.transcript || null,
+  }
 }

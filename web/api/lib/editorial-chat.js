@@ -9,6 +9,8 @@ import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { estimateTokens } from './context.js'
 import config from './config.js'
+import * as eq from './editorial-queries.js'
+import { getDb } from './db.js'
 
 const ROOT = config.ROOT
 const TRANSCRIPT_DIR = process.env.HOME
@@ -41,18 +43,28 @@ Your role:
 
 ## Available tools (always on)
 
-You have four read-only tools to fetch detailed data from the editorial state on demand. **Use them proactively whenever a specific ID is referenced**, or when the tab context is missing detail you need:
+You have eight read-only tools to search and retrieve data from the full editorial corpus:
 
-- **get_analysis_entry(id)** — full analysis entry + source transcript (up to 12k tokens of transcript)
-- **get_theme_detail(code)** — full theme evidence chain and cross-connections
-- **get_backlog_item(id)** — full post candidate (title, coreArgument, format, notes, sourceDocuments, themes)
-- **search_editorial(query, section?)** — keyword search across analysis / themes / backlog / all
+**Editorial state:**
+- **get_analysis_entry(id)** — full analysis entry + source transcript
+- **get_theme_detail(code)** — theme evidence chain and cross-connections
+- **get_backlog_item(id)** — post candidate with core argument, format, notes, source documents
+- **search_editorial(query, section?)** — keyword search across analysis / themes / backlog
+
+**Article corpus:**
+- **search_articles(query, sector?, dateFrom?, dateTo?, sourceType?)** — search 5,000+ articles by keyword with filters
+- **get_article(id)** — full article text + metadata
+
+**Podcast corpus:**
+- **search_podcasts(query, source?, dateFrom?, dateTo?)** — search episodes and their referenced stories
+- **get_podcast_episode(id)** — episode summary, stories with URLs, and full transcript
 
 **Tool-use rules (NON-NEGOTIABLE):**
-1. When the user references a specific ID ('#258', 'T12', 'entry #42'), your FIRST action is to fetch that item — do not rely on the tab-level context which may be truncated.
-2. When drafting a post from a backlog item, ALWAYS call get_backlog_item first. Then fetch the source documents it references via get_analysis_entry. Only then draft — never from general knowledge.
-3. If you can't find an item by ID, try search_editorial with the title before reporting 'not found'.
-4. Quote specific evidence with IDs. 'Evidence #142 from Session 56' beats 'a previous podcast'.
+1. When the user references a specific ID, FETCH IT FIRST — do not rely on context.
+2. When drafting a post from a backlog item: call get_backlog_item → get_analysis_entry for each sourceDocument → search_articles for supporting evidence → then draft. Never from general knowledge.
+3. If you cannot find an item by ID, try search_editorial with the title.
+4. If a tool returns data WITHOUT a transcript, say so explicitly. NEVER fabricate quotes, data points, or source material.
+5. Quote specific evidence with IDs. '#142 from Session 56' beats 'a previous podcast'.
 
 ## Trust boundary
 
@@ -189,12 +201,11 @@ export function safeReadFile(dir, filename) {
  * Each ref type resolves differently — transcripts by filename, articles by path, themes by evidence lookup.
  *
  * @param {Array<object>} sourceRefs — structured references from the UI
- * @param {object} state — current editorial state
- * @returns {{ docs: Array<{label:string, content:string}>, tokensUsed: number, skipped: string[] }}
+ * @param {import('@libsql/client').Client} db — libSQL client for editorial lookups
+ * @returns {Promise<{ docs: Array<{label:string, content:string}>, tokensUsed: number, skipped: string[] }>}
  */
-function loadSourceDocuments(sourceRefs, state) {
+async function loadSourceDocuments(sourceRefs, db) {
   if (!sourceRefs || sourceRefs.length === 0) return { docs: [], tokensUsed: 0, skipped: [] }
-  if (!state) state = {} // null guard — prevent TypeError on state.analysisIndex access
 
   // Cap refs to prevent excessive filesystem operations from malformed requests
   const cappedRefs = sourceRefs.slice(0, 50)
@@ -284,7 +295,7 @@ function loadSourceDocuments(sourceRefs, state) {
       }
 
       case 'entry': {
-        const entry = state?.analysisIndex?.[String(ref.id)]
+        const entry = db ? await eq.getAnalysisEntry(db, Number(ref.id)) : null
         if (entry) {
           if (!loadTranscriptForEntry(entry)) skipped.push(`entry #${ref.id} (no transcript found)`)
         } else {
@@ -294,23 +305,22 @@ function loadSourceDocuments(sourceRefs, state) {
       }
 
       case 'theme': {
-        const theme = state?.themeRegistry?.[ref.code]
-        if (!theme) { skipped.push(`theme ${ref.code} (not found)`); break }
+        const themeData = db ? await eq.getThemeWithEvidence(db, ref.code) : null
+        if (!themeData) { skipped.push(`theme ${ref.code} (not found)`); break }
         // Load source docs for most recent evidence (up to 4)
-        const evidenceEntries = (theme.evidence || []).slice(-4)
+        const evidenceEntries = (themeData.evidence || []).slice(0, 4) // already DESC by session
         for (const ev of evidenceEntries) {
           if (tokensUsed >= BUDGET) break
-          // Match evidence to analysis entry — disambiguate by date
+          // Match evidence to analysis entry — search by source name
           const evSourceBase = (ev.source || '').split(' (')[0].split(' - ')[0].trim()
-          const evDate = parseFuzzyDate((ev.source || '').match(/\(([^)]+)\)/)?.[1])
-          const candidates = Object.values(state.analysisIndex || {}).filter(e =>
-            (e.source || '').toLowerCase().includes(evSourceBase.toLowerCase()) ||
-            evSourceBase.toLowerCase().includes((e.source || '').toLowerCase())
-          )
-          // Prefer date match, fall back to most recent
-          const entry = (evDate && candidates.find(e => e.date?.startsWith(evDate))) ||
-                        candidates.sort((a, b) => (b.session || 0) - (a.session || 0))[0]
-          if (entry) loadTranscriptForEntry(entry)
+          if (evSourceBase && db) {
+            const results = await eq.searchEditorial(db, evSourceBase)
+            const match = results.find(r => r.type === 'analysis')
+            if (match) {
+              const entry = await eq.getAnalysisEntry(db, match.id)
+              if (entry) loadTranscriptForEntry(entry)
+            }
+          }
         }
         break
       }
@@ -320,17 +330,21 @@ function loadSourceDocuments(sourceRefs, state) {
         if (!name) { skipped.push('source_name (empty)'); break }
         // Strip parenthetical date suffix: "Big Technology Podcast - Sorkin (18 Mar)" → "Big Technology Podcast"
         const nameBase = name.split(' - ')[0].split(' (')[0].trim()
-        const nameDate = parseFuzzyDate(name.match(/\(([^)]+)\)/)?.[1])
 
-        // Match against analysis entries (both directions for abbreviated names)
-        const candidates = Object.values(state.analysisIndex || {}).filter(e =>
-          (e.source || '').toLowerCase().includes(nameBase.toLowerCase()) ||
-          nameBase.toLowerCase().includes((e.source || '').toLowerCase())
-        )
-        const entry = (nameDate && candidates.find(e => e.date?.startsWith(nameDate))) ||
-                      candidates.sort((a, b) => (b.session || 0) - (a.session || 0))[0]
-        if (entry) {
-          if (!loadTranscriptForEntry(entry)) skipped.push(`${name} (no transcript)`)
+        // Search analysis entries by source name
+        if (db && nameBase) {
+          const results = await eq.searchEditorial(db, nameBase)
+          const match = results.find(r => r.type === 'analysis')
+          if (match) {
+            const entry = await eq.getAnalysisEntry(db, match.id)
+            if (entry) {
+              if (!loadTranscriptForEntry(entry)) skipped.push(`${name} (no transcript)`)
+            } else {
+              skipped.push(`${name} (no matching entry)`)
+            }
+          } else {
+            skipped.push(`${name} (no matching entry)`)
+          }
         } else {
           skipped.push(`${name} (no matching entry)`)
         }
@@ -338,8 +352,18 @@ function loadSourceDocuments(sourceRefs, state) {
       }
 
       case 'url': {
-        // Build URL index from analysisIndex first (fast path)
-        const entry = Object.values(state.analysisIndex || {}).find(e => e.url === ref.url)
+        // Search analysis entries by URL — fast DB lookup
+        let entry = null
+        if (db && ref.url) {
+          // Direct URL search — analysis_entries has a url column
+          try {
+            const result = await db.execute({
+              sql: 'SELECT * FROM analysis_entries WHERE url = ? LIMIT 1',
+              args: [ref.url],
+            })
+            entry = result.rows.length > 0 ? result.rows[0] : null
+          } catch { /* skip */ }
+        }
         if (entry) {
           loadTranscriptForEntry(entry)
           break
@@ -390,18 +414,26 @@ function loadSourceDocuments(sourceRefs, state) {
  * Each tab gets different state sections to stay within budget.
  *
  * @param {string} tab — one of: state, themes, backlog, decisions, activity, newsletter, ideate, draft, articles, podcasts, flagged
- * @param {object} [state] — pre-loaded state.json (or null to load fresh)
+ * @param {import('@libsql/client').Client} [db] — libSQL client (or legacy state object for backward compat)
  * @param {Array<object>} [sourceRefs] — structured source document references from the UI
- * @returns {{ context: string, tokenEstimate: number }}
+ * @returns {Promise<{ context: string, tokenEstimate: number }>}
  */
-export function buildEditorialContext(tab, state = null, sourceRefs = null) {
-  if (!state) {
-    const statePath = join(EDITORIAL_DIR, 'state.json')
-    if (!existsSync(statePath)) return { context: '(No editorial state available yet.)', tokenEstimate: 10 }
+export async function buildEditorialContext(tab, db = null, sourceRefs = null) {
+  // Legacy backward-compat: if a plain object (not a db client) is passed,
+  // treat it as a state.json object and use the old code path.
+  let _legacyState = null
+  if (db && typeof db === 'object' && typeof db.execute !== 'function') {
+    console.warn('[editorial-chat] buildEditorialContext: received legacy state object instead of db client. This path is deprecated.')
+    _legacyState = db
+    db = null
+  }
+
+  // Resolve db client
+  if (!db) {
     try {
-      state = JSON.parse(readFileSync(statePath, 'utf-8'))
+      db = getDb()
     } catch (e) {
-      return { context: '(Failed to load editorial state.)', tokenEstimate: 10 }
+      return { context: '(Failed to connect to editorial database.)', tokenEstimate: 10 }
     }
   }
 
@@ -409,24 +441,30 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
   let budget = CONTEXT_BUDGET - HISTORY_BUDGET // leave room for conversation
 
   // Always include summary counters
-  if (state.counters) {
-    sections.push(`## Editorial Pipeline Status
-- Next session: ${state.counters.nextSession}
-- Analysis entries: ${Object.keys(state.analysisIndex || {}).length}
-- Themes tracked: ${Object.keys(state.themeRegistry || {}).length}
-- Post candidates: ${Object.keys(state.postBacklog || {}).length}
-- Decisions logged: ${(state.decisionLog || []).length}`)
-  }
+  try {
+    const [counters, corpusStats] = await Promise.all([
+      eq.getCounters(db),
+      eq.getCorpusStats(db),
+    ])
+    if (counters || corpusStats) {
+      sections.push(`## Editorial Pipeline Status
+- Next session: ${counters.nextSession || '?'}
+- Analysis entries: ${corpusStats?.total_documents ?? '?'}
+- Active tier 1: ${corpusStats?.active_tier1 ?? '?'}, tier 2: ${corpusStats?.active_tier2 ?? '?'}
+- Themes tracked: ${corpusStats?.active_themes ?? '?'}
+- Post candidates: ${corpusStats?.total_posts ?? '?'} (${corpusStats?.posts_published ?? 0} published)
+- Decisions logged: ${corpusStats?.total_documents != null ? '(use decisions tab)' : '?'}`)
+    }
+  } catch { /* counters unavailable — continue without */ }
 
   switch (tab) {
     case 'state':
     case 'analysis': {
       // Full analysis index (newest first, truncated to budget)
-      const entries = Object.entries(state.analysisIndex || {})
-        .sort(([a], [b]) => Number(b) - Number(a))
+      const entries = await eq.getAnalysisEntries(db)
       sections.push(`\n## Analysis Index (${entries.length} entries)\n`)
-      for (const [id, entry] of entries) {
-        const line = formatAnalysisEntry(id, entry)
+      for (const row of entries) {
+        const line = formatAnalysisEntry(row.id, row)
         if (estimateTokens(sections.join('\n') + line) > budget) break
         sections.push(line)
       }
@@ -435,10 +473,10 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
 
     case 'themes': {
       // Full theme registry
-      const themes = Object.entries(state.themeRegistry || {})
+      const themes = await eq.getThemes(db)
       sections.push(`\n## Theme Registry (${themes.length} themes)\n`)
-      for (const [code, theme] of themes) {
-        const line = formatTheme(code, theme)
+      for (const row of themes) {
+        const line = formatTheme(row.code, row)
         if (estimateTokens(sections.join('\n') + line) > budget) break
         sections.push(line)
       }
@@ -447,20 +485,19 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
 
     case 'backlog': {
       // Post backlog + relevant themes
-      const posts = Object.entries(state.postBacklog || {})
-        .sort(([a], [b]) => Number(b) - Number(a))
+      const posts = await eq.getPosts(db)
       sections.push(`\n## Post Backlog (${posts.length} candidates)\n`)
-      for (const [id, post] of posts) {
-        const line = formatPost(id, post)
+      for (const row of posts) {
+        const line = formatPost(row.id, row)
         if (estimateTokens(sections.join('\n') + line) > budget * 0.7) break
         sections.push(line)
       }
       // Add theme summaries for context
-      const themes = Object.entries(state.themeRegistry || {})
+      const themes = await eq.getThemes(db)
       if (themes.length > 0) {
         sections.push(`\n## Theme Registry (summary)\n`)
-        for (const [code, theme] of themes) {
-          sections.push(`- **${code}**: ${theme.name} (${theme.documentCount} docs)`)
+        for (const row of themes) {
+          sections.push(`- **${row.code}**: ${row.name} (${row.document_count ?? 0} docs)`)
         }
       }
       break
@@ -468,7 +505,7 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
 
     case 'decisions': {
       // Decision log + recent analysis for context
-      const decisions = [...(state.decisionLog || [])].reverse()
+      const decisions = await eq.getDecisions(db)
       sections.push(`\n## Decision Log (${decisions.length} entries)\n`)
       for (const d of decisions) {
         const line = formatDecision(d)
@@ -476,13 +513,11 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
         sections.push(line)
       }
       // Add recent analysis entries for reference
-      const entries = Object.entries(state.analysisIndex || {})
-        .sort(([a], [b]) => Number(b) - Number(a))
-        .slice(0, 10)
+      const entries = (await eq.getAnalysisEntries(db)).slice(0, 10)
       if (entries.length > 0) {
         sections.push(`\n## Recent Analysis (last 10)\n`)
-        for (const [id, entry] of entries) {
-          sections.push(`- #${id}: ${entry.title} (${entry.source}, T${entry.tier})`)
+        for (const row of entries) {
+          sections.push(`- #${row.id}: ${row.title} (${row.source}, T${row.tier})`)
         }
       }
       break
@@ -534,12 +569,13 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
         const latest = publishedMeta.linkedin[liCount - 1]
         sections.push(`Latest LinkedIn: '${latest.title}' (${latest.date})`)
       }
-      const inProgress = Object.entries(state.postBacklog || {})
-        .filter(([, p]) => p.status === 'in-progress' || p.status === 'approved')
-      if (inProgress.length > 0) {
+      const inProgressPosts = await eq.getPosts(db, { status: 'in-progress' })
+      const approvedPosts = await eq.getPosts(db, { status: 'approved' })
+      const activePosts = [...inProgressPosts, ...approvedPosts]
+      if (activePosts.length > 0) {
         sections.push('\n### Active Posts\n')
-        for (const [id, post] of inProgress) {
-          sections.push(formatPost(id, post))
+        for (const row of activePosts) {
+          sections.push(formatPost(row.id, row))
         }
       }
       break
@@ -587,7 +623,7 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
       }
       // Load source documents if refs provided (e.g. user clicked "Draft in chat" on an article)
       if (sourceRefs?.length > 0) {
-        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = await loadSourceDocuments(sourceRefs, db)
         if (srcDocs.length > 0) {
           sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
           for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
@@ -632,7 +668,7 @@ export function buildEditorialContext(tab, state = null, sourceRefs = null) {
       }
       // Load source documents if refs provided (e.g. user clicked "Draft in chat" on a podcast)
       if (sourceRefs?.length > 0) {
-        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = await loadSourceDocuments(sourceRefs, db)
         if (srcDocs.length > 0) {
           sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
           for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
@@ -658,32 +694,29 @@ For each idea provide:
 Rank by timeliness × audience relevance × originality. Check the existing backlog to avoid duplicates. Focus on angles that would resonate with Scott's audience of senior leaders, transformation professionals and AI-curious executives in regulated industries.\n`)
 
       // Themes
-      const ideateThemes = Object.entries(state.themeRegistry || {})
-        .filter(([, t]) => !t.archived)
+      const ideateThemes = await eq.getThemes(db)
       sections.push(`\n### Active Themes (${ideateThemes.length})\n`)
-      for (const [code, theme] of ideateThemes) {
-        const recentEv = (theme.evidence || []).slice(-3).map(e => e.source).join('; ')
-        sections.push(`- **${code}**: ${theme.name} (${theme.documentCount || 0} docs, strength: ${theme.evidence?.length || 0})${recentEv ? `\n  Recent evidence: ${recentEv}` : ''}`)
+      for (const row of ideateThemes) {
+        sections.push(`- **${row.code}**: ${row.name} (${row.document_count ?? 0} docs, strength: ${row.evidence_count ?? 0})`)
       }
 
       // Existing backlog (to avoid duplicates)
-      const ideateBacklog = Object.entries(state.postBacklog || {})
-        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
-        .sort(([a], [b]) => Number(b) - Number(a))
-      sections.push(`\n### Existing Backlog (${ideateBacklog.length} active)\n`)
-      for (const [id, post] of ideateBacklog.slice(0, 20)) {
-        sections.push(`- #${id}: ${post.title} [${post.status}] (${post.format || '?'}, ${post.priority || '?'})`)
+      const ideateBacklog = await eq.getPosts(db)
+      const activeBacklog = ideateBacklog.filter(p => p.status !== 'archived' && p.status !== 'rejected')
+      sections.push(`\n### Existing Backlog (${activeBacklog.length} active)\n`)
+      for (const row of activeBacklog.slice(0, 20)) {
+        sections.push(`- #${row.id}: ${row.title} [${row.status}] (${row.format || '?'}, ${row.priority || '?'})`)
       }
 
       // Recent high-potential analysis
-      const highPotential = Object.entries(state.analysisIndex || {})
-        .filter(([, e]) => e.postPotential === 'high' || e.postPotential === 'very-high' || e.postPotential === 'medium-high')
-        .sort(([a], [b]) => Number(b) - Number(a))
+      const allEntries = await eq.getAnalysisEntries(db)
+      const highPotential = allEntries
+        .filter(e => e.post_potential === 'high' || e.post_potential === 'very-high' || e.post_potential === 'medium-high')
         .slice(0, 15)
       if (highPotential.length > 0) {
         sections.push(`\n### High Post-Potential Entries\n`)
-        for (const [id, entry] of highPotential) {
-          sections.push(`- #${id}: ${entry.title} (${entry.source}) — ${entry.postPotential}${entry.postPotentialReasoning ? `: ${entry.postPotentialReasoning}` : ''}`)
+        for (const row of highPotential) {
+          sections.push(`- #${row.id}: ${row.title} (${row.source}) — ${row.post_potential}${row.post_potential_reasoning ? `: ${row.post_potential_reasoning}` : ''}`)
         }
       }
       break
@@ -710,7 +743,7 @@ Label each draft clearly with its format name. Present all three for selection.\
 
       // Load source documents via structured refs (replaces old fragile string-matching)
       if (sourceRefs?.length > 0) {
-        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = await loadSourceDocuments(sourceRefs, db)
         if (srcDocs.length > 0) {
           sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
           for (const doc of srcDocs) {
@@ -725,26 +758,25 @@ Label each draft clearly with its format name. Present all three for selection.\
       }
 
       // One-line indexes — the model uses tools to fetch full detail on demand
-      const draftEntries = Object.entries(state.analysisIndex || {})
-        .sort(([a], [b]) => Number(b) - Number(a))
+      const draftEntries = await eq.getAnalysisEntries(db)
       sections.push(`\n### Analysis Index (${draftEntries.length} entries — use get_analysis_entry tool for full detail)\n`)
-      for (const [id, e] of draftEntries) {
-        const themes = (e.themes || []).join(',')
-        sections.push(`- #${id}: ${e.title} (${e.source || '?'}, T${e.tier || '?'}) ${e.postPotential || '?'}${themes ? ` [${themes}]` : ''}`)
+      for (const row of draftEntries) {
+        const themes = _parseJsonCol(row.themes)
+        const themesStr = themes?.join(',') || ''
+        sections.push(`- #${row.id}: ${row.title} (${row.source || '?'}, T${row.tier || '?'}) ${row.post_potential || '?'}${themesStr ? ` [${themesStr}]` : ''}`)
       }
 
-      const draftThemes = Object.entries(state.themeRegistry || {}).filter(([, t]) => !t.archived)
+      const draftThemes = await eq.getThemes(db)
       sections.push(`\n### Themes (${draftThemes.length} — use get_theme_detail tool for evidence)\n`)
-      for (const [code, t] of draftThemes) {
-        sections.push(`- ${code}: ${t.name} (${t.documentCount || 0} docs)`)
+      for (const row of draftThemes) {
+        sections.push(`- ${row.code}: ${row.name} (${row.document_count ?? 0} docs)`)
       }
 
-      const draftBacklog = Object.entries(state.postBacklog || {})
-        .filter(([, p]) => p.status !== 'archived' && p.status !== 'rejected')
-        .sort(([a], [b]) => Number(b) - Number(a))
+      const draftBacklogAll = await eq.getPosts(db)
+      const draftBacklog = draftBacklogAll.filter(p => p.status !== 'archived' && p.status !== 'rejected')
       sections.push(`\n### Post Backlog (${draftBacklog.length} — use get_backlog_item tool for detail)\n`)
-      for (const [id, p] of draftBacklog) {
-        sections.push(`- #${id}: ${p.title} [${p.status}] (${p.format || '?'})`)
+      for (const row of draftBacklog) {
+        sections.push(`- #${row.id}: ${row.title} [${row.status}] (${row.format || '?'})`)
       }
       break
     }
@@ -778,7 +810,7 @@ Label each draft clearly with its format name. Present all three for selection.\
       }
       // Load source documents if refs provided
       if (sourceRefs?.length > 0) {
-        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+        const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = await loadSourceDocuments(sourceRefs, db)
         if (srcDocs.length > 0) {
           sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
           for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
@@ -796,7 +828,7 @@ Label each draft clearly with its format name. Present all three for selection.\
   // some cases loaded them, which meant clicking 'Draft in chat' from
   // the backlog tab lost the source-document context entirely.
   if (sourceRefs?.length > 0 && !['articles', 'flagged', 'podcasts'].includes(tab)) {
-    const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = loadSourceDocuments(sourceRefs, state)
+    const { docs: srcDocs, tokensUsed: srcTokens, skipped: srcSkipped } = await loadSourceDocuments(sourceRefs, db)
     if (srcDocs.length > 0) {
       sections.push(`\n### Source Documents (${srcDocs.length} loaded, ~${srcTokens.toLocaleString()} tokens)\n`)
       for (const doc of srcDocs) sections.push(`#### ${doc.label}\n\n${doc.content}\n`)
@@ -830,8 +862,11 @@ export function trimEditorialHistory(messages, budget = HISTORY_BUDGET) {
 export function formatAnalysisEntry(id, entry) {
   const lines = [`### #${id}: ${entry.title}`]
   lines.push(`Source: ${entry.source} · Host: ${entry.host || 'N/A'} · Tier: ${entry.tier} · Session: ${entry.session}`)
-  if (entry.themes?.length) lines.push(`Themes: ${entry.themes.join(', ')}`)
-  if (entry.postPotential) lines.push(`Post potential: ${entry.postPotential}`)
+  // themes: DB stores as JSON string, state.json as array
+  const themes = _parseJsonCol(entry.themes)
+  if (themes?.length) lines.push(`Themes: ${themes.join(', ')}`)
+  const pp = entry.post_potential ?? entry.postPotential
+  if (pp) lines.push(`Post potential: ${pp}`)
   if (entry.summary) lines.push(entry.summary)
   lines.push('')
   return lines.join('\n')
@@ -839,33 +874,52 @@ export function formatAnalysisEntry(id, entry) {
 
 export function formatTheme(code, theme) {
   const lines = [`### ${code}: ${theme.name}`]
-  lines.push(`Documents: ${theme.documentCount} · Last updated: ${theme.lastUpdated || 'N/A'}`)
+  const docCount = theme.document_count ?? theme.documentCount ?? 0
+  const lastUp = theme.last_updated_session ?? theme.lastUpdated ?? 'N/A'
+  lines.push(`Documents: ${docCount} · Last updated: ${lastUp}`)
+  // evidence: DB rows come from getThemes() which doesn't include evidence inline;
+  // state.json had it inline. When present (legacy path), format it.
   const recentEvidence = (theme.evidence || []).slice(-2)
   for (const ev of recentEvidence) {
     lines.push(`> Session ${ev.session} · ${ev.source}: ${ev.content}`)
   }
-  if (theme.crossConnections?.length) {
-    lines.push(`Cross-connections: ${theme.crossConnections.map(c => c.theme).join(', ')}`)
+  // crossConnections: DB path uses theme_connections table; legacy path had inline array
+  const cc = theme.crossConnections || theme.connections || []
+  if (cc.length) {
+    lines.push(`Cross-connections: ${cc.map(c => c.theme || c.from_code || c.to_code).join(', ')}`)
   }
   lines.push('')
   return lines.join('\n')
 }
 
 export function formatPost(id, post) {
-  const lines = [`### #${id}: ${post.title || post.workingTitle || '(untitled)'}`]
+  const lines = [`### #${id}: ${post.title || post.working_title || post.workingTitle || '(untitled)'}`]
   lines.push(`Status: ${post.status} · Priority: ${post.priority || 'N/A'} · Format: ${post.format || 'N/A'}`)
-  if (post.coreArgument) lines.push(`Core argument: ${post.coreArgument}`)
-  if (post.themes?.length) lines.push(`Themes: ${post.themes.join(', ')}`)
-  if (post.sourceDocuments?.length) lines.push(`Sources: ${post.sourceDocuments.join(', ')}`)
+  const coreArg = post.core_argument ?? post.coreArgument
+  if (coreArg) lines.push(`Core argument: ${coreArg}`)
+  // themes: not a column on posts table, but may exist on legacy state.json objects
+  const themes = _parseJsonCol(post.themes)
+  if (themes?.length) lines.push(`Themes: ${themes.join(', ')}`)
+  const srcDocs = _parseJsonCol(post.source_documents ?? post.sourceDocuments)
+  if (srcDocs?.length) lines.push(`Sources: ${srcDocs.join(', ')}`)
   if (post.notes) lines.push(`Notes: ${post.notes}`)
   lines.push('')
   return lines.join('\n')
 }
 
 function formatDecision(d) {
-  const lines = [`**[${d.type || 'decision'}]** ${d.date || d.timestamp || ''}`]
+  const lines = [`**[${d.type || d.title || 'decision'}]** ${d.date || d.created_at || d.timestamp || ''}`]
   lines.push(d.decision || d.content || d.summary || '')
   if (d.reasoning) lines.push(`_Reasoning: ${d.reasoning}_`)
   lines.push('')
   return lines.join('\n')
+}
+
+/** Parse a JSON text column that might be an array string, an array, or null. */
+function _parseJsonCol(val) {
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string' && val.startsWith('[')) {
+    try { return JSON.parse(val) } catch { return null }
+  }
+  return null
 }

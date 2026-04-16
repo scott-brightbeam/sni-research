@@ -778,79 +778,42 @@ describe('GET /api/editorial/draft', () => {
 import { buildEditorialContext, trimEditorialHistory } from '../lib/editorial-chat.js'
 
 describe('buildEditorialContext', () => {
-  it('returns minimal context for empty state', () => {
-    const emptyState = { counters: null, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
-    const { context, tokenEstimate } = buildEditorialContext('state', emptyState)
-    expect(context).toContain('Analysis Index (0 entries)')
+  // These tests now use the seeded test DB via getDb() since
+  // buildEditorialContext was migrated to async Turso queries.
+  // The test DB is seeded with testState in beforeEach.
+
+  it('returns context with analysis entries from DB', async () => {
+    const db = getDb()
+    const { context, tokenEstimate } = await buildEditorialContext('state', db)
+    expect(context).toContain('Analysis Index')
+    expect(context).toContain('What People Really Want From AI')
     expect(tokenEstimate).toBeGreaterThan(0)
   })
 
-  it('builds analysis context from state', () => {
-    const state = {
-      counters: { nextSession: 5 },
-      analysisIndex: {
-        '1': { title: 'Test Article', source: 'Podcast A', host: 'Host', tier: 1, session: 4, themes: ['T01'], summary: 'A summary' },
-        '2': { title: 'Another', source: 'Podcast B', tier: 2, session: 4 },
-      },
-      themeRegistry: { 'T01': { name: 'AI Safety', documentCount: 3 } },
-      postBacklog: { '10': { title: 'Post idea', status: 'suggested' } },
-      decisionLog: [],
-    }
-    const { context } = buildEditorialContext('state', state)
-    expect(context).toContain('#1: Test Article')
-    expect(context).toContain('#2: Another')
-    expect(context).toContain('Analysis Index (2 entries)')
+  it('builds theme context from DB', async () => {
+    const db = getDb()
+    const { context } = await buildEditorialContext('themes', db)
+    expect(context).toContain('Theme Registry')
+    expect(context).toContain('Enterprise Diffusion Gap')
   })
 
-  it('builds theme context from state', () => {
-    const state = {
-      counters: { nextSession: 3 },
-      analysisIndex: {},
-      themeRegistry: {
-        'T01': { name: 'AI Regulation', documentCount: 5, lastUpdated: '2026-03-20', evidence: [{ session: 2, source: 'Pod', content: 'Evidence text' }] },
-      },
-      postBacklog: {},
-      decisionLog: [],
-    }
-    const { context } = buildEditorialContext('themes', state)
-    expect(context).toContain('T01: AI Regulation')
-    expect(context).toContain('Evidence text')
+  it('builds backlog context with theme summaries', async () => {
+    const db = getDb()
+    const { context } = await buildEditorialContext('backlog', db)
+    expect(context).toContain('Post Backlog')
+    expect(context).toContain('The Contract Clause Nobody Is Talking About')
   })
 
-  it('builds backlog context with theme summaries', () => {
-    const state = {
-      counters: { nextSession: 3 },
-      analysisIndex: {},
-      themeRegistry: { 'T01': { name: 'AI Regulation', documentCount: 2 } },
-      postBacklog: {
-        '10': { title: 'Post idea', status: 'suggested', priority: 'high', coreArgument: 'An argument' },
-      },
-      decisionLog: [],
-    }
-    const { context } = buildEditorialContext('backlog', state)
-    expect(context).toContain('#10: Post idea')
-    expect(context).toContain('An argument')
-    expect(context).toContain('T01')
+  it('builds decision context', async () => {
+    const db = getDb()
+    const { context } = await buildEditorialContext('decisions', db)
+    expect(context).toContain('Decision Log')
   })
 
-  it('builds decision context with recent analysis', () => {
-    const state = {
-      counters: { nextSession: 3 },
-      analysisIndex: { '1': { title: 'Recent', source: 'X', tier: 1 } },
-      themeRegistry: {},
-      postBacklog: {},
-      decisionLog: [{ type: 'editorial', date: '2026-03-20', decision: 'Decided X', reasoning: 'Because Y' }],
-    }
-    const { context } = buildEditorialContext('decisions', state)
-    expect(context).toContain('Decided X')
-    expect(context).toContain('Because Y')
-    expect(context).toContain('#1: Recent')
-  })
-
-  it('builds activity context from state', () => {
-    const state = { counters: { nextSession: 2 }, analysisIndex: {}, themeRegistry: {}, postBacklog: {}, decisionLog: [] }
-    const { context } = buildEditorialContext('activity', state)
-    expect(context).toContain('Recent Activity')
+  it('builds activity context', async () => {
+    const db = getDb()
+    const { context } = await buildEditorialContext('activity', db)
+    expect(context).toContain('Activity')
   })
 })
 

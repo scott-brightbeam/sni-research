@@ -81,6 +81,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
   const [input, setInput] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
   const inputRef = useRef(null)
 
   // Sync chatTab with parent tab when user navigates (but not during draft streaming)
@@ -105,9 +106,14 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
     }
   }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages — only if user is already near the bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (!container) return
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // Focus input when panel expands (skip initial mount)
@@ -196,7 +202,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
         </div>
       )}
 
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesContainerRef}>
         {messages.length === 0 && (
           <div className="chat-welcome">
             <p>Ask about {TAB_LABELS[chatTab]?.toLowerCase() || 'editorial state'} — I have full context loaded.</p>

@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, appendFileSync, mkdirSync, renameSync, statSync } from 'fs'
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, appendFileSync, mkdirSync, renameSync } from 'fs'
 import { join, resolve } from 'path'
 import { getDb } from '../lib/db.js'
 import * as eq from '../lib/editorial-queries.js'
@@ -752,27 +752,6 @@ function releaseChatSlot() {
   if (activeStreams > 0) activeStreams--
 }
 
-// Cached state.json. Reading+parsing the 1MB state file on every request
-// wastes ~20-40ms and, worse, races with editorial-analyse.js rewrites,
-// which can make the chat read a partial file and silently return "not
-// found" for every ID. Cache by mtime so we re-parse only when the file
-// actually changes.
-const _stateCache = { content: null, mtime: 0 }
-
-function readEditorialState() {
-  const statePath = join(ROOT, 'data/editorial/state.json')
-  try {
-    const stat = statSync(statePath)
-    if (stat.mtimeMs !== _stateCache.mtime) {
-      _stateCache.content = JSON.parse(readFileSync(statePath, 'utf-8'))
-      _stateCache.mtime = stat.mtimeMs
-    }
-    return _stateCache.content
-  } catch {
-    return null // caller can detect and surface a warning via SSE
-  }
-}
-
 export async function postEditorialChat(body, req) {
   const { message, tab, history, injectContext, model, sourceRefs, threadId: inputThreadId } = body
 
@@ -786,12 +765,13 @@ export async function postEditorialChat(body, req) {
   acquireChatSlot()
 
   const activeTab = tab || 'state'
+  const db = getDb()
 
   // Only build context on first message per tab (lazy injection)
   let context = null
   let tokenEstimate = 0
   if (injectContext !== false) {
-    const ctx = buildEditorialContext(activeTab, null, Array.isArray(sourceRefs) ? sourceRefs : null)
+    const ctx = await buildEditorialContext(activeTab, db, Array.isArray(sourceRefs) ? sourceRefs : null)
     context = ctx.context
     tokenEstimate = ctx.tokenEstimate
   }
@@ -871,18 +851,6 @@ export async function postEditorialChat(body, req) {
         // theme/entry details when users clicked 'Draft in chat' from
         // other tabs, and fell back to general knowledge instead.
         const MAX_TOOL_ROUNDS = 5
-
-        // Load editorial state so tool executors can serve requests.
-        // Previously gated on isDraftMode — same problem as above.
-        // Cached+mtime-checked to avoid partial reads during analyse runs.
-        let editorialState = readEditorialState()
-        if (editorialState === null) {
-          // Surface to the UI so the user knows the model is working
-          // without live editorial data — previously every tool call
-          // returned "not found" with no explanation.
-          send({ type: 'warning', message: 'Editorial state unavailable — tool lookups may return nothing. Retry shortly.' })
-          editorialState = {}
-        }
 
         let roundMessages = [...sdkMessages]
         let toolRound = 0
@@ -1008,7 +976,7 @@ export async function postEditorialChat(body, req) {
           const toolResults = []
           for (const block of contentBlocks.filter(b => b.type === 'tool_use')) {
             send({ type: 'tool_call', name: block.name, input: block.input })
-            const result = executeTool(block.name, block.input, editorialState)
+            const result = await executeTool(block.name, block.input, db)
             send({ type: 'tool_result', name: block.name, preview: (result || '').slice(0, 200) })
             toolResults.push({
               type: 'tool_result',
