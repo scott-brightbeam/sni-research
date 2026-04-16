@@ -93,16 +93,23 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
     }
   }, [tab])
 
-  // Handle incoming draft requests — pin chat to 'draft' context independently of parent tab
+  // Handle incoming draft requests — always start a fresh conversation
   useEffect(() => {
     if (draftRequest) {
+      // Clear the current conversation so the draft starts clean —
+      // previous thread context would confuse the model and pollute
+      // the tool-call sequence (format reference → source docs → draft).
+      createNewThread()
       setChatTab('draft')
       setModel('opus')
       setCollapsed(false)
       const msg = typeof draftRequest === 'string' ? draftRequest : draftRequest?.message
       const refs = draftRequest && typeof draftRequest === 'object' ? draftRequest.sourceRefs : null
-      send(msg, refs, 'opus', 'draft')  // pass tab override — setChatTab is async, send's closure captures old tab
-      onDraftConsumed?.()  // consume immediately — chatTab stays on 'draft' independently
+      // Small delay to let createNewThread clear state before sending
+      setTimeout(() => {
+        send(msg, refs, 'opus', 'draft')
+      }, 50)
+      onDraftConsumed?.()
     }
   }, [draftRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
