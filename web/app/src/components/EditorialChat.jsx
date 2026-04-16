@@ -187,28 +187,6 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
         </div>
       </div>
 
-      {recentThreads.length > 0 && (
-        <div className="ec-recents">
-          <div className="ec-recents-header">
-            <span>Recents</span>
-            <button className="ec-new-chat" onClick={createNewThread} title="New chat">+</button>
-          </div>
-          <div className="ec-recents-list">
-            {recentThreads.slice(0, 15).map(t => (
-              <button
-                key={t.id}
-                className={`ec-recent-item ${t.id === activeThreadId ? 'active' : ''}`}
-                onClick={() => selectThread(t.id)}
-                title={t.name}
-              >
-                <span className="ec-recent-name">{t.name}</span>
-                <span className="ec-recent-time">{formatRelativeTime(t.updated)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="chat-messages" ref={messagesContainerRef}>
         {messages.length === 0 && (
           <div className="chat-welcome">

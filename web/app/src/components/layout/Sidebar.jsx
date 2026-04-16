@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { formatRelativeTime } from '../../lib/format'
 import './Sidebar.css'
 
 const NAV_ITEMS = [
@@ -22,9 +23,9 @@ const ICONS = {
   bug: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
 }
 
-// editorialStatus and notificationCount are wired in Phase E2 via useEditorialStatus/useNotifications hooks
-export default function Sidebar({ status, editorialStatus = null, notificationCount = 0 }) {
+export default function Sidebar({ status, editorialStatus = null, notificationCount = 0, chatThreads = [] }) {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <nav className="sidebar">
@@ -49,6 +50,27 @@ export default function Sidebar({ status, editorialStatus = null, notificationCo
           </NavLink>
         ))}
       </div>
+
+      {chatThreads.length > 0 && (
+        <div className="sidebar-threads">
+          <div className="sidebar-threads-header">
+            <span>Recent chats</span>
+          </div>
+          <div className="sidebar-threads-list">
+            {chatThreads.slice(0, 12).map(t => (
+              <button
+                key={t.id}
+                className="sidebar-thread-item"
+                onClick={() => navigate('/editorial')}
+                title={t.name}
+              >
+                <span className="sidebar-thread-name">{t.name}</span>
+                <span className="sidebar-thread-time">{formatRelativeTime(t.updated)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="sidebar-footer">
         {user && (

@@ -6,6 +6,7 @@ import SearchModal from '../shared/SearchModal'
 import ToastContainer from '../shared/Toast'
 import { useStatus } from '../../hooks/useStatus'
 import { useEditorialStatus } from '../../hooks/useEditorialStatus'
+import { useChatThreads } from '../../hooks/useChatThreads'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { formatRelativeTime } from '../../lib/format'
 import { apiPost } from '../../lib/api'
@@ -25,6 +26,7 @@ const NAV_ROUTES = [
 export default function Shell() {
   const { status, error } = useStatus()
   const editorial = useEditorialStatus()
+  const { threads: chatThreads } = useChatThreads()
   const [searchOpen, setSearchOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -78,7 +80,7 @@ export default function Shell() {
 
   return (
     <div className="shell">
-      <Sidebar status={statusText} editorialStatus={editorialStatusText} />
+      <Sidebar status={statusText} editorialStatus={editorialStatusText} chatThreads={chatThreads} />
       <main className="main">
         <ErrorBoundary>
           <Outlet />
