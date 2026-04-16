@@ -960,6 +960,79 @@ export async function postEditorialChat(body, req) {
               console.error('[editorial-chat] Failed to persist messages:', persistErr.message)
             }
 
+            // ── POST-DRAFT STYLE AUDIT ──────────────────────────
+            // If the draft looks like a LinkedIn post (contains ITEATE marker
+            // or was triggered from a backlog item), run a second pass that
+            // compares the draft against Scott's published writing and the
+            // style rules. The audit streams as a follow-up message.
+            const shouldAudit = body.auditDraft === true ||
+              (completeText.toLowerCase().includes('in-the-end-at-the-end') &&
+               completeText.length > 300)
+
+            if (shouldAudit && !abort.signal.aborted) {
+              try {
+                // Fetch 2-3 published reference posts for comparison
+                const refPosts = await eq.searchPublishedPosts(db, { category: 'article', limit: 3 })
+                const refTexts = []
+                for (const ref of refPosts) {
+                  const full = await eq.getPublishedPost(db, ref.id)
+                  if (full) refTexts.push(`### ${full.title}\n\n${full.body}`)
+                }
+
+                const prefsPath = join(ROOT, 'data/editorial/writing-preferences.md')
+                let writingPrefs = ''
+                try { writingPrefs = readFileSync(prefsPath, 'utf-8') } catch { /* skip */ }
+
+                const vocabPath = join(ROOT, 'data/editorial/vocabulary-fingerprint.json')
+                let vocabSection = ''
+                try {
+                  const vocab = JSON.parse(readFileSync(vocabPath, 'utf-8'))
+                  if (vocab.signature_terms?.length) {
+                    vocabSection = '\n\n## Vocabulary Fingerprint\nScott prefers: ' +
+                      vocab.signature_terms.slice(0, 20).map(t => `"${t.term}" (over "${t.alternative || '—'}")`).join(', ')
+                  }
+                } catch { /* skip if not yet generated */ }
+
+                send({ type: 'delta', text: '\n\n---\n\n**[STYLE AUDIT]**\n\n' })
+
+                const auditResponse = await client.messages.create({
+                  model: modelId,
+                  max_tokens: 2048,
+                  system: `You are a writing style auditor for Scott Wilkinson's editorial content. Compare the draft below against the published reference posts and writing rules. Return ONLY specific, actionable corrections — not praise. For each issue: quote the problematic text, explain what's wrong, and show how Scott would write it instead. Check for: prohibited words/patterns, sentence rhythm (too uniform?), opening-line quality (concrete enough?), in-the-end-at-the-end quality (does it crystallise or just repeat?), voice consistency (is it Scott's voice or generic AI?), argument flow, citation patterns.${vocabSection}`,
+                  messages: [{
+                    role: 'user',
+                    content: `## DRAFT TO AUDIT\n\n${completeText}\n\n## WRITING RULES\n\n${writingPrefs}\n\n## REFERENCE POSTS (Scott's published writing — match this quality)\n\n${refTexts.join('\n\n---\n\n')}`
+                  }],
+                  stream: true,
+                })
+
+                let auditText = ''
+                for await (const event of auditResponse) {
+                  if (abort.signal.aborted) break
+                  if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                    auditText += event.delta.text
+                    send({ type: 'delta', text: event.delta.text })
+                  }
+                }
+
+                // Persist audit as part of the assistant message
+                if (auditText) {
+                  completeText += '\n\n---\n\n**[STYLE AUDIT]**\n\n' + auditText
+                  try {
+                    appendEditorialMessage(actualThreadId, {
+                      id: 'msg_' + crypto.randomUUID().slice(0, 8),
+                      role: 'assistant',
+                      content: '[STYLE AUDIT]\n\n' + auditText,
+                      timestamp: new Date().toISOString(),
+                    })
+                  } catch { /* non-fatal */ }
+                }
+              } catch (auditErr) {
+                console.error('[editorial-chat] Style audit failed (non-fatal):', auditErr.message)
+                send({ type: 'delta', text: '\n\n_Style audit unavailable._\n' })
+              }
+            }
+
             break
           }
 

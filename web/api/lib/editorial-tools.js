@@ -133,6 +133,7 @@ export const EDITORIAL_TOOLS = [
       properties: {
         query: { type: 'string', description: 'Keyword to search in titles and body text' },
         category: { type: 'string', enum: ['article', 'newsletter', 'series', 'awards'], description: 'Filter by category' },
+        format: { type: 'string', enum: ['concept-contrast', 'news-decoder', 'behavioural-paradox', 'honest-confession', 'quiet-observation', 'practitioners-take'], description: 'Filter by LinkedIn format. Use this to find reference posts in the same format as the one you are about to draft.' },
       },
     },
   },
@@ -454,13 +455,14 @@ async function execSearchPublishedPosts(input, db) {
   const rows = await eq.searchPublishedPosts(db, {
     query: input.query || undefined,
     category: input.category || undefined,
+    format: input.format || undefined,
   })
   if (rows.length === 0) return 'No published posts found matching that query.'
 
   const lines = [`## Published Posts (${rows.length} matches)\n`]
   for (const r of rows) {
     lines.push(`### #${r.id}: ${r.title}`)
-    lines.push(`Category: ${r.category} · Date: ${r.date_published || 'N/A'} · ${r.word_count || '?'} words`)
+    lines.push(`Category: ${r.category} · Format: ${r.format || 'unclassified'} · Date: ${r.date_published || 'N/A'} · ${r.word_count || '?'} words`)
     lines.push(`${r.excerpt}…\n`)
   }
   lines.push('\n_Use get_published_post(id) to read the full text of any post above._')
@@ -472,5 +474,27 @@ async function execGetPublishedPost(input, db) {
   const post = await eq.getPublishedPost(db, id)
   if (!post) return `No published post found with ID #${id}.`
 
-  return `## ${post.title}\n\nCategory: ${post.category} · Published: ${post.date_published || 'N/A'} · ${post.word_count || '?'} words\nURL: ${post.url || 'N/A'}\n\n---\n\n${post.body}`
+  const meta = [
+    `Category: ${post.category}`,
+    post.format ? `Format: ${post.format}` : null,
+    `Published: ${post.date_published || 'N/A'}`,
+    `${post.word_count || '?'} words`,
+  ].filter(Boolean).join(' · ')
+
+  const sections = [`## ${post.title}\n\n${meta}\nURL: ${post.url || 'N/A'}`]
+
+  if (post.argument_structure) {
+    try {
+      const structure = JSON.parse(post.argument_structure)
+      sections.push(`\n### Argument Structure\n${structure.map((s, i) => `${i + 1}. ${s}`).join('\n')}`)
+    } catch { /* skip malformed */ }
+  }
+
+  sections.push(`\n---\n\n${post.body}`)
+
+  if (post.iteate) {
+    sections.push(`\n### In-the-end-at-the-end (extracted)\n${post.iteate}`)
+  }
+
+  return sections.join('\n')
 }

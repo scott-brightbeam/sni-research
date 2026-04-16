@@ -691,15 +691,16 @@ export async function getPodcastEpisode(db, id) {
 // ---------------------------------------------------------------------------
 
 /**
- * Search published posts by keyword.
+ * Search published posts by keyword, category, or format.
  * @param {import('@libsql/client').Client} db
  * @param {object} opts
  * @param {string} [opts.query]
  * @param {string} [opts.category] — 'article', 'newsletter', 'series', 'awards'
+ * @param {string} [opts.format] — LinkedIn format: 'concept-contrast', 'quiet-observation', etc.
  * @param {number} [opts.limit=10]
  * @returns {Promise<object[]>}
  */
-export async function searchPublishedPosts(db, { query, category, limit = 10 } = {}) {
+export async function searchPublishedPosts(db, { query, category, format, limit = 10 } = {}) {
   const conditions = []
   const args = []
 
@@ -712,12 +713,16 @@ export async function searchPublishedPosts(db, { query, category, limit = 10 } =
     conditions.push('category = ?')
     args.push(category)
   }
+  if (format) {
+    conditions.push('format = ?')
+    args.push(format)
+  }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
   args.push(limit)
 
   const result = await db.execute({
-    sql: `SELECT id, title, slug, date_published, category, word_count,
+    sql: `SELECT id, title, slug, date_published, category, format, word_count,
             SUBSTR(body, 1, 300) AS excerpt
           FROM published_posts ${where}
           ORDER BY date_published DESC

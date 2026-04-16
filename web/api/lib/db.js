@@ -8,7 +8,7 @@
  *   getDb()              — singleton; uses test DB when SNI_TEST_MODE=1
  */
 
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
@@ -453,7 +453,17 @@ export async function migrateSchema(db) {
     }
   }
 
-  // 4. Record schema version
+  // 4. Schema v3 additions: published_posts enrichment columns
+  const addCol = async (table, col, type) => {
+    try { await db.execute(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`) }
+    catch { /* column already exists */ }
+  }
+  await addCol('published_posts', 'format', 'TEXT')            // LinkedIn format classification
+  await addCol('published_posts', 'opening_line', 'TEXT')      // First sentence for pattern matching
+  await addCol('published_posts', 'iteate', 'TEXT')            // In-the-end-at-the-end text
+  await addCol('published_posts', 'argument_structure', 'TEXT') // JSON array of paragraph roles
+
+  // 5. Record schema version
   await db.execute({
     sql: "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
     args: [SCHEMA_VERSION],
