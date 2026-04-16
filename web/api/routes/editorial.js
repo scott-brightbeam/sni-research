@@ -920,10 +920,28 @@ export async function postEditorialChat(body, req) {
 
               // Auto-create thread if new
               if (!inputThreadId) {
+                // Generate a concise topic title via a fast Haiku call
+                // instead of truncating the first message to 40 chars.
+                let threadName = message.trim().slice(0, 40) // fallback
+                try {
+                  const titleRes = await client.messages.create({
+                    model: 'claude-haiku-4-20250414',
+                    max_tokens: 30,
+                    messages: [{
+                      role: 'user',
+                      content: `Generate a 3-5 word topic title for this editorial chat message. Return ONLY the title, no quotes, no explanation.\n\nMessage: ${message.trim().slice(0, 200)}`
+                    }],
+                  })
+                  const generated = titleRes.content?.[0]?.text?.trim()
+                  if (generated && generated.length > 2 && generated.length < 60) {
+                    threadName = generated
+                  }
+                } catch { /* fall back to truncated message */ }
+
                 const newThreads = readEditorialThreads()
                 newThreads.unshift({
                   id: actualThreadId,
-                  name: message.trim().slice(0, 40),
+                  name: threadName,
                   tab: activeTab,
                   created: now,
                   updated: now,

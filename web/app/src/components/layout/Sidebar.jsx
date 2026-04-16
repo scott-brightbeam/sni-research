@@ -23,25 +23,6 @@ const ICONS = {
   bug: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
 }
 
-/**
- * Strip common boilerplate prefixes from chat thread names so users can
- * distinguish them at a glance. "Draft LinkedIn post #265: 'Nvidia's Real
- * Moat'" becomes "Nvidia's Real Moat".
- */
-function trimThreadName(name) {
-  if (!name) return '(untitled)'
-  return name
-    .replace(/^Draft (?:a )?(?:LinkedIn )?post (?:about )?(?:#\d+[:\s]*)?(?:['"])?/i, '')
-    .replace(/^Please draft (?:a )?(?:LinkedIn )?post (?:around )?(?:item )?(?:#?\d+[:\s]*[-–—]\s*)?(?:the )?/i, '')
-    .replace(/^Draft (?:a )?post (?:about )?(?:podcast: )?(?:['"])?/i, '')
-    .replace(/^Draft (?:a )?(?:LinkedIn )?post (?:based on )?(?:analysis )?(?:entry )?(?:#?\d+[:\s]*)?(?:['"])?/i, '')
-    .replace(/^do you have context for /i, '')
-    .replace(/^Which posts are /i, 'Posts: ')
-    .replace(/['"]$/, '')
-    .replace(/^['"]/, '')
-    .trim() || name
-}
-
 export default function Sidebar({ status, editorialStatus = null, notificationCount = 0, chatThreads = [] }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -83,7 +64,7 @@ export default function Sidebar({ status, editorialStatus = null, notificationCo
                 onClick={() => navigate('/editorial')}
                 title={t.name}
               >
-                <span className="sidebar-thread-name">{trimThreadName(t.name)}</span>
+                <span className="sidebar-thread-name">{t.name}</span>
                 <span className="sidebar-thread-time">{formatRelativeTime(t.updated)}</span>
               </button>
             ))}
