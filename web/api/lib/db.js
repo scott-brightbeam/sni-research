@@ -343,6 +343,24 @@ const BATCH_STATEMENTS = [
 
   `CREATE INDEX IF NOT EXISTS idx_bug_reports_status ON bug_reports(status)`,
 
+  // -- published_posts (Scott's published articles/newsletters — the ground truth
+  // for writing style. Used as few-shot references by the editorial chat.)
+  `CREATE TABLE IF NOT EXISTS published_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    date_published TEXT,
+    url TEXT,
+    category TEXT DEFAULT 'article',
+    body TEXT NOT NULL,
+    word_count INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_published_posts_category ON published_posts(category)`,
+  `CREATE INDEX IF NOT EXISTS idx_published_posts_date ON published_posts(date_published)`,
+
   // -- schema_version
   `CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,

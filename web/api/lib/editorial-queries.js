@@ -685,3 +685,58 @@ export async function getPodcastEpisode(db, id) {
     transcript: transcriptResult.rows[0]?.transcript || null,
   }
 }
+
+// ---------------------------------------------------------------------------
+// Published Posts (Scott's writing reference corpus)
+// ---------------------------------------------------------------------------
+
+/**
+ * Search published posts by keyword.
+ * @param {import('@libsql/client').Client} db
+ * @param {object} opts
+ * @param {string} [opts.query]
+ * @param {string} [opts.category] — 'article', 'newsletter', 'series', 'awards'
+ * @param {number} [opts.limit=10]
+ * @returns {Promise<object[]>}
+ */
+export async function searchPublishedPosts(db, { query, category, limit = 10 } = {}) {
+  const conditions = []
+  const args = []
+
+  if (query) {
+    conditions.push('(LOWER(title) LIKE ? OR LOWER(body) LIKE ?)')
+    const p = `%${query.toLowerCase()}%`
+    args.push(p, p)
+  }
+  if (category) {
+    conditions.push('category = ?')
+    args.push(category)
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  args.push(limit)
+
+  const result = await db.execute({
+    sql: `SELECT id, title, slug, date_published, category, word_count,
+            SUBSTR(body, 1, 300) AS excerpt
+          FROM published_posts ${where}
+          ORDER BY date_published DESC
+          LIMIT ?`,
+    args,
+  })
+  return result.rows
+}
+
+/**
+ * Get a single published post by ID with full body.
+ * @param {import('@libsql/client').Client} db
+ * @param {number} id
+ * @returns {Promise<object|null>}
+ */
+export async function getPublishedPost(db, id) {
+  const result = await db.execute({
+    sql: 'SELECT * FROM published_posts WHERE id = ?',
+    args: [id],
+  })
+  return result.rows[0] || null
+}

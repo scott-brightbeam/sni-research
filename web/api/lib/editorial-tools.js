@@ -125,6 +125,28 @@ export const EDITORIAL_TOOLS = [
       required: ['id'],
     },
   },
+  {
+    name: 'search_published_posts',
+    description: 'Search Scott\'s published articles and newsletters — the ground-truth reference for voice, style and argument structure. Use these as examples when drafting. Returns excerpts; call get_published_post for full text.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Keyword to search in titles and body text' },
+        category: { type: 'string', enum: ['article', 'newsletter', 'series', 'awards'], description: 'Filter by category' },
+      },
+    },
+  },
+  {
+    name: 'get_published_post',
+    description: 'Fetch the full text of one of Scott\'s published posts by ID. Use this to study voice, structure, argument flow and the in-the-end-at-the-end pattern before drafting.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Published post ID (numeric string)' },
+      },
+      required: ['id'],
+    },
+  },
 ]
 
 // Backward compat
@@ -152,6 +174,8 @@ export async function executeTool(name, input, db) {
       case 'get_article':        return await execGetArticle(input, db)
       case 'search_podcasts':    return await execSearchPodcasts(input, db)
       case 'get_podcast_episode': return await execGetPodcastEpisode(input, db)
+      case 'search_published_posts': return await execSearchPublishedPosts(input, db)
+      case 'get_published_post':     return await execGetPublishedPost(input, db)
       default: return `Unknown tool: ${name}`
     }
   } catch (err) {
@@ -422,4 +446,31 @@ function capTokens(text, maxTokens) {
   // Rough char-based truncation (4 chars ≈ 1 token)
   const maxChars = maxTokens * 4
   return text.slice(0, maxChars) + '\n\n[TRUNCATED — exceeds token budget]'
+}
+
+// ── Published Posts ──────────────────────────────────────
+
+async function execSearchPublishedPosts(input, db) {
+  const rows = await eq.searchPublishedPosts(db, {
+    query: input.query || undefined,
+    category: input.category || undefined,
+  })
+  if (rows.length === 0) return 'No published posts found matching that query.'
+
+  const lines = [`## Published Posts (${rows.length} matches)\n`]
+  for (const r of rows) {
+    lines.push(`### #${r.id}: ${r.title}`)
+    lines.push(`Category: ${r.category} · Date: ${r.date_published || 'N/A'} · ${r.word_count || '?'} words`)
+    lines.push(`${r.excerpt}…\n`)
+  }
+  lines.push('\n_Use get_published_post(id) to read the full text of any post above._')
+  return lines.join('\n')
+}
+
+async function execGetPublishedPost(input, db) {
+  const id = Number(input.id)
+  const post = await eq.getPublishedPost(db, id)
+  if (!post) return `No published post found with ID #${id}.`
+
+  return `## ${post.title}\n\nCategory: ${post.category} · Published: ${post.date_published || 'N/A'} · ${post.word_count || '?'} words\nURL: ${post.url || 'N/A'}\n\n---\n\n${post.body}`
 }
