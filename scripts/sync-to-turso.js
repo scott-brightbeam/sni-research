@@ -742,13 +742,31 @@ async function syncOutputFiles() {
     return
   }
 
-  const topFiles = readdirSync(outputDir).filter(f =>
-    (f.startsWith('draft-week-') || f.startsWith('links-week-') ||
-     f.startsWith('review-week-') || f.startsWith('evaluate-week-')) &&
-    (f.endsWith('.md') || f.endsWith('.json'))
-  )
+  // All output files the Draft page needs: drafts, links, reviews,
+  // evaluations, research packs, verified sidecars, critiques.
+  const topFiles = readdirSync(outputDir).filter(f => {
+    // Draft files + their .verified sidecars
+    if (f.startsWith('draft-week-')) return true
+    // Links, reviews, evaluations
+    if ((f.startsWith('links-week-') || f.startsWith('review-week-') ||
+         f.startsWith('evaluate-week-')) && (f.endsWith('.md') || f.endsWith('.json'))) return true
+    // Research packs
+    if (f.includes('-research') && (f.endsWith('.md') || f.endsWith('.json'))) return true
+    return false
+  })
   for (const f of topFiles) {
     filesToSync.push({ local: join(outputDir, f), remote: `/app/data/output/${f}` })
+  }
+
+  // Critique files from data/editorial/drafts/
+  const critDir = join(editorialDir, 'drafts')
+  if (existsSync(critDir)) {
+    const critFiles = readdirSync(critDir).filter(f =>
+      f.startsWith('critique-') && f.endsWith('.json')
+    )
+    for (const f of critFiles) {
+      filesToSync.push({ local: join(critDir, f), remote: `/app/data/editorial/drafts/${f}` })
+    }
   }
 
   // Published newsletters
@@ -769,6 +787,7 @@ async function syncOutputFiles() {
 
   await runSftp(filesToSync, [
     'mkdir /app/data/editorial',
+    'mkdir /app/data/editorial/drafts',
     'mkdir /app/data/output',
     'mkdir /app/data/output/published',
   ])
