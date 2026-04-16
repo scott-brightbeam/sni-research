@@ -114,7 +114,7 @@
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: var(--font-xs);
+  font-size: 11px;
   cursor: pointer;
   text-align: left;
   width: 100%;
