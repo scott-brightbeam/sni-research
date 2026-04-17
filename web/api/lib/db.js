@@ -2,10 +2,14 @@
  * db.js — Turso (libSQL) client singleton + schema migration
  *
  * Exports:
- *   createTestDb()       — in-memory libSQL client for tests
- *   createProductionDb() — Turso client (embedded replica on Fly, remote elsewhere)
- *   migrateSchema(db)    — idempotent CREATE TABLE IF NOT EXISTS for all tables
- *   getDb()              — singleton; uses test DB when SNI_TEST_MODE=1
+ *   createTestDb()        — in-memory libSQL client for tests
+ *   createProductionDb()  — Turso client (embedded replica on Fly, remote elsewhere)
+ *   migrateSchema(db)     — idempotent CREATE TABLE IF NOT EXISTS for all tables
+ *   getDb()               — singleton; uses test DB when SNI_TEST_MODE=1,
+ *                           otherwise production; throws under `bun test`
+ *                           when SNI_TEST_MODE is not set
+ *   _resetDbSingleton()   — test-only: close and null out the cached client
+ *                           (throws unless SNI_TEST_MODE=1)
  */
 
 const SCHEMA_VERSION = 4
@@ -57,24 +61,22 @@ let _db = null
  * Detect whether we're running under `bun test`. Used as a defensive
  * guard so no test can ever silently connect to production Turso.
  *
- * Heuristic: argv[1] ends with .test.js / .test.ts, OR the argv
- * contains a path segment "tests" + a .js/.ts file. This catches:
- *   bun test                                  (no explicit file)
- *   bun test tests/foo.test.js
- *   bun test web/api/tests
- *   cd web/api && bun test
+ * Heuristic: check argv[1] (the test file Bun is loading). Empirically,
+ * Bun always sets argv[1] to a *.test.{js,ts,jsx,tsx} path when running
+ * a test, regardless of how `bun test` was invoked:
+ *   bun test                                  (bare, Bun expands argv)
+ *   bun test tests/foo.test.js                (explicit file)
+ *   bun test tests/                           (directory)
+ *   cd web/api && bun test                    (from subdir)
+ *   bun test --timeout 60000 tests/foo.test.js
  *
- * When `bun test` is invoked with no file args, argv[1] is undefined,
- * but Bun's internal runner sets up bun:test globals. We fall back to
- * checking execPath for 'bun' + command-line 'test' token.
+ * We deliberately check argv[1] only (not the full argv) to avoid false
+ * positives when a non-test script is invoked with a *.test.js path as
+ * an ordinary argument — e.g. `bun scripts/foo.js fixture.test.js`.
  */
 function isRunningUnderBunTest() {
-  const argv = process.argv || []
-  // Explicit test file path present
-  if (argv.some(a => typeof a === 'string' && /\.test\.[jt]sx?$/.test(a))) return true
-  // `bun test` without file args — the command is in argv[1] or via Bun.argv
-  if (argv.some(a => a === 'test') && /\/bun$/.test(argv[0] || '')) return true
-  return false
+  const entry = process.argv?.[1]
+  return typeof entry === 'string' && /\.test\.[jt]sx?$/.test(entry)
 }
 
 /**
@@ -101,15 +103,20 @@ export function getDb() {
   return _db
 }
 
-/** Reset the singleton — test-only helper. Throws if called outside test mode. */
+/**
+ * Reset the singleton — test-only helper. Throws if called outside test
+ * mode. close() errors are re-thrown rather than swallowed so a failing
+ * teardown surfaces (e.g. if a test leaks a transaction or prepared
+ * statement). Callers that need best-effort cleanup can wrap this
+ * themselves.
+ */
 export function _resetDbSingleton() {
   if (process.env.SNI_TEST_MODE !== '1') {
     throw new Error('[db] _resetDbSingleton can only be called when SNI_TEST_MODE=1')
   }
-  if (_db) {
-    try { _db.close() } catch {}
-  }
+  const prev = _db
   _db = null
+  if (prev) prev.close()
 }
 
 // ---------------------------------------------------------------------------

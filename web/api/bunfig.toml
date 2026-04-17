@@ -1,2 +1,14 @@
+# Safety preload pair for `cd web/api && bun test`. Sets SNI_TEST_MODE=1
+# so getDb() in lib/db.js returns the in-memory client instead of
+# production Turso.
+#
+# Why a second bunfig exists here: web/api/ has its own package.json,
+# so Bun stops walking upward from this directory and never sees the
+# root bunfig.toml. Without this local preload, tests invoked from
+# web/api would silently hit production — the exact failure mode of
+# the 2026-04-17 data-loss incident.
+#
+# The `./` prefix on the preload path is required; without it Bun
+# fails to resolve the preload even though the file exists.
 [test]
 preload = ["./tests/guard.ts"]
