@@ -1031,18 +1031,6 @@ export async function postEditorialChat(body, req) {
 
             const actualThreadId = inputThreadId || crypto.randomUUID()
 
-            // Style scorecard — emitted if the output looks like a draft.
-            // Fast deterministic analysis (no API call). Frontend renders
-            // a compact panel beneath the message.
-            if (completeText.length > 200 && /in-the-end-at-the-end|\n#|\*\*/.test(completeText)) {
-              try {
-                const scorecard = scoreDraft(completeText)
-                send({ type: 'scorecard', scorecard })
-              } catch (scErr) {
-                console.error('[editorial-chat] Scoring failed (non-fatal):', scErr.message)
-              }
-            }
-
             send({ type: 'done', text: completeText, contextTokens: tokenEstimate, tab: activeTab, threadId: actualThreadId })
 
             // Persist messages after streaming completes
@@ -1089,11 +1077,24 @@ export async function postEditorialChat(body, req) {
                 timestamp: now,
               })
 
+              // Compute scorecard (fast, deterministic) and emit it.
+              // Store on the assistant message so restored threads show it.
+              let computedScorecard = null
+              if (completeText.length > 200 && /in-the-end-at-the-end|\n#|\*\*/.test(completeText)) {
+                try {
+                  computedScorecard = scoreDraft(completeText)
+                  send({ type: 'scorecard', scorecard: computedScorecard })
+                } catch (scErr) {
+                  console.error('[editorial-chat] Scoring failed (non-fatal):', scErr.message)
+                }
+              }
+
               // Append assistant message
               appendEditorialMessage(actualThreadId, {
                 id: 'msg_' + crypto.randomUUID().slice(0, 8),
                 role: 'assistant',
                 content: completeText,
+                scorecard: computedScorecard,
                 timestamp: new Date().toISOString(),
               })
 
