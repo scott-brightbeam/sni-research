@@ -133,7 +133,25 @@ describe('buildAuditSystemPrompt', () => {
 
   it('guards against reductive fragments (the 17 Apr tone bug)', () => {
     const out = buildAuditSystemPrompt()
-    expect(out.toLowerCase()).toContain('reductive short fragments')
+    expect(out.toLowerCase()).toContain('reductive fragment chains')
+  })
+
+  it('guards against first-person narrator patterns (the voice bug)', () => {
+    const out = buildAuditSystemPrompt()
+    // Regression guard: the model kept producing "I keep thinking about..."
+    // and similar first-person narrator patterns that appear nowhere in
+    // Scott's canon. Audit must flag these every time.
+    expect(out).toContain('First-person narrator')
+    expect(out.toLowerCase()).toContain('i keep thinking')
+  })
+
+  it('guards against podcast-framing citations (the source bug)', () => {
+    const out = buildAuditSystemPrompt()
+    // Regression guard: drafts kept saying "on the a16z podcast this week,
+    // signüll put the fix in concrete terms" — Scott never frames sources
+    // that way.
+    expect(out.toLowerCase()).toContain('podcast')
+    expect(out.toLowerCase()).toContain('never foreground the medium')
   })
 
   it('embeds vocab section when provided', () => {
