@@ -931,6 +931,13 @@ export async function postEditorialChat(body, req) {
               completeText.toLowerCase().includes('in-the-end-at-the-end') &&
               completeText.length > 300
 
+            // If audit mode was on but the output doesn't look like a draft
+            // (short, no ITEATE), the user still hasn't seen anything
+            // because deltas were suppressed. Stream the content now.
+            if (willAudit && !looksLikeDraft && completeText.length > 0 && !abort.signal.aborted) {
+              send({ type: 'delta', text: completeText })
+            }
+
             if (looksLikeDraft && !abort.signal.aborted) {
               try {
                 send({ type: 'tool_call', name: 'style_review', input: {} })
@@ -998,11 +1005,19 @@ export async function postEditorialChat(body, req) {
                     }
                   }
 
-                  // Replace completeText with the revised version
+                  // Replace completeText with the revised version if it's substantive.
+                  // Otherwise fall back to streaming the original (which was suppressed).
                   if (revisedText.length > 200) {
                     completeText = revisedText
                     fullText = revisedText
+                  } else if (suppressTextDeltas) {
+                    // Revision came back too short — show the original instead.
+                    send({ type: 'delta', text: completeText })
                   }
+                } else if (suppressTextDeltas) {
+                  // Audit produced no corrections — stream the original draft
+                  // since the user hasn't seen it yet (deltas were suppressed).
+                  send({ type: 'delta', text: completeText })
                 }
               } catch (auditErr) {
                 console.error('[editorial-chat] Internal audit/revision failed (non-fatal):', auditErr.message)
