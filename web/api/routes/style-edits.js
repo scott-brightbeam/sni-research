@@ -130,6 +130,22 @@ function appendRulesToFingerprint(newRules) {
 /**
  * GET /api/editorial/style-edits?limit=20
  */
+/**
+ * GET /api/editorial/learned-rules
+ * Returns the learned_rules array from the vocabulary fingerprint so
+ * Scott can audit what the system has picked up from his edits.
+ */
+export async function getLearnedRules() {
+  if (!existsSync(FINGERPRINT_PATH)) return { rules: [], total: 0 }
+  try {
+    const fingerprint = JSON.parse(readFileSync(FINGERPRINT_PATH, 'utf-8'))
+    const rules = fingerprint.learned_rules || []
+    return { rules, total: rules.length }
+  } catch {
+    return { rules: [], total: 0 }
+  }
+}
+
 export async function getStyleEdits({ limit = 20 } = {}) {
   const db = getDb()
   const result = await db.execute({
