@@ -1,3 +1,8 @@
 [test]
-# Safety preload: sets SNI_TEST_MODE=1 before any test runs.
-preload = ["scripts/test-preload.ts"]
+# Safety preload: sets SNI_TEST_MODE=1 before any test runs so
+# getDb() in web/api/lib/db.js returns the in-memory client instead
+# of production Turso. The `./` prefix is required — without it, Bun
+# resolves the preload path differently and silently fails to load.
+# See web/api/bunfig.toml for the parallel guard when running tests
+# from that directory. Root cause of the 2026-04-17 data-loss incident.
+preload = ["./scripts/test-preload.ts"]

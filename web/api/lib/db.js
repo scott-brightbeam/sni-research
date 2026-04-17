@@ -53,12 +53,63 @@ export function createProductionDb() {
 
 let _db = null
 
-/** Returns the singleton DB client. Uses in-memory DB when SNI_TEST_MODE=1. */
+/**
+ * Detect whether we're running under `bun test`. Used as a defensive
+ * guard so no test can ever silently connect to production Turso.
+ *
+ * Heuristic: argv[1] ends with .test.js / .test.ts, OR the argv
+ * contains a path segment "tests" + a .js/.ts file. This catches:
+ *   bun test                                  (no explicit file)
+ *   bun test tests/foo.test.js
+ *   bun test web/api/tests
+ *   cd web/api && bun test
+ *
+ * When `bun test` is invoked with no file args, argv[1] is undefined,
+ * but Bun's internal runner sets up bun:test globals. We fall back to
+ * checking execPath for 'bun' + command-line 'test' token.
+ */
+function isRunningUnderBunTest() {
+  const argv = process.argv || []
+  // Explicit test file path present
+  if (argv.some(a => typeof a === 'string' && /\.test\.[jt]sx?$/.test(a))) return true
+  // `bun test` without file args — the command is in argv[1] or via Bun.argv
+  if (argv.some(a => a === 'test') && /\/bun$/.test(argv[0] || '')) return true
+  return false
+}
+
+/**
+ * Returns the singleton DB client. Uses in-memory DB when SNI_TEST_MODE=1.
+ *
+ * HARD GUARD: if we detect `bun test` running and SNI_TEST_MODE is not
+ * '1', throw immediately. This prevents the 2026-04-17 data-loss
+ * pattern where a test file that wasn't first to initialise the
+ * singleton ended up running DROP TABLE on production Turso because
+ * the bunfig preload had silently failed.
+ */
 export function getDb() {
   if (_db) return _db
   const isTest = process.env.SNI_TEST_MODE === '1'
+  if (!isTest && isRunningUnderBunTest()) {
+    throw new Error(
+      '[db] SAFETY: bun test is running but SNI_TEST_MODE is not set. ' +
+      'Refusing to connect to production Turso. ' +
+      'Set SNI_TEST_MODE=1 (via bunfig preload, shell env, or the test file) ' +
+      'before calling getDb(). See web/api/lib/db.js.'
+    )
+  }
   _db = isTest ? createTestDb() : createProductionDb()
   return _db
+}
+
+/** Reset the singleton — test-only helper. Throws if called outside test mode. */
+export function _resetDbSingleton() {
+  if (process.env.SNI_TEST_MODE !== '1') {
+    throw new Error('[db] _resetDbSingleton can only be called when SNI_TEST_MODE=1')
+  }
+  if (_db) {
+    try { _db.close() } catch {}
+  }
+  _db = null
 }
 
 // ---------------------------------------------------------------------------
