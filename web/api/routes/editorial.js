@@ -856,6 +856,12 @@ export async function postEditorialChat(body, req) {
         let toolRound = 0
         let completeText = '' // accumulates across tool rounds for persistence
 
+        // When auditDraft is on, suppress streaming of the initial draft
+        // so the user only sees the polished revision. Tool-call indicators
+        // still stream normally for progress feedback.
+        const willAudit = body.auditDraft === true
+        const suppressTextDeltas = willAudit // suppress from the start; revision will stream
+
         // Draft mode addendum encourages decisive drafting once data is in hand.
         const draftAddendum = isDraftMode
           ? '\n\nIMPORTANT: You have a maximum of 5 tool rounds to gather source material. Fetch the backlog item / analysis entries / themes you need, then write ONE complete draft post in the format that best fits the material. The user can ask for alternatives if needed.'
@@ -883,7 +889,9 @@ export async function postEditorialChat(body, req) {
 
             if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
               fullText += event.delta.text
-              send({ type: 'delta', text: event.delta.text })
+              if (!suppressTextDeltas) {
+                send({ type: 'delta', text: event.delta.text })
+              }
             }
 
             if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
@@ -911,8 +919,102 @@ export async function postEditorialChat(body, req) {
 
           if (stopReason !== 'tool_use' || abort.signal.aborted) {
             completeText += fullText
+
+            // If we suppressed text deltas (willAudit mode), the user
+            // hasn't seen the draft yet. The audit+revision below will
+            // stream the polished version instead.
+
+            // If willAudit and this looks like a draft, run internal
+            // audit + revision BEFORE the user sees the final output.
+            const looksLikeDraft = willAudit &&
+              completeText.toLowerCase().includes('in-the-end-at-the-end') &&
+              completeText.length > 300
+
+            if (looksLikeDraft && !abort.signal.aborted) {
+              try {
+                send({ type: 'tool_call', name: 'style_review', input: {} })
+
+                // Fetch reference posts + writing rules for audit
+                const refPosts = await eq.searchPublishedPosts(db, { category: 'article', limit: 3 })
+                const refTexts = []
+                for (const ref of refPosts) {
+                  const full = await eq.getPublishedPost(db, ref.id)
+                  if (full) refTexts.push(`### ${full.title}\n\n${full.body}`)
+                }
+                const prefsPath = join(ROOT, 'data/editorial/writing-preferences.md')
+                let writingPrefs = ''
+                try { writingPrefs = readFileSync(prefsPath, 'utf-8') } catch { /* skip */ }
+
+                const vocabPath = join(ROOT, 'data/editorial/vocabulary-fingerprint.json')
+                let vocabSection = ''
+                try {
+                  const vocab = JSON.parse(readFileSync(vocabPath, 'utf-8'))
+                  if (vocab.signature_terms?.length) {
+                    vocabSection = '\n\nScott prefers: ' +
+                      vocab.signature_terms.slice(0, 15).map(t => `"${t.term}" (over "${t.alternative || '—'}")`).join(', ')
+                  }
+                } catch { /* skip */ }
+
+                // Run audit (non-streaming)
+                const auditRes = await client.messages.create({
+                  model: modelId,
+                  max_tokens: 2048,
+                  system: `You are a writing style auditor. Compare the draft against the reference posts and rules. Return ONLY a numbered list of specific corrections. For each: quote the problematic text, state what rule it breaks, give the corrected replacement text. Check: prohibited words/patterns, single quotes (not double), sentence rhythm variation, opening-line concreteness, ITEATE quality (crystallise not repeat), first-person Scott voice, evidence citation pattern (WHO + WHAT + WHY), false contrast patterns ('Not X but Y'), hedging where confidence exists.${vocabSection}`,
+                  messages: [{
+                    role: 'user',
+                    content: `## DRAFT\n\n${completeText}\n\n## RULES\n\n${writingPrefs}\n\n## REFERENCE POSTS\n\n${refTexts.join('\n\n---\n\n')}`
+                  }],
+                })
+                const auditText = auditRes.content?.[0]?.text || ''
+
+                send({ type: 'tool_result', name: 'style_review', preview: `${auditText.split('\n').length} corrections identified` })
+
+                if (auditText.trim()) {
+                  // Revision pass: apply corrections and output final version only
+                  send({ type: 'tool_call', name: 'applying_corrections', input: {} })
+
+                  const revisionResponse = await client.messages.create({
+                    model: modelId,
+                    max_tokens: 8192,
+                    system: getEditorialSystemPrompt(),
+                    messages: [
+                      ...roundMessages,
+                      { role: 'assistant', content: completeText },
+                      { role: 'user', content: `Apply ALL of these style corrections to the draft above. Output ONLY the final corrected version — no explanations, no audit notes, no meta-commentary. Just the polished drafts.\n\n## CORRECTIONS TO APPLY\n\n${auditText}` },
+                    ],
+                    stream: true,
+                  })
+
+                  send({ type: 'tool_result', name: 'applying_corrections', preview: 'Streaming revised draft' })
+
+                  // Stream the revision — this is what the user sees
+                  let revisedText = ''
+                  for await (const event of revisionResponse) {
+                    if (abort.signal.aborted) break
+                    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                      revisedText += event.delta.text
+                      send({ type: 'delta', text: event.delta.text })
+                    }
+                  }
+
+                  // Replace completeText with the revised version
+                  if (revisedText.length > 200) {
+                    completeText = revisedText
+                    fullText = revisedText
+                  }
+                }
+              } catch (auditErr) {
+                console.error('[editorial-chat] Internal audit/revision failed (non-fatal):', auditErr.message)
+                // Fall through — the original draft (already in completeText) will be used
+                // If we suppressed deltas, stream the original now
+                if (suppressTextDeltas) {
+                  send({ type: 'delta', text: completeText })
+                }
+              }
+            }
+
             const actualThreadId = inputThreadId || crypto.randomUUID()
-            send({ type: 'done', text: fullText, contextTokens: tokenEstimate, tab: activeTab, threadId: actualThreadId })
+            send({ type: 'done', text: completeText, contextTokens: tokenEstimate, tab: activeTab, threadId: actualThreadId })
 
             // Persist messages after streaming completes
             try {
@@ -976,79 +1078,6 @@ export async function postEditorialChat(body, req) {
               }
             } catch (persistErr) {
               console.error('[editorial-chat] Failed to persist messages:', persistErr.message)
-            }
-
-            // ── POST-DRAFT STYLE AUDIT ──────────────────────────
-            // If the draft looks like a LinkedIn post (contains ITEATE marker
-            // or was triggered from a backlog item), run a second pass that
-            // compares the draft against Scott's published writing and the
-            // style rules. The audit streams as a follow-up message.
-            const shouldAudit = body.auditDraft === true ||
-              (completeText.toLowerCase().includes('in-the-end-at-the-end') &&
-               completeText.length > 300)
-
-            if (shouldAudit && !abort.signal.aborted) {
-              try {
-                // Fetch 2-3 published reference posts for comparison
-                const refPosts = await eq.searchPublishedPosts(db, { category: 'article', limit: 3 })
-                const refTexts = []
-                for (const ref of refPosts) {
-                  const full = await eq.getPublishedPost(db, ref.id)
-                  if (full) refTexts.push(`### ${full.title}\n\n${full.body}`)
-                }
-
-                const prefsPath = join(ROOT, 'data/editorial/writing-preferences.md')
-                let writingPrefs = ''
-                try { writingPrefs = readFileSync(prefsPath, 'utf-8') } catch { /* skip */ }
-
-                const vocabPath = join(ROOT, 'data/editorial/vocabulary-fingerprint.json')
-                let vocabSection = ''
-                try {
-                  const vocab = JSON.parse(readFileSync(vocabPath, 'utf-8'))
-                  if (vocab.signature_terms?.length) {
-                    vocabSection = '\n\n## Vocabulary Fingerprint\nScott prefers: ' +
-                      vocab.signature_terms.slice(0, 20).map(t => `"${t.term}" (over "${t.alternative || '—'}")`).join(', ')
-                  }
-                } catch { /* skip if not yet generated */ }
-
-                send({ type: 'delta', text: '\n\n---\n\n**[STYLE AUDIT]**\n\n' })
-
-                const auditResponse = await client.messages.create({
-                  model: modelId,
-                  max_tokens: 2048,
-                  system: `You are a writing style auditor for Scott Wilkinson's editorial content. Compare the draft below against the published reference posts and writing rules. Return ONLY specific, actionable corrections — not praise. For each issue: quote the problematic text, explain what's wrong, and show how Scott would write it instead. Check for: prohibited words/patterns, sentence rhythm (too uniform?), opening-line quality (concrete enough?), in-the-end-at-the-end quality (does it crystallise or just repeat?), voice consistency (is it Scott's voice or generic AI?), argument flow, citation patterns.${vocabSection}`,
-                  messages: [{
-                    role: 'user',
-                    content: `## DRAFT TO AUDIT\n\n${completeText}\n\n## WRITING RULES\n\n${writingPrefs}\n\n## REFERENCE POSTS (Scott's published writing — match this quality)\n\n${refTexts.join('\n\n---\n\n')}`
-                  }],
-                  stream: true,
-                })
-
-                let auditText = ''
-                for await (const event of auditResponse) {
-                  if (abort.signal.aborted) break
-                  if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-                    auditText += event.delta.text
-                    send({ type: 'delta', text: event.delta.text })
-                  }
-                }
-
-                // Persist audit as part of the assistant message
-                if (auditText) {
-                  completeText += '\n\n---\n\n**[STYLE AUDIT]**\n\n' + auditText
-                  try {
-                    appendEditorialMessage(actualThreadId, {
-                      id: 'msg_' + crypto.randomUUID().slice(0, 8),
-                      role: 'assistant',
-                      content: '[STYLE AUDIT]\n\n' + auditText,
-                      timestamp: new Date().toISOString(),
-                    })
-                  } catch { /* non-fatal */ }
-                }
-              } catch (auditErr) {
-                console.error('[editorial-chat] Style audit failed (non-fatal):', auditErr.message)
-                send({ type: 'delta', text: '\n\n_Style audit unavailable._\n' })
-              }
             }
 
             break

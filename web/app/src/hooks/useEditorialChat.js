@@ -116,6 +116,10 @@ export function useEditorialChat(tab = 'state') {
         history: currentHistory,
         threadId: activeThreadIdRef.current || undefined,
         ...(sourceRefs ? { sourceRefs } : {}),
+        // Auto-enable internal style audit for draft-mode requests.
+        // The server will draft internally, audit, revise, and stream
+        // only the polished final version — no workings shown.
+        ...(effectiveTab === 'draft' ? { auditDraft: true } : {}),
       }, controller.signal)
 
       let fullText = ''
