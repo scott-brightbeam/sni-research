@@ -17,9 +17,9 @@ describe('buildDraftAddendum', () => {
     expect(out.toLowerCase()).not.toContain('one complete draft')
   })
 
-  it('mentions THREE different formats as the default', () => {
+  it('mentions THREE drafts as the default', () => {
     const out = buildDraftAddendum(true)
-    expect(out.toLowerCase()).toContain('three different linkedin formats')
+    expect(out.toLowerCase()).toMatch(/three drafts|three different|one of each format/)
   })
 
   it('requires an in-the-end-at-the-end closer', () => {
@@ -27,9 +27,19 @@ describe('buildDraftAddendum', () => {
     expect(out).toContain('in-the-end-at-the-end')
   })
 
-  it('tells the model to skip preamble narrative', () => {
+  it('tells the model NOT to add preamble before the first draft', () => {
     const out = buildDraftAddendum(true)
-    expect(out.toLowerCase()).toContain('no preamble')
+    // Should tell the model to skip preamble / go straight into Draft 1
+    expect(out.toLowerCase()).toMatch(/no preamble|straight into/)
+  })
+
+  it('explicitly tells the model to write drafts after tools (anti-stall guard)', () => {
+    const out = buildDraftAddendum(true)
+    // Regression guard: Sonnet 4 empirically stalled — ending the turn with
+    // zero text after the tool-round budget. The addendum must include a
+    // direct "WRITE THE DRAFTS" instruction.
+    expect(out).toContain('WRITE THE DRAFTS')
+    expect(out.toLowerCase()).toMatch(/do not end your turn|must contain the drafts/)
   })
 })
 

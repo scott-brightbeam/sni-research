@@ -858,7 +858,10 @@ export async function postEditorialChat(body, req) {
         // them to the draft tab meant the chat couldn't fetch backlog/
         // theme/entry details when users clicked 'Draft in chat' from
         // other tabs, and fell back to general knowledge instead.
-        const MAX_TOOL_ROUNDS = 5
+        // 6 tool rounds for draft mode (matches the addendum's STEP 1
+        // budget). Extra buffer above the 5 we used before keeps the
+        // model from silently stalling when it's mid-gather on round 5.
+        const MAX_TOOL_ROUNDS = isDraftMode ? 6 : 5
 
         let roundMessages = [...sdkMessages]
         let toolRound = 0
@@ -1176,10 +1179,29 @@ export async function postEditorialChat(body, req) {
             })
           }
 
+          // Anti-stall nudge: if the NEXT round will have no tools and
+          // we're in draft mode, append an explicit text block to the
+          // user message AFTER the tool_results so Sonnet can't
+          // silently end_turn. Sonnet 4 reliably stalled on the first
+          // no-tools round (stop_reason=end_turn, 0 text) without this.
+          //
+          // The loop checks `toolRound < MAX_TOOL_ROUNDS` at the top of
+          // the NEXT iteration to decide whether to include the `tools`
+          // field. toolRound has been incremented above. So the next
+          // round has tools iff `toolRound < MAX_TOOL_ROUNDS` holds now.
+          const nextRoundHasTools = toolRound < MAX_TOOL_ROUNDS
+          const userContent = [...toolResults]
+          if (isDraftMode && !nextRoundHasTools) {
+            userContent.push({
+              type: 'text',
+              text: 'You have enough source material now. In your next response, write the three draft LinkedIn posts directly — each in a different format, each with a bold title, body (200-400 words in Scott\'s voice), and in-the-end-at-the-end closer. Start your response with `## Draft 1:` and skip any preamble.',
+            })
+          }
+
           roundMessages = [
             ...roundMessages,
             { role: 'assistant', content: assistantContent },
-            { role: 'user', content: toolResults },
+            { role: 'user', content: userContent },
           ]
 
           completeText += fullText

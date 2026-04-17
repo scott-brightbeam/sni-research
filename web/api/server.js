@@ -343,9 +343,16 @@ if (config.isProduction) {
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
 
 // --- Start server ---
+// idleTimeout: the editorial chat route streams multi-tool-round draft
+// generation that routinely runs 30-120 seconds end-to-end (initial
+// draft + style audit + revision). Bun's default 10s idleTimeout
+// kills the connection mid-stream with ECONNRESET. Raise to 255s
+// (Bun's maximum) so long draft sessions complete. Short handlers are
+// unaffected.
 const server = Bun.serve({
   port: config.PORT,
   fetch: app.fetch,
+  idleTimeout: 255,
 })
 
 // --- Warm the dashboard caches in the background after startup ---
