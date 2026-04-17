@@ -144,6 +144,14 @@ export function useEditorialChat(tab = 'state') {
                 : m
             )
           }))
+        } else if (data.type === 'scorecard') {
+          // Attach the style-match scorecard to the assistant message
+          setThreads(prev => ({
+            ...prev,
+            [effectiveTab]: (prev[effectiveTab] || []).map(m =>
+              m.id === assistantId ? { ...m, scorecard: data.scorecard } : m
+            )
+          }))
         } else if (data.type === 'warning') {
           // Server-side soft warning (e.g. editorial state unavailable).
           // Surface as a non-blocking note on the assistant message.

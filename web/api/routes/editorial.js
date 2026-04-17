@@ -6,6 +6,7 @@ import { getISOWeek } from '../lib/week.js'
 import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
 import { DRAFT_TOOLS, executeTool } from '../lib/editorial-tools.js'
+import { scoreDraft } from '../lib/style-scoring.js'
 import config from '../lib/config.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
@@ -1014,6 +1015,19 @@ export async function postEditorialChat(body, req) {
             }
 
             const actualThreadId = inputThreadId || crypto.randomUUID()
+
+            // Style scorecard — emitted if the output looks like a draft.
+            // Fast deterministic analysis (no API call). Frontend renders
+            // a compact panel beneath the message.
+            if (completeText.length > 200 && /in-the-end-at-the-end|\n#|\*\*/.test(completeText)) {
+              try {
+                const scorecard = scoreDraft(completeText)
+                send({ type: 'scorecard', scorecard })
+              } catch (scErr) {
+                console.error('[editorial-chat] Scoring failed (non-fatal):', scErr.message)
+              }
+            }
+
             send({ type: 'done', text: completeText, contextTokens: tokenEstimate, tab: activeTab, threadId: actualThreadId })
 
             // Persist messages after streaming completes

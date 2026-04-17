@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useEditorialChat } from '../hooks/useEditorialChat'
 import { formatRelativeTime } from '../lib/format'
+import StyleScorecard from './StyleScorecard'
 import './EditorialChat.css'
 
 const TOOL_LABELS = {
@@ -221,6 +222,7 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed, rest
               </div>
             )}
             <div className="message-content">{msg.content || (loading && msg.role === 'assistant' ? '...' : '')}</div>
+            {msg.scorecard && <StyleScorecard scorecard={msg.scorecard} />}
             {msg.contextTokens && (
               <div className="message-meta">~{msg.contextTokens} context tokens</div>
             )}
