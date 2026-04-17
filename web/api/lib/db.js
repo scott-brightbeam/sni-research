@@ -8,7 +8,7 @@
  *   getDb()              — singleton; uses test DB when SNI_TEST_MODE=1
  */
 
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
@@ -361,6 +361,22 @@ const BATCH_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_published_posts_category ON published_posts(category)`,
   `CREATE INDEX IF NOT EXISTS idx_published_posts_date ON published_posts(date_published)`,
 
+  // -- style_edits (Feature 10: living style evolution)
+  // Captures edits between drafted and published/final versions.
+  // The LLM extracts patterns from these diffs to improve future drafts.
+  `CREATE TABLE IF NOT EXISTS style_edits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id TEXT,
+    backlog_id INTEGER,
+    draft_text TEXT NOT NULL,
+    final_text TEXT NOT NULL,
+    extracted_rules TEXT,
+    processed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_style_edits_processed ON style_edits(processed)`,
+
   // -- schema_version
   `CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
@@ -463,7 +479,21 @@ export async function migrateSchema(db) {
   await addCol('published_posts', 'iteate', 'TEXT')            // In-the-end-at-the-end text
   await addCol('published_posts', 'argument_structure', 'TEXT') // JSON array of paragraph roles
 
-  // 5. Record schema version
+  // 5. Schema v4: ensure style_edits table exists (for CREATE TABLE
+  //    in BATCH_STATEMENTS to hit existing DBs that were initialised at v3).
+  await db.execute(`CREATE TABLE IF NOT EXISTS style_edits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id TEXT,
+    backlog_id INTEGER,
+    draft_text TEXT NOT NULL,
+    final_text TEXT NOT NULL,
+    extracted_rules TEXT,
+    processed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`)
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_style_edits_processed ON style_edits(processed)`)
+
+  // 6. Record schema version
   await db.execute({
     sql: "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
     args: [SCHEMA_VERSION],

@@ -178,6 +178,16 @@ function getVocabularyFingerprint() {
         }
       }
 
+      // Learned rules — patterns extracted from Scott's actual edits
+      // between his draft and the published version. These trump
+      // everything else because they come from real editorial decisions.
+      if (raw.learned_rules?.length) {
+        sections.push('\n**Rules learned from Scott\'s actual edits** (highest priority — these are patterns extracted from diffs between the model\'s drafts and what Scott actually published):')
+        for (const r of raw.learned_rules.slice(-15)) {
+          sections.push(`- ${r.pattern}${r.example ? ` — e.g., ${r.example}` : ''}`)
+        }
+      }
+
       _vocabCache = { content: sections.join('\n'), mtime: stat.mtimeMs }
     }
     return _vocabCache.content

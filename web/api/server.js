@@ -16,6 +16,7 @@ import { getOverview, getRunDetail } from './routes/sources.js'
 import { listPublished, getPublished, savePublished, extractExclusions } from './routes/published.js'
 import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from './routes/podcasts.js'
 import { getEditorialState, searchEditorial, getEditorialBacklog, getEditorialThemes, getEditorialNotifications, dismissNotification, getEditorialStatus, getEditorialCost, getEditorialActivity, renderEditorialSection, getDiscoverProgress, getEditorialDraft, postEditorialChat, postTriggerAnalyse, postTriggerDiscover, postTriggerDraft, postTriggerTrack, putBacklogStatus, putAnalysisArchive, putThemeArchive, postDecision, putDecisionArchive, getEditorialThreads, getEditorialChatHistory } from './routes/editorial.js'
+import { postStyleEdit, getStyleEdits } from './routes/style-edits.js'
 import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recommendations.js'
 import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, triggerFetch } from './routes/subscriptions.js'
 import { listBugsHandler, getBugHandler, createBugHandler, updateBugHandler } from './routes/bugs.js'
@@ -242,6 +243,10 @@ app.post('/api/editorial/chat', async (c) => {
 app.get('/api/editorial/chat/threads', (c) => c.json(getEditorialThreads()))
 app.get('/api/editorial/chat/history/:threadId', (c) =>
   c.json(getEditorialChatHistory(c.req.param('threadId'))))
+
+// Style-edit feedback loop (Feature 10: living style evolution)
+app.post('/api/editorial/style-edit', async (c) => c.json(await postStyleEdit(await c.req.json())))
+app.get('/api/editorial/style-edits', async (c) => c.json(await getStyleEdits(c.req.query())))
 
 // Editorial triggers
 app.post('/api/editorial/trigger/analyse', async (c) => {
