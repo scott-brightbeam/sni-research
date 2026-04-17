@@ -79,10 +79,12 @@ describe('db module', () => {
     expect(counters.rows.length).toBe(3)
   })
 
-  it('sets schema_version', async () => {
+  it('sets schema_version to the current SCHEMA_VERSION', async () => {
     const result = await db.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
     expect(result.rows.length).toBe(1)
-    expect(result.rows[0].version).toBe(2)
+    // Matches SCHEMA_VERSION constant at the top of lib/db.js.
+    // Bump this when the schema version in the source is bumped.
+    expect(result.rows[0].version).toBe(4)
   })
 
   afterAll(() => db.close())

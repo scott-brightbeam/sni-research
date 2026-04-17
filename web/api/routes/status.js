@@ -4,7 +4,7 @@ import { getISOWeek } from '../lib/week.js'
 import { getDb } from '../lib/db.js'
 import { getArticleCounts } from '../lib/article-queries.js'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+const ROOT = process.env.SNI_ROOT || resolve(import.meta.dir, '../../..')
 
 export function getVerificationStatus() {
   const flagPath = join(ROOT, 'data/editorial/drafts/VERIFICATION-FAILED.flag')

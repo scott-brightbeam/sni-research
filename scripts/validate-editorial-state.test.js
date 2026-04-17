@@ -248,15 +248,29 @@ describe('validatePostBacklog', () => {
     expect(hasError(result, 'POST_CORE_ARGUMENT')).toBe(false)
   })
 
-  it('short notes on non-archived triggers POST_NOTES', () => {
+  it('short notes on a non-archived session-56+ post triggers POST_NOTES error', () => {
     const posts = {
       '1': {
         ...makeValidState().postBacklog['1'],
+        session: 56,
         notes: 'Brief',
       },
     }
     const result = validatePostBacklog(posts)
     expect(hasError(result, 'POST_NOTES')).toBe(true)
+  })
+
+  it('short notes on a legacy (pre-session-56) post is a warning, not an error', () => {
+    const posts = {
+      '1': {
+        ...makeValidState().postBacklog['1'],
+        session: 5,
+        notes: 'Brief',
+      },
+    }
+    const result = validatePostBacklog(posts)
+    expect(hasError(result, 'POST_NOTES')).toBe(false)
+    expect(hasWarning(result, 'POST_NOTES')).toBe(true)
   })
 
   it('short notes on archived post is allowed', () => {
@@ -430,13 +444,13 @@ describe('validateAnalysisIndex', () => {
     expect(hasError(result, 'ANALYSIS_SUMMARY_SHORT')).toBe(false)
   })
 
-  it('duplicate filenames trigger ANALYSIS_DUPLICATE_FILENAME', () => {
+  it('duplicate filenames trigger ANALYSIS_DUPLICATE_FILENAME (warning, case-insensitive)', () => {
     const index = {
       '1': { ...makeValidState().analysisIndex['1'], filename: 'episode.md' },
       '2': { ...makeValidState().analysisIndex['1'], filename: 'Episode.md', session: 6 },
     }
     const result = validateAnalysisIndex(index)
-    expect(hasError(result, 'ANALYSIS_DUPLICATE_FILENAME')).toBe(true)
+    expect(hasWarning(result, 'ANALYSIS_DUPLICATE_FILENAME')).toBe(true)
   })
 
   it('entries without filename produce ANALYSIS_MISSING_FILENAME warning', () => {

@@ -66,8 +66,8 @@ describe('buildSystemPrompt', () => {
   test('includes editorial context for all modes', () => {
     for (const mode of ['analyse', 'draft', 'chat']) {
       const prompt = buildSystemPrompt(mode)
-      // Should contain the editorial voice prompt
-      expect(prompt).toContain('Content Analyst and LinkedIn Post Generator')
+      // Should contain the editorial voice prompt (phrasing updated Apr 2026)
+      expect(prompt).toContain('LinkedIn post generator')
       // Should contain mode indicator
       expect(prompt).toContain(`MODE: ${mode.toUpperCase()}`)
     }
@@ -91,7 +91,8 @@ describe('buildSystemPrompt', () => {
 
   test('draft mode includes newsletter structure', () => {
     const prompt = buildSystemPrompt('draft')
-    expect(prompt).toContain('Second Nature Intelligence')
+    // Newsletter name: Sector News Intelligence (renamed from Second Nature Intelligence)
+    expect(prompt).toContain('Sector News Intelligence')
     expect(prompt).toContain('UK English')
   })
 
@@ -115,8 +116,10 @@ describe('BUDGETS', () => {
     expect(BUDGETS.analyse.total).toBe(65000)
   })
 
-  test('draft budget totals to 60k', () => {
-    expect(BUDGETS.draft.total).toBe(60000)
+  test('draft budget matches the BUDGETS.draft.total constant', () => {
+    // Total is defined in scripts/lib/editorial-context.js — bump this
+    // assertion when the source constant is bumped. Currently 150k.
+    expect(BUDGETS.draft.total).toBe(150000)
   })
 
   test('chat budgets have all expected tabs', () => {

@@ -1,37 +1,52 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from 'fs'
-import { join, resolve } from 'path'
-import { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } from '../routes/podcasts.js'
+import { mkdirSync, writeFileSync, existsSync, rmSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
 
-const ROOT = resolve(import.meta.dir, '../../..')
+// Isolate filesystem-bound routes to a temp dir so test data never touches real data/.
+const TEST_ROOT = join(tmpdir(), `sni-podcasts-test-${process.pid}`)
+process.env.SNI_ROOT = TEST_ROOT
+
+// Import AFTER setting SNI_ROOT so routes/podcasts.js resolves ROOT against it.
+const { handleGetPodcasts, handleGetTranscript, handlePatchPodcast } = await import('../routes/podcasts.js')
+const { getDb, migrateSchema, _resetDbSingleton } = await import('../lib/db.js')
+
 const TEST_DATE = '2099-12-01'
-const TEST_SOURCE = 'test-podcast'
-const TEST_TITLE = 'episode-one'
+const TEST_SOURCE_SLUG = 'test-podcast'
+const TEST_FILENAME = 'episode-one'
 
-const testManifest = [
-  {
-    week: 99,
-    date: TEST_DATE,
-    source: TEST_SOURCE,
-    title: TEST_TITLE,
-    digestPath: `data/podcasts/${TEST_DATE}/${TEST_SOURCE}/digest.json`,
-  },
-  {
-    week: 98,
-    date: '2099-11-24',
-    source: 'other-show',
-    title: 'older-episode',
-    digestPath: `data/podcasts/2099-11-24/other-show/digest.json`,
-  },
-]
+/** Seed the episodes + episode_stories tables with two test rows. */
+async function seedEpisodes(db) {
+  // Episode 1 — week 99, has a story
+  const ep1 = await db.execute({
+    sql: `INSERT INTO episodes (filename, date, source, source_slug, title, week, duration, tier, summary, archived)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    args: [TEST_FILENAME, TEST_DATE, 'Test Podcast', TEST_SOURCE_SLUG, 'Episode One', 99, 2700, 1, 'Test episode summary'],
+  })
+  await db.execute({
+    sql: `INSERT INTO episode_stories (episode_id, headline, detail, url, sector)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [Number(ep1.lastInsertRowid), 'First story', 'detail', 'https://example.com/1', 'general-ai'],
+  })
 
-const testDigest = {
-  summary: 'Test episode summary',
-  topics: ['AI', 'testing'],
-  duration: '45:00',
+  // Episode 2 — week 98, no stories
+  await db.execute({
+    sql: `INSERT INTO episodes (filename, date, source, source_slug, title, week, tier, summary, archived)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    args: ['older-episode', '2099-11-24', 'Other Show', 'other-show', 'Older Episode', 98, 1, null],
+  })
 }
 
-const testTranscript = `---
+beforeEach(async () => {
+  _resetDbSingleton()
+  const db = getDb()
+  await migrateSchema(db)
+  await seedEpisodes(db)
+
+  // Transcript file — handleGetTranscript reads from disk.
+  const digestDir = join(TEST_ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE_SLUG)
+  mkdirSync(digestDir, { recursive: true })
+  writeFileSync(join(digestDir, `${TEST_FILENAME}.md`), `---
 title: Episode One
 source: Test Podcast
 date: ${TEST_DATE}
@@ -41,24 +56,10 @@ duration: 45:00
 This is the transcript body.
 
 It has multiple paragraphs.
-`
+`)
 
-beforeEach(() => {
-  // Create manifest
-  const podcastsDir = join(ROOT, 'data/podcasts')
-  mkdirSync(podcastsDir, { recursive: true })
-  writeFileSync(join(podcastsDir, 'manifest.json'), JSON.stringify(testManifest))
-
-  // Create digest
-  const digestDir = join(ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE)
-  mkdirSync(digestDir, { recursive: true })
-  writeFileSync(join(digestDir, 'digest.json'), JSON.stringify(testDigest))
-
-  // Create transcript
-  writeFileSync(join(digestDir, `${TEST_TITLE}.md`), testTranscript)
-
-  // Create a run summary
-  const runsDir = join(ROOT, 'output/runs')
+  // Latest pipeline run summary — handleGetPodcasts reads from output/runs/.
+  const runsDir = join(TEST_ROOT, 'output/runs')
   mkdirSync(runsDir, { recursive: true })
   writeFileSync(
     join(runsDir, 'podcast-import-2099-12-01.json'),
@@ -67,27 +68,8 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  // Clean up test podcast data
-  const testDateDir = join(ROOT, 'data/podcasts', TEST_DATE)
-  if (existsSync(testDateDir)) rmSync(testDateDir, { recursive: true })
-
-  const otherDateDir = join(ROOT, 'data/podcasts/2099-11-24')
-  if (existsSync(otherDateDir)) rmSync(otherDateDir, { recursive: true })
-
-  // Clean up manifest (only if it's our test manifest)
-  const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-  if (existsSync(manifestPath)) {
-    try {
-      const content = JSON.parse(require('fs').readFileSync(manifestPath, 'utf-8'))
-      if (Array.isArray(content) && content.some(e => e.week === 99)) {
-        rmSync(manifestPath)
-      }
-    } catch { /* leave it */ }
-  }
-
-  // Clean up run summary
-  const runPath = join(ROOT, 'output/runs/podcast-import-2099-12-01.json')
-  if (existsSync(runPath)) rmSync(runPath)
+  _resetDbSingleton()
+  if (existsSync(TEST_ROOT)) rmSync(TEST_ROOT, { recursive: true })
 })
 
 describe('handleGetPodcasts', () => {
@@ -101,7 +83,7 @@ describe('handleGetPodcasts', () => {
     const result = await handleGetPodcasts({ week: '99' })
     expect(result.week).toBe(99)
     expect(result.episodes.length).toBe(1)
-    expect(result.episodes[0].source).toBe(TEST_SOURCE)
+    expect(result.episodes[0].source).toBe('Test Podcast')
   })
 
   it('returns empty episodes for non-existent week', async () => {
@@ -110,18 +92,20 @@ describe('handleGetPodcasts', () => {
     expect(result.week).toBe(1)
   })
 
-  it('loads digest JSON for each episode', async () => {
+  it('attaches synthesised digest with summary for each episode', async () => {
     const result = await handleGetPodcasts({ week: '99' })
     const ep = result.episodes[0]
     expect(ep.digest).toBeTruthy()
     expect(ep.digest.summary).toBe('Test episode summary')
-    expect(ep.digest.topics).toEqual(['AI', 'testing'])
+    expect(ep.digest.stories.length).toBe(1)
+    expect(ep.digest.stories[0].headline).toBe('First story')
   })
 
-  it('sets digest to null when digest file missing', async () => {
+  it('returns null summary when episode has no summary', async () => {
     const result = await handleGetPodcasts({ week: '98' })
     const ep = result.episodes[0]
-    expect(ep.digest).toBeNull()
+    expect(ep.digest.summary).toBeNull()
+    expect(ep.digest.stories.length).toBe(0)
   })
 
   it('includes lastRun from latest run summary', async () => {
@@ -130,24 +114,14 @@ describe('handleGetPodcasts', () => {
     expect(result.lastRun.date).toBe('2099-12-01')
     expect(result.lastRun.imported).toBe(2)
   })
-
-  it('falls back to digest scanner when manifest missing', async () => {
-    const manifestPath = join(ROOT, 'data/podcasts/manifest.json')
-    if (existsSync(manifestPath)) rmSync(manifestPath)
-
-    const result = await handleGetPodcasts({})
-    // Without manifest, scanner finds digest files on disk (including test fixtures)
-    expect(Array.isArray(result.episodes)).toBe(true)
-    expect(result.episodes.length).toBeGreaterThanOrEqual(1) // at least the test digest
-  })
 })
 
 describe('handleGetTranscript', () => {
   it('returns transcript and metadata', async () => {
     const result = await handleGetTranscript({
       date: TEST_DATE,
-      source: TEST_SOURCE,
-      title: TEST_TITLE,
+      source: TEST_SOURCE_SLUG,
+      title: TEST_FILENAME,
     })
     expect(result.transcript).toContain('This is the transcript body.')
     expect(result.metadata.title).toBe('Episode One')
@@ -204,12 +178,12 @@ describe('handleGetTranscript', () => {
   })
 
   it('handles transcript without frontmatter', async () => {
-    const noFmDir = join(ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE)
+    const noFmDir = join(TEST_ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE_SLUG)
     writeFileSync(join(noFmDir, 'no-frontmatter.md'), 'Just plain transcript text.')
 
     const result = await handleGetTranscript({
       date: TEST_DATE,
-      source: TEST_SOURCE,
+      source: TEST_SOURCE_SLUG,
       title: 'no-frontmatter',
     })
     expect(result.transcript).toBe('Just plain transcript text.')
@@ -217,51 +191,30 @@ describe('handleGetTranscript', () => {
   })
 })
 
-describe('PATCH /api/podcasts - archive', () => {
-  const TEST_DATE = '2026-01-15'
-  const TEST_SOURCE = 'test-archive-pod'
-  const TEST_SLUG = 'test-episode'
-  const digestDir = join(ROOT, 'data/podcasts', TEST_DATE, TEST_SOURCE)
-  const digestPath = join(digestDir, `${TEST_SLUG}.digest.json`)
-
-  beforeEach(() => {
-    mkdirSync(digestDir, { recursive: true })
-    writeFileSync(digestPath, JSON.stringify({
-      title: 'Test Episode', source: 'Test', date: TEST_DATE, summary: 'Test summary',
-    }))
-  })
-
-  afterEach(() => {
-    if (existsSync(digestPath)) rmSync(digestPath)
-    try { rmSync(digestDir, { recursive: true }) } catch {}
-    try { rmSync(join(ROOT, 'data/podcasts', TEST_DATE), { recursive: true }) } catch {}
-  })
-
-  it('sets archived flag on digest', async () => {
-    const resp = await fetch(`http://localhost:3900/api/podcasts/${TEST_DATE}/${TEST_SOURCE}/${TEST_SLUG}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archived: true }),
-    })
-    expect(resp.status).toBe(200)
-
-    const saved = JSON.parse(readFileSync(digestPath, 'utf-8'))
-    expect(saved.archived).toBe(true)
+describe('handlePatchPodcast (archive)', () => {
+  it('sets archived flag on episode', async () => {
+    const result = await handlePatchPodcast(TEST_DATE, TEST_SOURCE_SLUG, TEST_FILENAME, { archived: true })
+    expect(result.archived).toBe(true)
   })
 
   it('removes archived flag on restore', async () => {
-    writeFileSync(digestPath, JSON.stringify({
-      title: 'Test', source: 'Test', date: TEST_DATE, archived: true,
-    }))
+    // Archive first, then restore
+    await handlePatchPodcast(TEST_DATE, TEST_SOURCE_SLUG, TEST_FILENAME, { archived: true })
+    const result = await handlePatchPodcast(TEST_DATE, TEST_SOURCE_SLUG, TEST_FILENAME, { archived: false })
+    expect(result.archived).toBe(false)
+  })
 
-    const resp = await fetch(`http://localhost:3900/api/podcasts/${TEST_DATE}/${TEST_SOURCE}/${TEST_SLUG}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archived: false }),
-    })
-    expect(resp.status).toBe(200)
+  it('returns 404 when episode does not exist', async () => {
+    try {
+      await handlePatchPodcast('2099-01-01', 'missing-show', 'no-such-episode', { archived: true })
+      expect(true).toBe(false)
+    } catch (err) {
+      expect(err.status).toBe(404)
+    }
+  })
 
-    const saved = JSON.parse(readFileSync(digestPath, 'utf-8'))
-    expect(saved.archived).toBeUndefined()
+  it('accepts no-op patch (empty body)', async () => {
+    const result = await handlePatchPodcast(TEST_DATE, TEST_SOURCE_SLUG, TEST_FILENAME, {})
+    expect(result.ok).toBe(true)
   })
 })

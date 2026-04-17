@@ -20,10 +20,11 @@ afterEach(() => {
 })
 
 describe('getDateRange', () => {
-  it('week returns Monday of current ISO week to today', () => {
+  it('week returns Friday of the current editorial week to today', () => {
     const { startDate, endDate } = getDateRange('week')
-    // 2026-03-04 is Wednesday -> Monday is 2026-03-02
-    expect(startDate).toBe('2026-03-02')
+    // Editorial week starts Friday (newsletter window Fri–Thu).
+    // 2026-03-04 is Wednesday -> last Friday is 2026-02-27.
+    expect(startDate).toBe('2026-02-27')
     expect(endDate).toBe('2026-03-04')
   })
 
