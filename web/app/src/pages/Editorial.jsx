@@ -63,6 +63,7 @@ const PRIORITY_LABELS = { high: '🔴', medium: '🟡', low: '⚪' }
 export default function Editorial() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || 'state'
+  const threadParam = searchParams.get('thread')
   const [tab, setTab] = useState(TABS.find(t => t.key === initialTab) ? initialTab : 'state')
   const [search, setSearch] = useState('')
   const [backlogFilter, setBacklogFilter] = useState({ status: '', priority: '' })
@@ -206,6 +207,13 @@ export default function Editorial() {
           tab={tab}
           draftRequest={draftRequest}
           onDraftConsumed={() => setDraftRequest(null)}
+          restoreThreadId={threadParam}
+          onThreadRestored={() => {
+            // Clear the thread param from the URL once the chat has loaded it
+            const next = new URLSearchParams(searchParams)
+            next.delete('thread')
+            setSearchParams(next, { replace: true })
+          }}
         />
       </div>
     </div>

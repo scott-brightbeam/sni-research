@@ -74,7 +74,7 @@ const SUGGESTIONS = {
  * Editorial contextual chat panel — 380px sidebar with streaming AI responses.
  * Receives the current editorial tab to provide tab-specific context.
  */
-export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
+export default function EditorialChat({ tab, draftRequest, onDraftConsumed, restoreThreadId, onThreadRestored }) {
   // Internal chat tab — follows parent tab, but pins to 'draft' independently when a draft request arrives
   const [chatTab, setChatTab] = useState(tab)
   const { messages, loading, error, send, clear, model, setModel, recentThreads, activeThreadId, selectThread, createNewThread } = useEditorialChat(chatTab)
@@ -92,6 +92,15 @@ export default function EditorialChat({ tab, draftRequest, onDraftConsumed }) {
       prevTabRef.current = tab
     }
   }, [tab])
+
+  // Restore a thread when navigated from the sidebar
+  useEffect(() => {
+    if (restoreThreadId && restoreThreadId !== activeThreadId) {
+      selectThread(restoreThreadId)
+      setCollapsed(false)
+      onThreadRestored?.()
+    }
+  }, [restoreThreadId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle incoming draft requests — always start a fresh conversation
   useEffect(() => {

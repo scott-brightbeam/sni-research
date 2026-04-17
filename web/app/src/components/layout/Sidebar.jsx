@@ -61,7 +61,7 @@ export default function Sidebar({ status, editorialStatus = null, notificationCo
               <button
                 key={t.id}
                 className="sidebar-thread-item"
-                onClick={() => navigate('/editorial')}
+                onClick={() => navigate(`/editorial?tab=ideate&thread=${t.id}`)}
                 title={t.name}
               >
                 <span className="sidebar-thread-name">{t.name}</span>
