@@ -437,14 +437,15 @@ describe('GET /api/editorial/state', () => {
 
 describe('GET /api/editorial/search', () => {
   // SKIPPED: route's search function returns type='analysis' (matching the
-  // analysis_entries table), but this test asserts type='analysisIndex' from
-  // the old file-based shape. The query function would need to change —
-  // that's a route-layer decision, not a test concern.
-  it.skip('searches across analysis index by title', async () => {
+  // Turso-backed search returns type='analysis' (matches UI source-ref
+  // convention in Editorial.jsx). Updated from the old 'analysisIndex'
+  // file-based shape.
+  it('searches across analysis index by title', async () => {
     const result = await searchEditorial({ q: 'Recursive' })
-    expect(result.results).toHaveLength(1)
-    expect(result.results[0].type).toBe('analysisIndex')
-    expect(result.results[0].id).toBe(122)
+    expect(result.results.length).toBeGreaterThanOrEqual(1)
+    const entry = result.results.find(r => r.type === 'analysis')
+    expect(entry).toBeDefined()
+    expect(entry.id).toBe(122)
   })
 
   it('searches across themes by name', async () => {
