@@ -7,6 +7,13 @@ import { getClient } from '../lib/claude.js'
 import { buildEditorialContext, trimEditorialHistory, getEditorialSystemPrompt } from '../lib/editorial-chat.js'
 import { DRAFT_TOOLS, executeTool } from '../lib/editorial-tools.js'
 import { scoreDraft } from '../lib/style-scoring.js'
+import {
+  buildDraftAddendum,
+  detectDraftOutput,
+  extractDraftContent,
+  buildAuditSystemPrompt,
+  buildRevisionInstruction,
+} from '../lib/draft-flow.js'
 import config from '../lib/config.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
@@ -863,17 +870,25 @@ export async function postEditorialChat(body, req) {
         const willAudit = body.auditDraft === true
         const suppressTextDeltas = willAudit // suppress from the start; revision will stream
 
-        // Draft mode addendum encourages decisive drafting once data is in hand.
-        const draftAddendum = isDraftMode
-          ? '\n\nIMPORTANT: You have a maximum of 5 tool rounds to gather source material. Fetch the backlog item / analysis entries / themes you need, then write ONE complete draft post in the format that best fits the material. The user can ask for alternatives if needed.'
-          : ''
+        const draftAddendum = buildDraftAddendum(isDraftMode)
+
+        // Draft mode needs more output room than general chat. Three
+        // LinkedIn posts in different formats plus an audit-revision pass
+        // easily exceeds the 8192 default. 16384 fits comfortably within
+        // both Sonnet 4 (64k max) and Opus 4.6 (32k max) output budgets.
+        // Regression cause on 17 Apr 2026: max_tokens capped output
+        // before the drafts finished, leaving the user with one
+        // incomplete post.
+        const DRAFT_MAX_TOKENS = 16384
+        const CHAT_MAX_TOKENS = 8192
+        const maxTokens = isDraftMode ? DRAFT_MAX_TOKENS : CHAT_MAX_TOKENS
 
         while (true) {
           if (abort.signal.aborted) break
 
           const response = await client.messages.create({
             model: modelId,
-            max_tokens: model === 'opus' ? 8192 : 8192,
+            max_tokens: maxTokens,
             system: getEditorialSystemPrompt() + draftAddendum,
             messages: roundMessages,
             stream: true,
@@ -921,21 +936,31 @@ export async function postEditorialChat(body, req) {
           if (stopReason !== 'tool_use' || abort.signal.aborted) {
             completeText += fullText
 
+            // Warn the client if generation hit the token ceiling. The
+            // UI can show "draft truncated" so Scott knows to re-prompt
+            // with "continue" rather than assume the draft is complete.
+            if (stopReason === 'max_tokens' && !abort.signal.aborted) {
+              send({
+                type: 'warning',
+                message: 'Draft hit the output token limit. The last draft may be incomplete — ask to continue or shorten the request.',
+              })
+            }
+
             // If we suppressed text deltas (willAudit mode), the user
             // hasn't seen the draft yet. The audit+revision below will
             // stream the polished version instead.
 
-            // If willAudit and this looks like a draft, run internal
-            // audit + revision BEFORE the user sees the final output.
-            const looksLikeDraft = willAudit &&
-              completeText.toLowerCase().includes('in-the-end-at-the-end') &&
-              completeText.length > 300
+            // Multi-draft-aware detection: triggers on ITEATE presence
+            // OR multi-draft headers (DRAFT N, FORMAT N, format-named).
+            const looksLikeDraft = detectDraftOutput(completeText, { willAudit })
 
-            // If audit mode was on but the output doesn't look like a draft
-            // (short, no ITEATE), the user still hasn't seen anything
-            // because deltas were suppressed. Stream the content now.
+            // If audit mode was on but the output doesn't look like a
+            // draft (short, no markers), strip the inter-tool narrative
+            // and stream whatever content we have so the user sees
+            // something useful rather than the model's thinking.
             if (willAudit && !looksLikeDraft && completeText.length > 0 && !abort.signal.aborted) {
-              send({ type: 'delta', text: completeText })
+              const cleaned = extractDraftContent(completeText)
+              send({ type: 'delta', text: cleaned })
             }
 
             if (looksLikeDraft && !abort.signal.aborted) {
@@ -967,10 +992,10 @@ export async function postEditorialChat(body, req) {
                 const auditRes = await client.messages.create({
                   model: modelId,
                   max_tokens: 2048,
-                  system: `You are a writing style auditor. Compare the draft against the reference posts and rules. Return ONLY a numbered list of specific corrections. For each: quote the problematic text, state what rule it breaks, give the corrected replacement text. Check: prohibited words/patterns, single quotes (not double), sentence rhythm variation, opening-line concreteness, ITEATE quality (crystallise not repeat), first-person Scott voice, evidence citation pattern (WHO + WHAT + WHY), false contrast patterns ('Not X but Y'), hedging where confidence exists.${vocabSection}`,
+                  system: buildAuditSystemPrompt({ vocabSection }),
                   messages: [{
                     role: 'user',
-                    content: `## DRAFT\n\n${completeText}\n\n## RULES\n\n${writingPrefs}\n\n## REFERENCE POSTS\n\n${refTexts.join('\n\n---\n\n')}`
+                    content: `## DRAFT(S)\n\n${completeText}\n\n## RULES\n\n${writingPrefs}\n\n## REFERENCE POSTS\n\n${refTexts.join('\n\n---\n\n')}`
                   }],
                 })
                 const auditText = auditRes.content?.[0]?.text || ''
@@ -981,14 +1006,19 @@ export async function postEditorialChat(body, req) {
                   // Revision pass: apply corrections and output final version only
                   send({ type: 'tool_call', name: 'applying_corrections', input: {} })
 
+                  // Pass the CLEANED draft content (without inter-tool
+                  // narrative) to the revision so the model doesn't
+                  // echo "Let me fetch..." back as part of the output.
+                  const cleanedForRevision = extractDraftContent(completeText)
+
                   const revisionResponse = await client.messages.create({
                     model: modelId,
-                    max_tokens: 8192,
+                    max_tokens: DRAFT_MAX_TOKENS,
                     system: getEditorialSystemPrompt(),
                     messages: [
                       ...roundMessages,
-                      { role: 'assistant', content: completeText },
-                      { role: 'user', content: `Apply ALL of these style corrections to the draft above. Output ONLY the final corrected version — no explanations, no audit notes, no meta-commentary. Just the polished drafts.\n\n## CORRECTIONS TO APPLY\n\n${auditText}` },
+                      { role: 'assistant', content: cleanedForRevision },
+                      { role: 'user', content: buildRevisionInstruction(auditText) },
                     ],
                     stream: true,
                   })
@@ -997,12 +1027,23 @@ export async function postEditorialChat(body, req) {
 
                   // Stream the revision — this is what the user sees
                   let revisedText = ''
+                  let revisionStopReason = null
                   for await (const event of revisionResponse) {
                     if (abort.signal.aborted) break
                     if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
                       revisedText += event.delta.text
                       send({ type: 'delta', text: event.delta.text })
                     }
+                    if (event.type === 'message_delta') {
+                      revisionStopReason = event.delta?.stop_reason
+                    }
+                  }
+
+                  if (revisionStopReason === 'max_tokens' && !abort.signal.aborted) {
+                    send({
+                      type: 'warning',
+                      message: 'Revision hit the output token limit. The polished drafts may be incomplete.',
+                    })
                   }
 
                   // Replace completeText with the revised version if it's substantive.
@@ -1011,20 +1052,20 @@ export async function postEditorialChat(body, req) {
                     completeText = revisedText
                     fullText = revisedText
                   } else if (suppressTextDeltas) {
-                    // Revision came back too short — show the original instead.
-                    send({ type: 'delta', text: completeText })
+                    // Revision came back too short — show the cleaned original instead.
+                    send({ type: 'delta', text: extractDraftContent(completeText) })
                   }
                 } else if (suppressTextDeltas) {
                   // Audit produced no corrections — stream the original draft
                   // since the user hasn't seen it yet (deltas were suppressed).
-                  send({ type: 'delta', text: completeText })
+                  send({ type: 'delta', text: extractDraftContent(completeText) })
                 }
               } catch (auditErr) {
                 console.error('[editorial-chat] Internal audit/revision failed (non-fatal):', auditErr.message)
                 // Fall through — the original draft (already in completeText) will be used
-                // If we suppressed deltas, stream the original now
+                // If we suppressed deltas, stream the cleaned original now
                 if (suppressTextDeltas) {
-                  send({ type: 'delta', text: completeText })
+                  send({ type: 'delta', text: extractDraftContent(completeText) })
                 }
               }
             }
