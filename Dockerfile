@@ -19,6 +19,14 @@ RUN cd web/api && bun install --frozen-lockfile --production
 # Copy API code
 COPY web/api/ ./web/api/
 
+# Copy shared libs that the web API imports across the package boundary.
+# web/api/lib/draft-flow.js imports from ../../../scripts/lib/editorial-principles.js
+# (the single source of truth for editorial principles, used by both the
+# drafting audit here and the upstream Claude-Code-native audit). Only
+# scripts/lib/ is needed at runtime — the bash CLIs in scripts/ root are
+# Claude-Code-native and never run inside the Fly container.
+COPY scripts/lib/ ./scripts/lib/
+
 # Copy built frontend from stage 1
 COPY --from=frontend-build /build/web/app/dist/ ./web/app/dist/
 
