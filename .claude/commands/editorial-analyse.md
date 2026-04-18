@@ -1,5 +1,9 @@
 Process ALL unprocessed podcast transcripts through the Brightbeam editorial intelligence lens, oldest first.
 
+**Model requirement:** Use Opus 4.7 with the 1M-context window (`claude-opus-4-7[1m]`). The editorial principles you apply across the transcript, existing theme registry, and backlog require the wide context to hold consistently.
+
+**Runs under your Claude Code subscription.** No metered API calls. The reasoning is done here; `scripts/lib/editorial-state.js` and `scripts/lib/editorial-analyse-lib.js` provide the deterministic state plumbing.
+
 **Batch processing:** Loop through every unprocessed transcript. Each one gets its own session number, analysis entry, theme evidence, and post candidates. Process them sequentially — do NOT skip any. If context runs low, report how many remain and stop cleanly (the next invocation picks up where you left off).
 
 **One session per transcript** — increment nextSession for each. Do not batch multiple transcripts into a single session.
@@ -31,7 +35,7 @@ Label editorial inferences explicitly: "Editorial inference: [your analysis]" �
 5. Read the full transcript
 6. Extract the `**URL:**` field from the frontmatter. If present, this is the episode URL. If missing, search `~/Projects/Claude/HomeBrew/podcasts/episodes-log.json` for a matching episode (by title or date+feedId) to find the `episodeUrl`.
 7. Increment `counters.nextSession` (this is your session number)
-8. Analyse through the Brightbeam editorial lens — read `config/prompts/editorial-context.v1.txt` for the full analytical framework
+8. Analyse through the Brightbeam editorial lens — read `config/prompts/editorial-analyse.v1.txt` for the full analytical framework AND the current editorial principles (evidence calibration, "matters" ban, CEO empathy, prohibited patterns). Apply ALL of them to summaries, theme evidence, and backlog items — not only the JSON schema rules. The same principles run downstream in the drafting audit; upstream shoddiness is what the draft has to fight, so catch it here.
 9. **Actively discover new themes.** Do not just map content to existing themes. Look for patterns, tensions, or phenomena that existing themes don't capture. A new theme is warranted when the content surfaces a recurring pattern, a genuine tension, or a distinct phenomenon. Create new themes (T52+) as needed. **Expected rate: approximately 1 new theme per 2-3 sessions.** If you have processed 5+ transcripts without creating any new themes, explicitly reconsider whether existing themes fully capture the content — they probably don't. Theme names should follow the style: descriptive noun phrase — analytical subtitle (see T37-T54 for examples).
 10. Produce these outputs:
 

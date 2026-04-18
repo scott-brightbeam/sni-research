@@ -11,6 +11,8 @@ import {
   resetSessionCosts,
   validateProviders,
   availableEditorialProviders,
+  buildAnthropicCreateOpts,
+  callOpus,
 } from './editorial-multi-model.js'
 
 // ── Cost tracking ─────────────────────────────────────────
@@ -63,5 +65,42 @@ describe('provider validation', () => {
     expect(providers).toHaveProperty('openai')
     expect(providers).toHaveProperty('gemini')
     expect(typeof providers.anthropic).toBe('boolean')
+  })
+})
+
+// ── 1M-context beta header opt-in ─────────────────────────
+
+describe('buildAnthropicCreateOpts', () => {
+  test('returns undefined when no contextWindow passed', () => {
+    expect(buildAnthropicCreateOpts(undefined)).toBeUndefined()
+    expect(buildAnthropicCreateOpts(null)).toBeUndefined()
+    expect(buildAnthropicCreateOpts('')).toBeUndefined()
+  })
+
+  test('returns the anthropic-beta header when contextWindow is "1m"', () => {
+    const opts = buildAnthropicCreateOpts('1m')
+    expect(opts).toBeDefined()
+    expect(opts.headers).toBeDefined()
+    expect(opts.headers['anthropic-beta']).toBe('context-1m-2025-08-07')
+  })
+
+  test('returns undefined for unknown contextWindow values', () => {
+    expect(buildAnthropicCreateOpts('2m')).toBeUndefined()
+    expect(buildAnthropicCreateOpts('large')).toBeUndefined()
+  })
+})
+
+// ── SNI_TEST_MODE guard ───────────────────────────────────
+
+describe('callOpus SNI_TEST_MODE guard', () => {
+  test('throws when SNI_TEST_MODE=1, never hits the API', async () => {
+    const prev = process.env.SNI_TEST_MODE
+    process.env.SNI_TEST_MODE = '1'
+    try {
+      await expect(callOpus('hello')).rejects.toThrow(/SNI_TEST_MODE=1/)
+    } finally {
+      if (prev === undefined) delete process.env.SNI_TEST_MODE
+      else process.env.SNI_TEST_MODE = prev
+    }
   })
 })

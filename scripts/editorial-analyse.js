@@ -332,13 +332,17 @@ async function main() {
   log('  EDITORIAL ANALYSE PIPELINE')
   log('═══════════════════════════════════════════════')
 
-  // 1. Validate providers
-  const providers = validateProviders()
-  if (!providers.ready) {
-    log('ANTHROPIC_API_KEY not configured. Editorial analysis now runs through Claude Code.')
-    log('Use /editorial-analyse in Claude Code or the scheduled task.')
-    process.exit(0)
-  }
+  // Editorial analysis is Claude-Code-native. The reasoning runs inside
+  // a Claude Code session under the user's subscription (no metered API
+  // cost). This bash script is retained for its deterministic tooling
+  // (state load/save, transcript enumeration, response application via
+  // applyAnalysisResponse) but its direct-invocation path — which would
+  // call Opus via the Anthropic API — is retired. The `/editorial-analyse`
+  // slash command and the `editorial-analyse-daily` scheduled task drive
+  // Claude Code itself through those helpers.
+  log('Editorial analysis runs through Claude Code, not via this script.')
+  log('Use: /editorial-analyse (from Claude Code) or the editorial-analyse-daily scheduled task.')
+  return
 
   // 2. Load config
   let config

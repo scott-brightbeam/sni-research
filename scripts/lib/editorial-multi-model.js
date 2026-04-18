@@ -1,12 +1,17 @@
 /**
  * editorial-multi-model.js — Multi-model client for the editorial intelligence pipeline
  *
- * Extends the existing multi-model.js (OpenAI + Gemini) with Anthropic Opus 4.6
+ * Extends the existing multi-model.js (OpenAI + Gemini) with Anthropic Opus 4.7
  * support for the editorial pipeline's three-model architecture:
  *
- *   ANALYSE + DRAFT + REVISE → Opus 4.6 (primary creative/analytical model)
+ *   ANALYSE + DRAFT + REVISE + AUDIT → Opus 4.7 (primary creative/analytical model)
  *   CRITIQUE → Gemini 3.1 Pro + GPT-5.4 (independent critique pair)
- *   CHAT → Opus 4.6 (contextual editorial chat)
+ *   CHAT → Opus 4.7 (contextual editorial chat)
+ *
+ * Opus 4.7 exposes a 1M-context beta via `context-1m-2025-08-07`. Pass
+ * `{ contextWindow: '1m' }` in `callOpus` opts to enable. The upstream
+ * audit pass uses this so the auditor can see a batch of related
+ * analysis entries + theme evidence + backlog items together.
  *
  * Does NOT modify the existing multi-model.js. Imports its OpenAI/Gemini
  * functions and adds Anthropic alongside them.
@@ -17,7 +22,22 @@ import { callModel, callBothModels, extractJSON, availableProviders, withConcurr
 import { withRetry, shouldRetryApiError } from './retry.js'
 import { loadEnvKey } from './env.js'
 
-const OPUS_MODEL = 'claude-opus-4-6'
+const OPUS_MODEL = 'claude-opus-4-7'
+
+// Anthropic 1M-context beta header. Enabled per-call via opts.contextWindow.
+const BETA_HEADER_1M = 'context-1m-2025-08-07'
+
+/**
+ * Build the second-argument request options for `client.messages.create`
+ * based on the caller-facing `contextWindow` option. Exported for tests.
+ * Returns `undefined` when no options are needed (clean API call).
+ */
+export function buildAnthropicCreateOpts(contextWindow) {
+  if (contextWindow === '1m') {
+    return { headers: { 'anthropic-beta': BETA_HEADER_1M } }
+  }
+  return undefined
+}
 
 const ts = () => new Date().toISOString().slice(11, 23)
 const log  = (...a) => console.log(`[${ts()}] [editorial-model]`, ...a)
@@ -44,6 +64,8 @@ let _sessionCosts = {
 }
 
 // Pricing per 1k tokens (from editorial-sources.yaml)
+// Opus 4.7 standard-context pricing. The 1M-context beta uses the same
+// price per token at the time of writing (verify before large retrofits).
 const PRICING = {
   opus: { input: 0.015, output: 0.075 },
   gemini: { input: 0.00125, output: 0.01 },
@@ -86,7 +108,7 @@ export function resetSessionCosts() {
 // ── Opus 4.6 call ────────────────────────────────────────
 
 /**
- * Call Opus 4.6 with system prompt and user message.
+ * Call Opus 4.7 with system prompt and user message.
  * Supports both JSON and raw text responses.
  *
  * @param {string} userMessage — the user/task prompt
@@ -95,6 +117,7 @@ export function resetSessionCosts() {
  * @param {number} [opts.maxTokens=8000]
  * @param {boolean} [opts.rawText=false] — skip JSON extraction
  * @param {number} [opts.temperature=0.7] — temperature (0-1)
+ * @param {'1m'} [opts.contextWindow] — enable the 1M-context beta for this call
  * @returns {Promise<{ provider: string, model: string, raw: string, parsed: object|null, inputTokens: number, outputTokens: number }>}
  */
 export async function callOpus(userMessage, opts = {}) {
@@ -117,8 +140,10 @@ export async function callOpus(userMessage, opts = {}) {
     params.system = opts.system
   }
 
+  const createOpts = buildAnthropicCreateOpts(opts.contextWindow)
+
   const response = await withRetry(
-    () => client.messages.create(params),
+    () => client.messages.create(params, createOpts),
     { onRetry: (attempt, err) => warn(`Opus retry ${attempt}: ${err.message}`) }
   )
 
@@ -127,7 +152,7 @@ export async function callOpus(userMessage, opts = {}) {
     .map(block => block.text)
     .join('')
 
-  if (!raw) throw new Error('Empty response from Opus 4.6')
+  if (!raw) throw new Error('Empty response from Opus 4.7')
 
   const inputTokens = response.usage?.input_tokens || 0
   const outputTokens = response.usage?.output_tokens || 0
@@ -144,13 +169,14 @@ export async function callOpus(userMessage, opts = {}) {
 }
 
 /**
- * Call Opus 4.6 with streaming response. Returns an async iterator of text chunks.
+ * Call Opus 4.7 with streaming response. Returns an async iterator of text chunks.
  *
  * @param {string} userMessage
  * @param {object} [opts]
  * @param {string} [opts.system] — system prompt
  * @param {number} [opts.maxTokens=8000]
  * @param {number} [opts.temperature=0.7]
+ * @param {'1m'} [opts.contextWindow] — enable the 1M-context beta
  * @returns {Promise<AsyncGenerator<string>>}
  */
 export async function callOpusStreaming(userMessage, opts = {}) {
@@ -170,7 +196,9 @@ export async function callOpusStreaming(userMessage, opts = {}) {
     params.system = opts.system
   }
 
-  const stream = client.messages.stream(params)
+  const streamOpts = buildAnthropicCreateOpts(opts.contextWindow)
+
+  const stream = client.messages.stream(params, streamOpts)
 
   // Track costs from the final message event
   stream.on('finalMessage', (msg) => {
