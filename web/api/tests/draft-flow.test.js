@@ -5,6 +5,11 @@ import {
   extractDraftContent,
   buildAuditSystemPrompt,
   buildRevisionInstruction,
+  detectSectors,
+  buildCEOCritiquePrompt,
+  buildCEORevisionInstruction,
+  SECTORS,
+  SECTOR_CEO_LABELS,
 } from '../lib/draft-flow.js'
 
 describe('buildDraftAddendum', () => {
@@ -248,5 +253,154 @@ describe('buildRevisionInstruction', () => {
   it('includes the audit text verbatim', () => {
     const out = buildRevisionInstruction('1. Swap "leverage" for "use"')
     expect(out).toContain('1. Swap "leverage" for "use"')
+  })
+})
+
+describe('detectSectors', () => {
+  it('returns general-ai when no sector signal is present', () => {
+    expect(detectSectors('A short observation about productivity at work.')).toEqual(['general-ai'])
+  })
+
+  it('returns general-ai for empty/null/undefined input', () => {
+    expect(detectSectors('')).toEqual(['general-ai'])
+    expect(detectSectors(null)).toEqual(['general-ai'])
+    expect(detectSectors(undefined)).toEqual(['general-ai'])
+  })
+
+  it('detects biopharma from drug/clinical/pharma terms', () => {
+    expect(detectSectors('Pfizer announced Phase 3 trial results for its oncology pipeline.')).toContain('biopharma')
+    expect(detectSectors('Drug discovery costs continue to climb across pharmaceutical companies.')).toContain('biopharma')
+  })
+
+  it('detects medtech from medical-device terms', () => {
+    expect(detectSectors('Medtronic secured FDA 510(k) clearance for the new cardiac monitor.')).toContain('medtech')
+    expect(detectSectors('Hospital workflow integration for surgical robots remains complex.')).toContain('medtech')
+  })
+
+  it('detects manufacturing from industrial terms', () => {
+    expect(detectSectors('Industry 4.0 adoption on the plant floor lifted OEE figures.')).toContain('manufacturing')
+    expect(detectSectors('Foxconn restructured its supply chain for assembly line throughput.')).toContain('manufacturing')
+  })
+
+  it('detects insurance from underwriting/actuarial terms', () => {
+    expect(detectSectors('Munich Re tightened its underwriting criteria after the loss ratio jumped.')).toContain('insurance')
+    expect(detectSectors('Lloyds market reinsurers face actuarial pressure on cat models.')).toContain('insurance')
+  })
+
+  it('detects general-ai when only frontier-model terms are present', () => {
+    expect(detectSectors('Anthropic released a new frontier model with a longer context window.')).toContain('general-ai')
+  })
+
+  it('detects multiple sectors when a draft spans them', () => {
+    const text = 'Pfizer is using Anthropic frontier models for clinical trial design.'
+    const sectors = detectSectors(text)
+    expect(sectors).toContain('biopharma')
+    expect(sectors).toContain('general-ai')
+  })
+
+  it('returns sectors in canonical order matching SECTORS', () => {
+    const text = 'Munich Re collaborated with Medtronic and Pfizer on a foundation model project.'
+    const sectors = detectSectors(text)
+    const indices = sectors.map(s => SECTORS.indexOf(s))
+    const sorted = [...indices].sort((a, b) => a - b)
+    expect(indices).toEqual(sorted)
+  })
+})
+
+describe('SECTOR_CEO_LABELS', () => {
+  it('has a label for every sector in SECTORS', () => {
+    for (const s of SECTORS) {
+      expect(typeof SECTOR_CEO_LABELS[s]).toBe('string')
+      expect(SECTOR_CEO_LABELS[s].length).toBeGreaterThan(10)
+      expect(SECTOR_CEO_LABELS[s].toLowerCase()).toContain('ceo')
+    }
+  })
+})
+
+describe('buildCEOCritiquePrompt', () => {
+  it('addresses the model as the relevant industry CEO', () => {
+    expect(buildCEOCritiquePrompt('biopharma')).toContain('CEO of a global pharmaceutical company')
+    expect(buildCEOCritiquePrompt('manufacturing')).toContain('CEO of a global industrial manufacturer')
+    expect(buildCEOCritiquePrompt('insurance')).toContain('CEO of a global insurance company')
+    expect(buildCEOCritiquePrompt('medtech')).toContain('CEO of a global medical device manufacturer')
+    expect(buildCEOCritiquePrompt('general-ai')).toContain('CEO of an AI-native technology company')
+  })
+
+  it('positions Brightbeam as wanting the CEO as a client', () => {
+    const out = buildCEOCritiquePrompt('biopharma')
+    expect(out).toContain('Brightbeam')
+    expect(out.toLowerCase()).toMatch(/clients|client/)
+    expect(out.toLowerCase()).toContain('alienate')
+  })
+
+  it('teaches all four lenses (systemic, control, empathy, naivety)', () => {
+    const out = buildCEOCritiquePrompt('manufacturing')
+    expect(out).toContain('SYSTEMIC vs SPECIFIC')
+    expect(out).toContain('CONTROL')
+    expect(out).toContain('EMPATHY')
+    expect(out).toContain('NAIVETY')
+  })
+
+  it('frames responsibility as systemic, not specific', () => {
+    const out = buildCEOCritiquePrompt('insurance')
+    expect(out.toLowerCase()).toContain('systemic')
+    expect(out.toLowerCase()).toContain('specific')
+    expect(out.toLowerCase()).toMatch(/incentives|markets|structural|capital allocation/)
+  })
+
+  it('flags criticism of things outside executive control', () => {
+    const out = buildCEOCritiquePrompt('medtech')
+    expect(out.toLowerCase()).toMatch(/outside.*control|cannot.*change|inherit/)
+    expect(out.toLowerCase()).toMatch(/regulatory|capital|geopolitics|macro/)
+  })
+
+  it('asks for specific corrections (quote + lens + replacement)', () => {
+    const out = buildCEOCritiquePrompt('general-ai')
+    expect(out.toUpperCase()).toContain('QUOTE')
+    expect(out.toUpperCase()).toContain('PROPOSE')
+  })
+
+  it('returns NO CHANGES when nothing to flag', () => {
+    const out = buildCEOCritiquePrompt('biopharma')
+    expect(out).toContain('NO CHANGES')
+  })
+
+  it('falls back gracefully for unknown sector', () => {
+    const out = buildCEOCritiquePrompt('aerospace')
+    expect(out).toContain('CEO of a aerospace company')
+  })
+})
+
+describe('buildCEORevisionInstruction', () => {
+  it('includes the consolidated notes verbatim', () => {
+    const notes = '### As CEO of a global pharmaceutical company:\n\n1. QUOTE: "the industry is finally waking up". This is patronising.'
+    const out = buildCEORevisionInstruction(notes)
+    expect(out).toContain(notes)
+  })
+
+  it('preserves multi-draft format', () => {
+    const out = buildCEORevisionInstruction('(notes)')
+    expect(out.toLowerCase()).toContain('multi-draft preservation')
+    expect(out.toLowerCase()).toContain('preserve all of them')
+  })
+
+  it('forbids re-introducing the patterns the style audit just removed', () => {
+    const out = buildCEORevisionInstruction('(notes)')
+    expect(out).toContain('matters')
+    expect(out.toLowerCase()).toContain('false contrast')
+    expect(out.toLowerCase()).toContain('first-person narrator')
+    expect(out.toLowerCase()).toContain('hollow intensifiers')
+  })
+
+  it('demands clean output beginning with `## Draft 1:`', () => {
+    const out = buildCEORevisionInstruction('(notes)')
+    expect(out).toContain('## Draft 1:')
+    expect(out.toLowerCase()).toMatch(/no preamble|do not narrate|nothing before/)
+  })
+
+  it('frames the corrections as protecting the client relationship', () => {
+    const out = buildCEORevisionInstruction('(notes)')
+    expect(out.toLowerCase()).toContain('brightbeam')
+    expect(out.toLowerCase()).toContain('clients')
   })
 })

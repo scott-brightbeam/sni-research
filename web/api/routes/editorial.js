@@ -13,6 +13,10 @@ import {
   extractDraftContent,
   buildAuditSystemPrompt,
   buildRevisionInstruction,
+  detectSectors,
+  buildCEOCritiquePrompt,
+  buildCEORevisionInstruction,
+  SECTOR_CEO_LABELS,
 } from '../lib/draft-flow.js'
 // thinking.js is intentionally not imported here. Opus 4.6 adaptive
 // thinking combined with the editorial workflow's large context
@@ -31,6 +35,19 @@ function editorialDir() {
 }
 
 // ── Helpers ──────────────────────────────────────────────
+
+// Walk backwards through an SDK messages array to find the most recent
+// user-role message. Used by the audit-and-CEO revision passes, which
+// need to anchor their re-conversation on the original user prompt.
+// The construction in postEditorialChat always pushes a user message
+// last; this helper guards against future drift in that invariant.
+function lastUserMessage(messages) {
+  if (!Array.isArray(messages)) return null
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === 'user') return messages[i]
+  }
+  return null
+}
 
 function readJSON(path) {
   if (!existsSync(path)) return null
@@ -1001,6 +1018,122 @@ export async function postEditorialChat(body, req) {
               send({ type: 'delta', text: cleaned })
             }
 
+            // Substantive output threshold — anything shorter than this
+            // is treated as a failed/stub revision and we fall back to
+            // the previous polished text rather than overwriting it.
+            const MIN_REVISION_LENGTH = 200
+
+            // CEO empathy pass — one critique per sector mentioned.
+            // Brightbeam wants these CEOs as clients; the pass catches
+            // anything that would alienate them (blame for things
+            // outside their control, systemic-as-specific framing,
+            // smug or naive notes). Always runs after style work,
+            // including when the audit found nothing to correct.
+            // Streams its own progress events; streams the final text
+            // (CEO-revised, or the input text if nothing to apply).
+            // Returns the final polished text.
+            const runCEOEmpathyPass = async (inputText, originalUserMessage) => {
+              let finalText = inputText
+              try {
+                const sectors = detectSectors(inputText)
+                send({ type: 'tool_call', name: 'ceo_empathy_check', input: { sectors } })
+
+                const critiqueResults = await Promise.all(sectors.map(async (sector) => {
+                  try {
+                    const res = await client.messages.create({
+                      model: modelId,
+                      max_tokens: 2048,
+                      system: buildCEOCritiquePrompt(sector),
+                      messages: [{ role: 'user', content: `## DRAFT(S)\n\n${inputText}` }],
+                    })
+                    return { sector, text: (res.content?.[0]?.text || '').trim() }
+                  } catch (err) {
+                    console.error(`[editorial-chat] CEO critique failed for ${sector}:`, err.message)
+                    return { sector, text: '' }
+                  }
+                }))
+
+                // "Clean" critique signals — be forgiving about how the
+                // model phrases the all-clear so we don't re-revise on
+                // a stub. The prompt asks for the literal "NO CHANGES",
+                // but Opus often appends a period, a brief sign-off, or
+                // a couple of complimentary sentences. Treat very short
+                // responses as clean too — under ~50 chars it's never a
+                // real numbered correction list.
+                const isCleanResponse = (text) => {
+                  if (!text) return true
+                  if (/^\s*NO\s+CHANGES\b/i.test(text)) return true
+                  if (text.trim().length < 50) return true
+                  return false
+                }
+                const substantive = critiqueResults.filter(r => !isCleanResponse(r.text))
+                const sectorsLabel = sectors.join(', ')
+                const substantiveLabel = substantive.length
+                  ? `${substantive.length} of ${sectors.length} CEO read(s) had notes (${sectorsLabel})`
+                  : `${sectors.length} CEO read(s), all clean (${sectorsLabel})`
+                send({ type: 'tool_result', name: 'ceo_empathy_check', preview: substantiveLabel })
+
+                if (substantive.length > 0 && !abort.signal.aborted) {
+                  const consolidated = substantive
+                    .map(r => `### As ${SECTOR_CEO_LABELS[r.sector] || r.sector}:\n\n${r.text}`)
+                    .join('\n\n---\n\n')
+
+                  send({ type: 'tool_call', name: 'applying_ceo_notes', input: {} })
+
+                  const ceoRevisionResponse = await client.messages.create({
+                    model: modelId,
+                    max_tokens: DRAFT_OUTPUT_TOKENS,
+                    system: getEditorialSystemPrompt(),
+                    messages: [
+                      originalUserMessage,
+                      { role: 'assistant', content: inputText },
+                      { role: 'user', content: buildCEORevisionInstruction(consolidated) },
+                    ],
+                    stream: true,
+                  })
+
+                  send({ type: 'tool_result', name: 'applying_ceo_notes', preview: 'Streaming CEO-aware revision' })
+
+                  let ceoRevisedText = ''
+                  let ceoStopReason = null
+                  for await (const event of ceoRevisionResponse) {
+                    if (abort.signal.aborted) break
+                    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                      ceoRevisedText += event.delta.text
+                      send({ type: 'delta', text: event.delta.text })
+                    }
+                    if (event.type === 'message_delta') {
+                      ceoStopReason = event.delta?.stop_reason
+                    }
+                  }
+
+                  if (ceoStopReason === 'max_tokens' && !abort.signal.aborted) {
+                    send({
+                      type: 'warning',
+                      message: 'CEO revision hit the output token limit. The polished drafts may be incomplete.',
+                    })
+                  }
+
+                  if (ceoRevisedText.length > MIN_REVISION_LENGTH) {
+                    finalText = extractDraftContent(ceoRevisedText)
+                  } else {
+                    // CEO revision came back too short — fall back to inputText.
+                    send({ type: 'delta', text: inputText })
+                  }
+                } else {
+                  // No CEO notes — stream the input text (the user
+                  // hasn't seen anything yet because draft mode
+                  // suppresses initial-generation deltas).
+                  send({ type: 'delta', text: inputText })
+                }
+              } catch (ceoErr) {
+                console.error('[editorial-chat] CEO empathy pass failed (non-fatal):', ceoErr.message)
+                if (ceoErr.stack) console.error(ceoErr.stack.split('\n').slice(0, 5).join('\n'))
+                send({ type: 'delta', text: inputText })
+              }
+              return finalText
+            }
+
             if (looksLikeDraft && !abort.signal.aborted) {
               try {
                 send({ type: 'tool_call', name: 'style_review', input: {} })
@@ -1067,7 +1200,7 @@ export async function postEditorialChat(body, req) {
                   // failures ("Connection error" end-of-stream). Since
                   // the revision only needs "here's the draft, fix it",
                   // we don't need any of that history.
-                  const originalUserMessage = sdkMessages[sdkMessages.length - 1]
+                  const originalUserMessage = lastUserMessage(sdkMessages)
                   // Revision call does NOT use extended thinking. The
                   // audit has already reasoned through every violation
                   // and produced an exact correction list; the revision
@@ -1086,16 +1219,19 @@ export async function postEditorialChat(body, req) {
                     stream: true,
                   })
 
-                  send({ type: 'tool_result', name: 'applying_corrections', preview: 'Streaming revised draft' })
+                  send({ type: 'tool_result', name: 'applying_corrections', preview: 'Buffering revised draft for CEO empathy check' })
 
-                  // Stream the revision — this is what the user sees
+                  // BUFFER the revision (do not stream yet). The CEO
+                  // empathy pass below may rewrite parts of it, and we
+                  // want the user to see only one polished version.
+                  // If the CEO pass returns NO CHANGES across all
+                  // sectors, this buffered text is what gets streamed.
                   let revisedText = ''
                   let revisionStopReason = null
                   for await (const event of revisionResponse) {
                     if (abort.signal.aborted) break
                     if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
                       revisedText += event.delta.text
-                      send({ type: 'delta', text: event.delta.text })
                     }
                     if (event.type === 'message_delta') {
                       revisionStopReason = event.delta?.stop_reason
@@ -1109,26 +1245,26 @@ export async function postEditorialChat(body, req) {
                     })
                   }
 
-                  // Replace completeText with the revised version if it's substantive.
-                  // Run extractDraftContent on the revision too — even with the
-                  // strictest revision instruction, models occasionally emit a
-                  // model-thinking preamble before the first `## Draft 1:`.
-                  // That preamble is already in the user's stream by this point
-                  // (we can't unsend it), but stripping it from the persisted
-                  // text and the scorecard input keeps the saved record clean
-                  // and prevents the scorer flagging vocabulary that lives only
-                  // in the model's evaluation narrative, not the actual drafts.
-                  if (revisedText.length > 200) {
-                    completeText = extractDraftContent(revisedText)
+                  const styleRevisedClean = revisedText.length > MIN_REVISION_LENGTH
+                    ? extractDraftContent(revisedText)
+                    : extractDraftContent(completeText)
+
+                  const ceoFinalText = await runCEOEmpathyPass(styleRevisedClean, originalUserMessage)
+                  if (ceoFinalText.length > MIN_REVISION_LENGTH) {
+                    completeText = ceoFinalText
                     fullText = completeText
-                  } else if (suppressTextDeltas) {
-                    // Revision came back too short — show the cleaned original instead.
-                    send({ type: 'delta', text: extractDraftContent(completeText) })
                   }
-                } else if (suppressTextDeltas) {
-                  // Audit produced no corrections — stream the original draft
-                  // since the user hasn't seen it yet (deltas were suppressed).
-                  send({ type: 'delta', text: extractDraftContent(completeText) })
+                } else {
+                  // Audit produced no corrections — pristine drafts are
+                  // not pristine without the CEO read. Run the empathy
+                  // pass on the original (cleaned) draft directly.
+                  const cleanedOriginal = extractDraftContent(completeText)
+                  const originalUserMessage = lastUserMessage(sdkMessages)
+                  const ceoFinalText = await runCEOEmpathyPass(cleanedOriginal, originalUserMessage)
+                  if (ceoFinalText.length > MIN_REVISION_LENGTH) {
+                    completeText = ceoFinalText
+                    fullText = completeText
+                  }
                 }
               } catch (auditErr) {
                 console.error('[editorial-chat] Internal audit/revision failed (non-fatal):', auditErr.message)

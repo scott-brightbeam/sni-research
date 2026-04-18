@@ -202,6 +202,103 @@ export function buildAuditSystemPrompt({ vocabSection = '' } = {}) {
   ].join('\n')
 }
 
+// ── Sector detection ────────────────────────────────────────
+// Identifies which of the five SNI sectors a draft addresses, so the
+// CEO empathy critique below can run one read per sector mentioned.
+// Heuristic, deterministic — keyword/entity match, not an LLM call.
+// If no sector-specific signal is present, the draft is treated as
+// general-ai (the default audience for AI-industry-wide observations).
+export const SECTORS = ['general-ai', 'biopharma', 'medtech', 'manufacturing', 'insurance']
+
+const SECTOR_PATTERNS = {
+  biopharma: /\b(pharma(?:ceutical)?|biotech|drug\s+(?:discovery|development|design|pipeline)|FDA\s+approval|clinical\s+trial|biologic|small\s+molecule|oncolog|vaccine|gene\s+therapy|cell\s+therapy|NICE|EMA|Pfizer|Moderna|Roche|Novartis|GSK|AstraZeneca|MSD|Merck|Eli\s+Lilly|Sanofi|Boehringer|Bayer|Novo\s+Nordisk|Phase\s+[123]|indication|biomarker|pharmacolog|therapeutic|patent\s+cliff)\b/i,
+  medtech: /\b(medical\s+device|MRI|CT\s+scan|ultrasound|surgical\s+robot|surgical|implant|diagnostic\s+device|FDA\s+510|CE\s+mark|hospital\s+workflow|EHR|EMR|patient\s+monitor|cardiac\s+rhythm|orthopaedic|orthopedic|in\s+vitro\s+diagnostic|IVD|catheter|endoscop|Medtronic|Boston\s+Scientific|Stryker|Edwards\s+Lifesciences|Intuitive\s+Surgical|Siemens\s+Healthineers|GE\s+Healthcare|Philips\s+Healthcare)\b/i,
+  manufacturing: /\b(factory|factories|supply\s+chain|OEE|\bMES\b|\bERP\b|automotive|industrial|lean\s+manufacturing|six\s+sigma|industry\s+4\.0|smart\s+factory|smart\s+manufacturing|plant\s+floor|assembly\s+line|throughput|SCADA|\bPLC\b|industrial\s+IoT|\bIIoT\b|Foxconn|Bosch|Honeywell|GE\s+Vernova|Schneider\s+Electric|Rockwell|Mitsubishi\s+Electric|shop\s+floor)\b/i,
+  insurance: /\b(insurer|insurance|premium|underwriting|underwriter|claims\s+handling|reinsuran|actuarial|policyholder|risk\s+pool|actuary|loss\s+ratio|combined\s+ratio|catastrophe\s+model|cat\s+model|catastrophe\s+bond|Lloyds|AIG|Allianz|\bAXA\b|Swiss\s+Re|Munich\s+Re|\bAon\b|Marsh\s+(?:McLennan|&)|Willis\s+Towers|Aviva|Zurich\s+Insurance|Travelers\s+Insurance)\b/i,
+  'general-ai': /\b(frontier\s+model|foundation\s+model|AI\s+(?:safety|alignment|lab|developer|company|industry|sector|policy|governance|regulation)|OpenAI|Anthropic|DeepMind|Mistral|Cohere|xAI|Hugging\s+Face|Llama|Claude|GPT-?\d|Gemini|reasoning\s+model|context\s+window|inference\s+cost|model\s+release|capability\s+overhang|RLHF|fine[- ]tuning|pre[- ]training)\b/i,
+}
+
+export function detectSectors(text) {
+  if (typeof text !== 'string' || !text) return ['general-ai']
+  const found = new Set()
+  for (const [sector, pattern] of Object.entries(SECTOR_PATTERNS)) {
+    if (pattern.test(text)) found.add(sector)
+  }
+  if (found.size === 0) found.add('general-ai')
+  return SECTORS.filter(s => found.has(s))
+}
+
+// ── CEO critique prompt builder ─────────────────────────────
+// Reads the draft from the perspective of an industry CEO. Brightbeam
+// wants these CEOs as clients — the critique catches anything that
+// would alienate them: blame for things outside their control,
+// systemic-as-specific framing, smug or naive notes.
+export const SECTOR_CEO_LABELS = {
+  'general-ai': 'CEO of an AI-native technology company',
+  biopharma: 'CEO of a global pharmaceutical company',
+  medtech: 'CEO of a global medical device manufacturer',
+  manufacturing: 'CEO of a global industrial manufacturer',
+  insurance: 'CEO of a global insurance company',
+}
+
+export function buildCEOCritiquePrompt(sector) {
+  const label = SECTOR_CEO_LABELS[sector] || `CEO of a ${sector} company`
+  return [
+    `You are reading the following draft(s) as a ${label} would. This is your industry. Brightbeam is an AI consultancy that wants you and your peers as clients. The draft must not alienate you.`,
+    '',
+    'Your job: identify anything in the draft(s) that would make a thoughtful CEO in your industry roll their eyes, feel patronised, feel blamed for things outside their control, or judge that the writer does not understand how their business actually works.',
+    '',
+    'EDITORIAL FRAME — apply these four lenses:',
+    '',
+    '1. SYSTEMIC vs SPECIFIC. The default assumption must be that the industry has not "got it wrong" — the situation reflects incentives in our complex global economic system and the structure of specific markets. Responsibility is systemic, not specific. FLAG anything that frames the industry, its leaders, or its workers as the cause of a problem when the cause is structural (regulation, capital allocation, market dynamics, customer expectations, accumulated history).',
+    '',
+    '2. CONTROL. CEOs do not control the macro environment, regulatory regimes, capital markets, geopolitics, or industry-wide path dependencies. FLAG criticism of things that lie outside what an executive can plausibly change. Criticism of decisions executives can make is fair; criticism of conditions they inherit is naive.',
+    '',
+    '3. EMPATHY before influence. The draft\'s job is to help the reader move forward, not to indict them. FLAG smug, schoolmasterly, sneering, or "told-you-so" tones. FLAG language that assumes the reader is behind, slow, resistant, or in denial. Build on the reader\'s perspective; do not lecture from above.',
+    '',
+    '4. NAIVETY. FLAG anything that betrays a lack of comprehension of how the industry actually works — supply chains, regulatory cycles, board dynamics, capital constraints, talent markets, the shape of revenue, customer concentration. If the writer wouldn\'t survive a five-minute conversation with a real CEO on this point, mark it.',
+    '',
+    'Return a numbered list of specific corrections. For each:',
+    '- QUOTE the problematic text from the draft (exact words, in single quotes)',
+    '- STATE which lens it fails (1, 2, 3, or 4) and why a CEO in your industry would react badly',
+    '- PROPOSE a corrected version that preserves the draft\'s editorial point but reframes systemically, acknowledges what the reader cannot control, or removes the smug/naive note',
+    '',
+    'If the draft has NONE of these issues, return the literal text NO CHANGES and nothing else.',
+    '',
+    'Be specific and tough. Brightbeam wants this CEO as a client.',
+  ].join('\n')
+}
+
+// ── CEO revision instruction ────────────────────────────────
+// Applies the consolidated CEO critique notes to the draft. Same
+// streaming/output rules as the style revision — straight into
+// `## Draft 1:`, no preamble, preserve all drafts.
+export function buildCEORevisionInstruction(consolidatedNotes) {
+  return [
+    'Apply every correction in the list below to the draft(s) above. Do not skip any.',
+    '',
+    'These corrections come from imagined readings by CEOs of the industries the draft(s) address. The corrections protect Brightbeam\'s relationship with those clients and potential clients.',
+    '',
+    'PRESERVE: the draft\'s editorial point, format header, bold title, body length (within ±20%), and ITEATE closer. Apply the corrections as surgical sentence-level rewrites — do not rewrite drafts wholesale.',
+    '',
+    'MULTI-DRAFT PRESERVATION: if the input contains multiple drafts, preserve ALL of them. Each draft keeps its own format header, bold title, body, and ITEATE closer.',
+    '',
+    'GUARDRAILS — do not break the existing voice in the process of fixing the empathy:',
+    '- Do not introduce "matters" or any of its substitutes ("is significant", "is important", "is worth noting")',
+    '- Do not introduce false contrasts ("Not X but Y", "isn\'t X, it\'s Y", "X, not Y")',
+    '- Do not introduce first-person narrator ("I keep thinking", "I see this in my clients")',
+    '- Do not introduce hollow intensifiers (incredibly, fundamentally, truly, deeply, actually)',
+    '- Do not introduce "the reality is", "the key is", "the truth is", "at its core"',
+    '- Do not introduce a "the X nobody talks about" headline pattern',
+    '',
+    'CRITICAL — output format. Your output is streamed directly to the user as the polished response. Begin with the literal characters `## Draft 1:` and nothing before. Do NOT narrate (no "Now I have applied..."), do NOT acknowledge the corrections list, do NOT add preamble. End after the last draft\'s ITEATE.',
+    '',
+    '## CEO CRITIQUE NOTES',
+    '',
+    consolidatedNotes,
+  ].join('\n')
+}
+
 // ── Revision prompt builder ──────────────────────────────────
 // Explicitly instructs the model to preserve ALL drafts if multiple
 // are present, and to strip any pre-draft narrative.
