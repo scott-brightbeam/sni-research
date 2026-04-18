@@ -125,10 +125,72 @@ describe('buildAuditSystemPrompt', () => {
     expect(out.toLowerCase()).toContain('each one independently')
   })
 
-  it('explicitly prohibits false contrasts', () => {
+  it('explicitly prohibits false contrasts (all variants)', () => {
     const out = buildAuditSystemPrompt()
-    expect(out).toContain('False contrast')
-    expect(out.toLowerCase()).toContain('strictly prohibited')
+    expect(out).toContain('FALSE CONTRASTS')
+    expect(out).toContain("Not X but Y")
+    expect(out.toLowerCase()).toContain("isn't just y")
+  })
+
+  it('explicitly flags forced tripling', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('FORCED TRIPLING')
+    expect(out.toLowerCase()).toContain('three short clauses')
+  })
+
+  it('explicitly flags clickbait titles', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('CLICKBAIT TITLES')
+    expect(out.toLowerCase()).toContain('the x nobody talks about')
+  })
+
+  it('enforces the attribution test (regression — pseudonymous sources must fail)', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('ATTRIBUTION TEST')
+    expect(out.toLowerCase()).toContain('pseudonymous')
+    expect(out.toLowerCase()).toContain('podcast')
+    expect(out.toLowerCase()).toContain('leave the podcast and podcaster')
+  })
+
+  it('enforces the voicing ladder for evidence calibration', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('VOICING LADDER')
+    expect(out.toLowerCase()).toContain('common-ground framing')
+    expect(out.toLowerCase()).toContain('beyond three levels of inference')
+    expect(out.toLowerCase()).toContain('cut')
+  })
+
+  it('treats source-document claims as not-automatically-true', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('SOURCE-DOCUMENT CLAIMS ARE NOT GOSPEL')
+    expect(out.toLowerCase()).toContain('subject to the attribution test')
+  })
+
+  it('enforces ITEATE-earns-directness rule', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain('ITEATE EARNS ITS DIRECTNESS')
+    expect(out.toLowerCase()).toContain('multiple threads in the body converged')
+  })
+
+  it('caps quotes from non-attributable sources', () => {
+    const out = buildAuditSystemPrompt()
+    expect(out.toLowerCase()).toContain('direct quotes are rare')
+    expect(out.toLowerCase()).toContain('paraphrased')
+  })
+
+  it("bans the word 'matters' AND the construct (no-substitution rule)", () => {
+    const out = buildAuditSystemPrompt()
+    expect(out).toContain("'MATTERS' BAN")
+    expect(out.toLowerCase()).toContain('do not fix this by substitution')
+    expect(out.toLowerCase()).toContain('cut')
+  })
+})
+
+describe("buildRevisionInstruction — 'matters' verification", () => {
+  it("includes 'matters' in the verify-before-returning checklist", () => {
+    const out = buildRevisionInstruction('(corrections)')
+    expect(out.toLowerCase()).toContain('"matters"')
+    expect(out.toLowerCase()).toMatch(/cut the sentence|restructure/)
   })
 
   it('guards against reductive fragments (the 17 Apr tone bug)', () => {
@@ -164,12 +226,22 @@ describe('buildRevisionInstruction', () => {
   it('preserves multiple drafts', () => {
     const out = buildRevisionInstruction('1. Fix false contrast')
     expect(out.toLowerCase()).toContain('preserve all of them')
-    expect(out.toLowerCase()).toContain('do not collapse to a single draft')
+    expect(out.toLowerCase()).toContain('multi-draft preservation')
+  })
+
+  it('includes a verification pass for prohibited patterns', () => {
+    const out = buildRevisionInstruction('1. Fix false contrast')
+    expect(out).toContain('VERIFY before returning')
+    // Must list the specific patterns that were slipping through
+    expect(out.toLowerCase()).toContain("not x but y")
+    expect(out.toLowerCase()).toContain("x, not y")
+    expect(out.toLowerCase()).toContain('clickbait titles')
   })
 
   it('prohibits preamble and inter-tool narrative in the output', () => {
     const out = buildRevisionInstruction('(corrections)')
-    expect(out).toContain('Preamble')
+    // Either the literal word "Preamble" or its concept must be present
+    expect(out.toLowerCase()).toMatch(/preamble|narrate|begin with/)
     expect(out.toLowerCase()).toContain('inter-tool narrative')
   })
 

@@ -103,12 +103,17 @@ export function scoreDraft(draft) {
   const firstSentenceLen = firstSentence.split(/\s+/).filter(Boolean).length
   const hasConcreteOpening = /\d|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)/.test(firstSentence.slice(0, 100))
 
-  // Voice: first-person presence
-  const firstPersonHits = (text.match(/\b(I|my|me|we|our)\b/g) || []).length
+  // Voice: first-person narrator (PROHIBITED) vs Brightbeam "we" (allowed).
+  // The canon analysis (24 published posts) shows zero short-form first-person
+  // narrator. "I", "my", "me" should never appear; "we", "our" are allowed
+  // for Brightbeam collective voice. The previous penalty for "no first-person
+  // voice" was actively wrong — it rewarded exactly what writing-preferences.md
+  // bans. Now penalises solo-narrator usage instead.
+  const soloNarratorHits = (text.match(/\b(I|my|me)\b/g) || []).length
 
   // Style-match score (0-100)
   // Penalties: prohibited words, false contrast, pseudo, double quotes, missing iteate,
-  //            weak opening, no first-person, extreme sentence uniformity
+  //            weak opening, solo-narrator usage, extreme sentence uniformity
   let score = 100
   const penalties = []
   for (const h of prohibitedHits) { score -= 5 * h.count; penalties.push(`"${h.term}" (${h.count}x): −${5*h.count}`) }
@@ -117,7 +122,7 @@ export function scoreDraft(draft) {
   if (doubleQuotesUsed > 0) { score -= 3; penalties.push(`double quotes used: −3`) }
   if (!hasIteate && wordCount > 200) { score -= 10; penalties.push(`missing ITEATE: −10`) }
   if (!hasConcreteOpening) { score -= 8; penalties.push(`opening not concrete: −8`) }
-  if (firstPersonHits === 0 && wordCount > 200) { score -= 8; penalties.push(`no first-person voice: −8`) }
+  if (soloNarratorHits > 0) { score -= 8 * soloNarratorHits; penalties.push(`solo-narrator I/my/me (${soloNarratorHits}x): −${8*soloNarratorHits}`) }
   if (shortPct < 5 && wordCount > 100) { score -= 5; penalties.push(`sentence rhythm too uniform: −5`) }
 
   score = Math.max(0, Math.min(100, score))
@@ -140,7 +145,7 @@ export function scoreDraft(draft) {
     hasConcreteOpening,
     firstSentence: firstSentence.slice(0, 120),
     firstSentenceLen,
-    firstPersonHits,
+    soloNarratorHits,
     score,
     penalties,
   }

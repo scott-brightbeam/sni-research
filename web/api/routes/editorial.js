@@ -14,6 +14,14 @@ import {
   buildAuditSystemPrompt,
   buildRevisionInstruction,
 } from '../lib/draft-flow.js'
+// thinking.js is intentionally not imported here. Opus 4.6 adaptive
+// thinking combined with the editorial workflow's large context
+// payloads (big prompts + tool results + reference posts) reliably
+// ECONNRESETs the connection. We tried every combination — on
+// initial/audit/revision, individually and together — and every Opus
+// call with thinking enabled failed. Leaving the helper in place
+// (lib/thinking.js) so we can re-enable later when Anthropic fixes
+// the underlying issue, but the editorial route runs without it.
 import config from '../lib/config.js'
 
 const ROOT = resolve(import.meta.dir, '../../..')
@@ -850,7 +858,7 @@ export async function postEditorialChat(body, req) {
 
       try {
         const modelId = model === 'opus'
-          ? 'claude-opus-4-6'
+          ? 'claude-opus-4-7'
           : 'claude-sonnet-4-20250514'
 
         const isDraftMode = activeTab === 'draft'
@@ -879,54 +887,81 @@ export async function postEditorialChat(body, req) {
         // LinkedIn posts in different formats plus an audit-revision pass
         // easily exceeds the 8192 default. 16384 fits comfortably within
         // both Sonnet 4 (64k max) and Opus 4.6 (32k max) output budgets.
-        // Regression cause on 17 Apr 2026: max_tokens capped output
-        // before the drafts finished, leaving the user with one
-        // incomplete post.
-        const DRAFT_MAX_TOKENS = 16384
-        const CHAT_MAX_TOKENS = 8192
-        const maxTokens = isDraftMode ? DRAFT_MAX_TOKENS : CHAT_MAX_TOKENS
+        const DRAFT_OUTPUT_TOKENS = 16384
+        const CHAT_OUTPUT_TOKENS = 8192
+        const baseOutput = isDraftMode ? DRAFT_OUTPUT_TOKENS : CHAT_OUTPUT_TOKENS
 
         while (true) {
           if (abort.signal.aborted) break
 
+          // Extended thinking is NOT enabled on the initial tool-
+          // calling generation. Opus with adaptive thinking plus
+          // multi-round tool use empirically runs long enough (4+ min)
+          // that the streaming connection times out. Tool calls are
+          // themselves a form of reasoning — consulting real data —
+          // so adding extended thinking on top is both slow AND
+          // redundant. Thinking is kept for the audit + revision
+          // passes below, where the model has no tools and benefits
+          // most from dedicated reasoning.
           const response = await client.messages.create({
             model: modelId,
-            max_tokens: maxTokens,
+            max_tokens: baseOutput,
             system: getEditorialSystemPrompt() + draftAddendum,
             messages: roundMessages,
             stream: true,
             ...(toolRound < MAX_TOOL_ROUNDS ? { tools: DRAFT_TOOLS } : {}),
           })
 
+          // contentBlocks accumulates every block the model emits in
+          // its original order — text, tool_use, thinking, redacted_thinking.
+          // The full array is replayed verbatim as the next turn's
+          // assistant message. Extended thinking with tool use REQUIRES
+          // thinking blocks to be preserved across turns (with their
+          // signatures intact), otherwise the API rejects the follow-up.
           const contentBlocks = []
-          let currentToolBlock = null
+          let currentBlock = null
           let toolInputJson = ''
           let stopReason = null
 
           for await (const event of response) {
             if (abort.signal.aborted) break
 
-            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-              fullText += event.delta.text
-              if (!suppressTextDeltas) {
-                send({ type: 'delta', text: event.delta.text })
+            if (event.type === 'content_block_start') {
+              const ct = event.content_block?.type
+              if (ct === 'text') {
+                currentBlock = { type: 'text', text: '' }
+              } else if (ct === 'tool_use') {
+                currentBlock = { type: 'tool_use', id: event.content_block.id, name: event.content_block.name, input: {} }
+                toolInputJson = ''
+              } else if (ct === 'thinking') {
+                currentBlock = { type: 'thinking', thinking: '', signature: '' }
+              } else if (ct === 'redacted_thinking') {
+                currentBlock = { type: 'redacted_thinking', data: event.content_block.data }
               }
             }
 
-            if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
-              currentToolBlock = { type: 'tool_use', id: event.content_block.id, name: event.content_block.name, input: {} }
-              toolInputJson = ''
-            }
-
-            if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
-              toolInputJson += event.delta.partial_json
+            if (event.type === 'content_block_delta') {
+              const dt = event.delta?.type
+              if (dt === 'text_delta') {
+                if (currentBlock?.type === 'text') currentBlock.text += event.delta.text
+                fullText += event.delta.text
+                if (!suppressTextDeltas) send({ type: 'delta', text: event.delta.text })
+              } else if (dt === 'input_json_delta') {
+                toolInputJson += event.delta.partial_json
+              } else if (dt === 'thinking_delta') {
+                if (currentBlock?.type === 'thinking') currentBlock.thinking += event.delta.thinking
+              } else if (dt === 'signature_delta') {
+                if (currentBlock?.type === 'thinking') currentBlock.signature = event.delta.signature
+              }
             }
 
             if (event.type === 'content_block_stop') {
-              if (currentToolBlock) {
-                try { currentToolBlock.input = JSON.parse(toolInputJson || '{}') } catch { currentToolBlock.input = {} }
-                contentBlocks.push(currentToolBlock)
-                currentToolBlock = null
+              if (currentBlock) {
+                if (currentBlock.type === 'tool_use') {
+                  try { currentBlock.input = JSON.parse(toolInputJson || '{}') } catch { currentBlock.input = {} }
+                }
+                contentBlocks.push(currentBlock)
+                currentBlock = null
                 toolInputJson = ''
               }
             }
@@ -991,10 +1026,17 @@ export async function postEditorialChat(body, req) {
                   }
                 } catch { /* skip */ }
 
-                // Run audit (non-streaming)
+                // Run audit (non-streaming). Extended thinking is NOT
+                // enabled here — on Opus 4.6, adaptive thinking
+                // combined with a large audit payload (draft + writing
+                // rules + 3 reference posts) reliably ECONNRESETs the
+                // connection. The audit prompt enumerates every rule
+                // explicitly so the model can produce corrections in a
+                // single pass without needing reasoning tokens.
+                const AUDIT_OUTPUT_TOKENS = 2048
                 const auditRes = await client.messages.create({
                   model: modelId,
-                  max_tokens: 2048,
+                  max_tokens: AUDIT_OUTPUT_TOKENS,
                   system: buildAuditSystemPrompt({ vocabSection }),
                   messages: [{
                     role: 'user',
@@ -1014,12 +1056,30 @@ export async function postEditorialChat(body, req) {
                   // echo "Let me fetch..." back as part of the output.
                   const cleanedForRevision = extractDraftContent(completeText)
 
+                  // Revision gets a CLEAN conversation — just the
+                  // original user request, the cleaned draft as the
+                  // assistant turn, and the correction instruction.
+                  // We deliberately drop roundMessages here because
+                  // those carry thinking blocks + tool_use/tool_result
+                  // exchanges. Extended-thinking API requires thinking
+                  // blocks to round-trip verbatim; anything approximate
+                  // or modified upstream causes signature-validation
+                  // failures ("Connection error" end-of-stream). Since
+                  // the revision only needs "here's the draft, fix it",
+                  // we don't need any of that history.
+                  const originalUserMessage = sdkMessages[sdkMessages.length - 1]
+                  // Revision call does NOT use extended thinking. The
+                  // audit has already reasoned through every violation
+                  // and produced an exact correction list; the revision
+                  // just applies it mechanically. Thinking here was
+                  // reliably ECONNRESETing the stream, and doesn't add
+                  // quality for the substitution task.
                   const revisionResponse = await client.messages.create({
                     model: modelId,
-                    max_tokens: DRAFT_MAX_TOKENS,
+                    max_tokens: DRAFT_OUTPUT_TOKENS,
                     system: getEditorialSystemPrompt(),
                     messages: [
-                      ...roundMessages,
+                      originalUserMessage,
                       { role: 'assistant', content: cleanedForRevision },
                       { role: 'user', content: buildRevisionInstruction(auditText) },
                     ],
@@ -1050,10 +1110,17 @@ export async function postEditorialChat(body, req) {
                   }
 
                   // Replace completeText with the revised version if it's substantive.
-                  // Otherwise fall back to streaming the original (which was suppressed).
+                  // Run extractDraftContent on the revision too — even with the
+                  // strictest revision instruction, models occasionally emit a
+                  // model-thinking preamble before the first `## Draft 1:`.
+                  // That preamble is already in the user's stream by this point
+                  // (we can't unsend it), but stripping it from the persisted
+                  // text and the scorecard input keeps the saved record clean
+                  // and prevents the scorer flagging vocabulary that lives only
+                  // in the model's evaluation narrative, not the actual drafts.
                   if (revisedText.length > 200) {
-                    completeText = revisedText
-                    fullText = revisedText
+                    completeText = extractDraftContent(revisedText)
+                    fullText = completeText
                   } else if (suppressTextDeltas) {
                     // Revision came back too short — show the cleaned original instead.
                     send({ type: 'delta', text: extractDraftContent(completeText) })
@@ -1065,6 +1132,13 @@ export async function postEditorialChat(body, req) {
                 }
               } catch (auditErr) {
                 console.error('[editorial-chat] Internal audit/revision failed (non-fatal):', auditErr.message)
+                if (auditErr.stack) console.error(auditErr.stack.split('\n').slice(0, 5).join('\n'))
+                if (auditErr.cause) {
+                  console.error('  cause:', auditErr.cause?.message || auditErr.cause)
+                  if (auditErr.cause?.code) console.error('  code:', auditErr.cause.code)
+                  if (auditErr.cause?.cause) console.error('  cause.cause:', auditErr.cause.cause?.message || auditErr.cause.cause)
+                }
+                if (auditErr.status) console.error('  status:', auditErr.status)
                 // Fall through — the original draft (already in completeText) will be used
                 // If we suppressed deltas, stream the cleaned original now
                 if (suppressTextDeltas) {
@@ -1159,13 +1233,12 @@ export async function postEditorialChat(body, req) {
 
           toolRound++
 
-          const assistantContent = []
-          if (fullText) {
-            assistantContent.push({ type: 'text', text: fullText })
-          }
-          for (const block of contentBlocks) {
-            assistantContent.push(block)
-          }
+          // Replay the model's content blocks verbatim for the next turn.
+          // contentBlocks now includes text/thinking/tool_use in the
+          // order the model emitted them — the Anthropic API requires
+          // this exact structure when extended thinking is enabled with
+          // tool use (thinking signatures must round-trip unmodified).
+          const assistantContent = contentBlocks
 
           const toolResults = []
           for (const block of contentBlocks.filter(b => b.type === 'tool_use')) {

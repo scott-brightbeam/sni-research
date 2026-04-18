@@ -90,29 +90,35 @@ export function detectDraftOutput(text, { willAudit = true, minLength = 300 } = 
 export function extractDraftContent(text) {
   if (typeof text !== 'string' || !text) return text
 
-  // Search for the first clear draft-start marker. Order matters:
+  // Search for the first draft-start marker. Markers may appear mid-line
+  // (streamed tool narrative concatenated with the first heading, no
+  // intervening newline) so we DON'T anchor to line-start. Order matters:
   // prefer the explicit DRAFT N heading, then FORMAT N, then a format-
-  // named heading, then any top-level markdown heading.
+  // named heading, then an opening bold-title after a --- rule.
   const candidates = [
-    /(?:^|\n)#{1,3}\s*draft\s*\d\b[^\n]*\n/im,
-    /(?:^|\n)#{1,3}\s*format\s*\d\b[^\n]*\n/im,
-    /(?:^|\n)#{1,3}\s*(?:news\s*decoder|concept\s*contrast|quiet\s*observation|practitioner|behavioural\s*paradox|honest\s*confession)[^\n]*\n/im,
-    // An opening bold-title line preceded by '---' is also a draft start
-    /(?:^|\n)---\s*\n+\s*\*\*[^*\n]+\*\*/m,
+    /#{1,3}\s*draft\s*\d\b/i,
+    /#{1,3}\s*format\s*\d\b/i,
+    /#{1,3}\s*(?:news\s*decoder|concept\s*contrast|quiet\s*observation|practitioner|behavioural\s*paradox|honest\s*confession)/i,
+    /---\s*\n+\s*\*\*[^*\n]+\*\*/,
   ]
+  let bestIdx = -1
   for (const re of candidates) {
     const match = text.match(re)
     if (match && match.index != null) {
-      // Keep from the start of the matched line, not from match.index
-      // (which may include a leading newline).
-      const prefix = text.slice(0, match.index)
-      const lastNewlineBefore = prefix.lastIndexOf('\n')
-      const from = lastNewlineBefore === -1 ? 0 : lastNewlineBefore + 1
-      return text.slice(from).trimStart()
+      if (bestIdx === -1 || match.index < bestIdx) bestIdx = match.index
     }
   }
-  // No draft markers — return untouched.
-  return text
+  if (bestIdx === -1) return text
+
+  // Back up to the closest preceding newline so headings render on their
+  // own line in the stream. If there's no newline before the match,
+  // prepend two newlines so downstream renderers see a clean boundary.
+  const prefix = text.slice(0, bestIdx)
+  const lastNewlineBefore = prefix.lastIndexOf('\n')
+  if (lastNewlineBefore === -1) {
+    return '\n\n' + text.slice(bestIdx).trimStart()
+  }
+  return text.slice(lastNewlineBefore + 1).trimStart()
 }
 
 // ── Audit prompt builder ────────────────────────────────────
@@ -121,29 +127,78 @@ export function extractDraftContent(text) {
 // different formats, each with its own opening and closer.
 export function buildAuditSystemPrompt({ vocabSection = '' } = {}) {
   return [
-    'You are a writing style auditor. Compare the draft(s) against the reference posts and rules below.',
+    'You are a writing style auditor. Compare the draft(s) against the reference posts and rules below. Be ruthless — false positives are better than missed patterns.',
     '',
     'The draft output may contain a SINGLE post or MULTIPLE posts in different LinkedIn formats (News Decoder, Concept Contrast, Quiet Observation, Practitioner\'s Take, Behavioural Paradox, Honest Confession). When multiple drafts are present, audit EACH one independently and report corrections per-draft.',
     '',
     'Return ONLY a numbered list of specific corrections. For each: quote the problematic text, state what rule it breaks, give the corrected replacement text.',
     '',
-    'MUST-CATCH VOICE BREAKS — these appear nowhere in Scott\'s canon and must be flagged every time:',
-    '- First-person narrator: "I keep thinking about...", "I see this in my clients...", "I think more importantly...", "From my experience...", "What I find interesting is..." — Scott writes third-person analytical, not first-person confessional. Rewrite as third-person observation.',
-    '- Podcast/source framing as conversational context: "on the [X] podcast this week", "last Thursday on [show], [person] said...", "[name], the pseudonymous culture commentator, put it in concrete terms". Sources are named BRIEFLY and FACTUALLY — e.g. "Research from Anthropic suggests X", "Chamath Palihapitiya\'s post pulled 1.2m views", "Economist Alex Imas put it bluntly: Y". Never foreground the medium.',
-    '- False contrast patterns (\'Not X but Y\', \'The question isn\'t X, it\'s Y\', "not from A but B") — strictly prohibited.',
-    '- Pseudo-profundity (\'The key is...\', \'The reality is...\', \'At its core...\', "The truth is...").',
-    '- Hollow intensifiers (incredibly, fundamentally, truly, absolutely, deeply, actually).',
-    '- Reductive fragment chains ("None of this is X. All of it is Y.", "Not fintech. Not legal. Healthcare.").',
-    '- Aggrieved/strident framing ("deserves more attention", "the industry keeps missing", "has been ignored").',
+    'EVIDENCE CALIBRATION — the highest-priority audit category. Over-claim is the hallmark of LLM writing and must be eliminated:',
+    '',
+    'A. ATTRIBUTION TEST. Every named source in the draft must pass:',
+    '   - Person + verifiable institution (e.g. "Chicago Booth economist Alex Imas", "Anthropic\'s Peter McCrory")',
+    '   - Published or institutionally-backed (paper, post, official statement) — not a podcast appearance, not a casual social-media remark',
+    '   - Survives the context check (genuinely load-bearing for the argument)',
+    '   Pseudonymous figures (e.g. "signüll"), podcast guests cited as such, and unverifiable single-person claims FAIL the test. They must be removed. Engage with the SUBSTANCE of their argument as an idea, not as something they said. If in doubt, leave the podcast and podcaster out.',
+    '',
+    'B. VOICING LADDER. Every claim must be voiced at the level its evidence supports:',
+    '   - Raw datum, primary source, verifiable → state directly',
+    '   - Established fact, widely known → common-ground framing ("As we\'re all-too-well aware...")',
+    '   - Reported finding from a credible institution → "Research from X suggests...", "Estimates place..."',
+    '   - The author\'s inference from the evidence → question or conditional ("Could...?", "If so, we might conclude that...")',
+    '   - Inference from an inference → still a question, but the uncertainty must be obvious',
+    '   - Beyond three levels of inference → CUT',
+    '   FLAG every declarative statement that\'s actually an inference. Rewrite as question or conditional.',
+    '',
+    'C. SOURCE-DOCUMENT CLAIMS ARE NOT GOSPEL. Claims that appeared in the analysis entry, transcript, or other source documents are themselves subject to the attribution test and the voicing ladder. Do not treat them as authoritative just because they were in the input. Evaluate the claim and voice it at the level its evidence supports.',
+    '',
+    'D. ITEATE EARNS ITS DIRECTNESS. The ITEATE closer can be more declarative than the body — but only if (1) the body did the calibration work (showed the uncertainty) AND (2) multiple threads in the body converged on the same conclusion. If the body was already declarative throughout, REJECT a confident ITEATE — it has no tension to release.',
+    '',
+    'E. QUOTES. Direct quotes are rare. A quote survives only if (a) the source passes the attribution test AND (b) the quote contributes more than a paraphrase would. Quotes from non-attributable sources must be paraphrased.',
+    '',
+    'MUST-CATCH STYLE PATTERNS — these appear nowhere in Scott\'s canon and must be flagged every time. Scan for each one explicitly:',
+    '',
+    '1. First-person narrator (\'I keep thinking\', \'I see this in my clients\', \'I think\', \'From my experience\', \'What I find interesting is\'). Scott writes third-person. Rewrite as observation.',
+    '',
+    '2. Podcast/source framing as conversational context (\'on the [X] podcast this week\', \'last Thursday on [show], [person] said...\', \'[name], the pseudonymous culture commentator\'). Cite sources BRIEFLY and FACTUALLY — never foreground the medium or the occasion.',
+    '',
+    '3. FALSE CONTRASTS — all forms. This is the hardest pattern to eliminate; check for ALL variants:',
+    '   - \'Not X but Y\' / \'not from X but Y\' / \'not for X but for Y\'',
+    '   - \'The question isn\'t X, it\'s Y\'',
+    '   - \'X isn\'t just Y - it\'s Z\' (including variants like \'doesn\'t just capture X. It Y.\', \'not only X but also Y\')',
+    '   - \'Less about X, more about Y\' / \'X is more than just Y\'',
+    '   - \'The constraint is X, not Y\' / \'X, not Y\' as punchy closer',
+    '   Rewrite each as a positive construction — state what Y is and why it matters, without setting it against X.',
+    '',
+    '4. FORCED TRIPLING — three short clauses or adjectives in a row. Examples: \'The tools exist. The demand exists. The ROI is measurable.\' / \'Better stories. More inclusive language. Broader access.\' / \'faster, smarter, better\'. Cut to two or expand to a single descriptive sentence.',
+    '',
+    '5. Reductive fragment chains — \'None of this is X. All of it is Y.\' / \'Not fintech. Not legal. Healthcare.\' — sounds punchy, reads aggrieved. Rewrite in a single measured sentence.',
+    '',
+    '6. CLICKBAIT TITLES — \'The X Nobody Talks About\', \'The Y Nobody Is Making\', \'That\'s the Z\', \'Here\'s what you need to know about X\', \'The X, and here\'s why\'. Titles in Scott\'s canon are declarative statements or concept labels — \'Why Organisational Speed Now Defines Value\', \'AI Exposure Does Not Mean Job Loss\', \'Two Exponentials Driving the Next AI Wave\'. Rewrite the title.',
+    '',
+    '7. Pseudo-profundity (\'The key is...\', \'The reality is...\', \'At its core...\', \'The truth is...\', \'Here\'s the thing:\').',
+    '',
+    '8. Hollow intensifiers (incredibly, fundamentally, truly, absolutely, deeply, actually). Remove; the sentence almost always reads better.',
+    '',
+    '9. Aggrieved or strident framing (\'deserves more attention\', \'the industry keeps missing\', \'has been ignored\', \'nobody is making\'). Scott\'s voice is analytical, not complaining.',
+    '',
+    '10. Conclusive overstatement (\'this fundamentally changes...\', \'this is crucial because...\', \'earns a moat that no benchmark can match\', \'solves itself\', \'cannot be overstated\').',
+    '',
+    '11. Soft imperatives (\'Consider...\', \'Explore...\', \'Ask yourself...\', \'Take a moment to...\').',
+    '',
+    '12. Transition padding (\'This is where X comes in\', \'Enter: [solution]\', \'And that\'s where things get interesting\').',
+    '',
+    '13. Rhetorical question + immediate answer (\'Why does this matter? Because...\', \'What\'s the takeaway? Simple:\', \'The better question: ...\').',
+    '',
+    '14. THE \'MATTERS\' BAN — strict, no exceptions. The word "matters" is banned, and so is the construct: "X matters because Y", "This matters for Z", "What matters is W", "These matter because…". The pattern is the most reliable LLM tell — asserting significance instead of demonstrating it. Do NOT fix this by substitution (do not swap "matters" for "is significant" or "is important" — those are the same pattern). The fix is to RESTRUCTURE: in 90% of cases the sentence is padding and should be CUT entirely; the meaning is already in the surrounding sentences. In other cases the sentences either side need to be rewritten so the consequence is shown rather than asserted. Rarely a real connector sentence is needed — write the actual hinge (name the consequence/implication), don\'t reach for "matters" as a shortcut.',
     '',
     'ALSO CHECK:',
     '- Prohibited vocabulary (leverage, utilise, robust, streamline, delve, ecosystem, unlock, harness, paradigm, etc.)',
     '- Single quotes only (never double)',
-    '- Opening-line concreteness (specific person/company/number/event, not abstract framing)',
+    '- Opening-line concreteness — specific person/company/number/event, not abstract framing',
     '- ITEATE quality — each draft must CRYSTALLISE a fresh insight, not restate the argument',
     '- Evidence citation pattern: named source + specific figure + editorial interpretation',
-    '- Hedging calibration — bold where confidence exists, hedged where it doesn\'t',
-    '- Brightbeam "we" voice is allowed and expected for collective positioning lines ("At Brightbeam we...", "We expect that..."). Solo "I" narrator is NOT.' + vocabSection,
+    '- Brightbeam "we" voice is allowed and expected for collective positioning lines (\'At Brightbeam we...\', \'We expect that...\'). Solo \'I\' narrator is NOT.' + vocabSection,
   ].join('\n')
 }
 
@@ -152,15 +207,38 @@ export function buildAuditSystemPrompt({ vocabSection = '' } = {}) {
 // are present, and to strip any pre-draft narrative.
 export function buildRevisionInstruction(auditText) {
   return [
-    'Apply ALL of these style corrections to the draft(s) above.',
+    'Apply every correction in the list below to the draft(s) above. Do not skip any.',
     '',
-    'If the input contained multiple drafts (News Decoder, Concept Contrast, etc.), preserve ALL of them in the output — do not collapse to a single draft. Each draft keeps its own format header and ITEATE closer.',
+    'MULTI-DRAFT PRESERVATION: if the input contains multiple drafts, preserve ALL of them. Each draft keeps its own format header, bold title, body, and ITEATE closer.',
     '',
-    'Output ONLY the polished draft(s). Do not include:',
-    '- Preamble ("Here are the revised drafts...", "I\'ll apply the corrections...")',
-    '- Inter-tool narrative ("Let me fetch...", "Good, I have enough...")',
-    '- Audit notes, correction summaries, or meta-commentary',
-    '- Anything that is not a published-ready draft',
+    'HOW TO APPLY each correction:',
+    '- Locate the exact quoted text in the draft.',
+    '- Apply the correction. If the correction is a simple word swap, swap. If the correction requires RESTRUCTURING (false contrasts, forced tripling, clickbait titles cannot be fixed by word swaps — they need sentence-level rewriting), restructure.',
+    '- If applying one correction causes another violation, fix that too.',
+    '',
+    'VERIFY before returning. Scan your output and confirm it contains NONE of these patterns. If any survive, rewrite:',
+    '- \'Not X but Y\' (including \'not from X but Y\', \'not for X but Y\', \'rather than X, Y\', \'not through X but Y\')',
+    '- \'X, not Y\' as a punchy closer (e.g. \'the constraint is ambition, not capability\')',
+    '- \'isn\'t X, it\'s Y\' / \'isn\'t X. It\'s Y.\' / \'wasn\'t X but Y\' / \'doesn\'t X. It Y.\'',
+    '- \'X isn\'t just Y — it\'s Z\' / \'not only X but Y\' / \'X, but it\'s also Y\'',
+    '- Any three short clauses in a row (\'The tools exist. The demand exists. The ROI is measurable.\')',
+    '- Any three short noun phrases as sentences (\'Better stories. More inclusive language. Broader access.\')',
+    '- Clickbait titles: \'The X Nobody Talks About\', \'That\'s the Y\', \'Here\'s why X\', \'The X Problem (And the Fix)\'',
+    '- Foregrounded podcast/medium framing (\'on the [X] podcast\', \'on [show] this week\')',
+    '- First-person narrator (\'I keep thinking\', \'I see this\', \'from my experience\')',
+    '- Hollow intensifiers: actually, incredibly, truly, fundamentally, deeply',
+    '- The word "matters" anywhere — and the construct it creates ("X matters because Y", "This matters for…", "What matters is…"). Do not substitute "is significant" / "is important" / "is worth noting" — same pattern. CUT the sentence (it\'s usually padding) or restructure so the consequence is shown, not asserted.',
+    '',
+    'If the ITEATE closer uses any of these patterns, rewrite it. The ITEATE is the final impression; it must be clean.',
+    '',
+    'CRITICAL — output format. Your output is streamed directly to the user as the polished response. Begin with the literal characters `## Draft 1:` and nothing before. Do NOT:',
+    '- Narrate your evaluation process (\'Now I have the full picture...\', \'The source fails the attribution test...\', \'Let me apply the corrections precisely...\')',
+    '- Acknowledge the corrections list (\'I\'ve applied all 20 corrections...\', \'Here are the revised drafts...\')',
+    '- Add any preamble, transition text, or meta-commentary before the first draft header',
+    '- Include audit notes, correction explanations, or post-draft commentary',
+    '- Inter-tool narrative (\'Let me fetch...\', \'Good, I have enough...\')',
+    '',
+    'The user reads exactly what you write. Anything before `## Draft 1:` becomes garbage in their UI. Start with the draft header. End after the last draft\'s ITEATE.',
     '',
     '## CORRECTIONS TO APPLY',
     '',

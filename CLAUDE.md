@@ -58,9 +58,10 @@ PRESENT (web UI, always-on)
   └─ Config                Sector keywords, search queries, pipeline settings
 
 STATE (persistent, shared by all components)
+  ├─ Turso (libSQL)                Cloud database — 18 tables, schema v4, synced by scripts/sync-to-turso.js
   ├─ data/editorial/state.json     Analysis index, theme registry, post backlog, decisions
-  ├─ data/verified/                Scored articles (JSON per article)
-  ├─ data/podcasts/                Episode digests + manifest
+  ├─ data/verified/                Scored articles (JSON per article) — ingest path, synced to Turso
+  ├─ data/podcasts/                Episode digests + manifest — synced to Turso
   ├─ data/editorial/activity.json  Pipeline activity log
   ├─ config/                       Search queries, sectors, sources, prompts
   └─ output/                       Drafts, reports, run summaries
@@ -103,8 +104,10 @@ URLs flow forward through every stage. They are never reconstructed after the fa
   - `GOOGLE_AI_API_KEY` — critique pair (Gemini), DISCOVER (Google Search grounding)
   - `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` — alerts via Zaphod
   - `AINEWSHUB_EMAIL` + `AINEWSHUB_PASSWORD` — AI NewsHub premium API access (ainewshub.ie)
-  - ~~`ANTHROPIC_API_KEY`~~ — **REMOVED 23 Mar 2026.** All Anthropic/Claude processing now runs through Claude Code (Max subscription). Scripts exit cleanly when key is missing.
-- **No external services** — all data is local files. No database.
+  - `ANTHROPIC_API_KEY` — still live in `.env` despite earlier intent to remove. Used by `scripts/lib/editorial-multi-model.js` and `scripts/editorial-draft.js`. Cost protection relies on the "ask first" rule above and hook guards, not key absence.
+  - `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` — Turso (libSQL) cloud database for articles, podcasts, editorial state. Schema v4 in `web/api/lib/db.js`.
+- **Database:** Turso (libSQL) — 18 tables, synced by `scripts/sync-to-turso.js` (launchd). Web API queries via `getDb()` in `web/api/lib/db.js`. Tests use in-memory libSQL (`createTestDb()`).
+- **Local data files** remain the primary ingest path — `data/verified/`, `data/podcasts/`, `data/editorial/`. Turso is the query layer for the web UI.
 - **Scheduling:** launchd for automated stages (fetch, podcast transcription). Claude Code scheduled tasks for analysis and drafting. See "Scheduled jobs" section below.
 
 ## Scheduled jobs
@@ -155,7 +158,7 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 - **API server:** `bun --watch web/api/server.js` (port 3900)
 - **Vite dev server:** `cd web/app && bun run dev` (port 5173, proxies `/api` to 3900)
 - **Pipeline ingest server:** `bun scripts/server.js` (port 3847 — rarely needed for UI work)
-- **Tests:** `cd web/api && bun test` (228 tests, 728 assertions)
+- **Tests:** `cd web/api && bun test` (353 tests, 874 assertions across 26 files)
 - **Build:** `cd web/app && bun run build` (check for 0 errors)
 - **Launch configs:** `.claude/launch.json` has `web-api` and `ingest-server`
 
@@ -252,13 +255,13 @@ sni-research-v2/                          # Main project
 │   ├── ainewshub-fetch.js                # AI NewsHub API fetch (IE/GB/EU/US, launchd 03:30)
 │   ├── fetch.js                          # Article fetching (Brave + RSS)
 │   ├── score.js                          # Relevance scoring (heuristic fallback)
-│   ├── draft.js                          # Newsletter generation (needs Claude Code now)
-│   ├── review.js, revise.js              # Draft review/revision (needs Claude Code now)
+│   ├── draft.js                          # Newsletter generation (Anthropic API — still functional)
+│   ├── review.js, revise.js              # Draft review/revision (Anthropic API — still functional)
 │   ├── select.js                         # Evaluation (OpenAI + Gemini)
 │   ├── report.js                         # Research pack generation
-│   ├── podcast-import.js                 # Podcast digest creation (needs Claude Code now)
-│   ├── editorial-analyse.js              # Editorial analysis (needs Claude Code now)
-│   ├── editorial-draft.js                # Editorial draft + critique-only mode
+│   ├── podcast-import.js                 # Podcast digest creation (Anthropic API — still functional)
+│   ├── editorial-analyse.js              # Editorial analysis (Anthropic API — still functional)
+│   ├── editorial-draft.js                # Editorial draft + critique-only mode (Anthropic + Gemini + GPT)
 │   ├── editorial-discover.js             # Story discovery (Gemini + Google Search)
 │   └── lib/                              # Shared libraries
 ├── config/                               # Pipeline configuration
@@ -281,7 +284,7 @@ sni-research-v2/                          # Main project
 ├── web/                                  # Web UI
 │   ├── api/                              # Bun HTTP server (port 3900)
 │   │   ├── server.js, routes/, lib/
-│   │   └── tests/                        # 228 tests, 739 assertions
+│   │   └── tests/                        # 353 tests, 874 assertions
 │   └── app/                              # Vite + React SPA
 │       └── src/
 │           ├── pages/                    # Dashboard, Database, Editorial, Copilot, Sources, Config
@@ -295,7 +298,7 @@ sni-research-v2/                          # Main project
 │   ├── context/                          # Design specs, phase status, coding patterns
 │   └── launch.json                       # Dev server configs
 ├── docs/                                 # Specs, plans
-└── .env                                  # API keys (no ANTHROPIC_API_KEY)
+└── .env                                  # API keys (incl. ANTHROPIC_API_KEY, TURSO_DATABASE_URL)
 
 ~/Projects/Claude/HomeBrew/podcasts/      # Podcast transcription pipeline (Python)
 ├── scripts/
