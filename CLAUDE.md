@@ -158,9 +158,19 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 - **API server:** `bun --watch web/api/server.js` (port 3900)
 - **Vite dev server:** `cd web/app && bun run dev` (port 5173, proxies `/api` to 3900)
 - **Pipeline ingest server:** `bun scripts/server.js` (port 3847 — rarely needed for UI work)
-- **Tests:** `cd web/api && bun test` (353 tests, 874 assertions across 26 files)
+- **Tests:** `cd web/api && bun test` (approx. 367 pass in CI / 899 pass locally with fixtures + server up)
 - **Build:** `cd web/app && bun run build` (check for 0 errors)
 - **Launch configs:** `.claude/launch.json` has `web-api` and `ingest-server`
+
+## Deploy
+
+Fly deploys run **locally** via a git pre-push hook, not from CI.
+
+- **Activate on a fresh clone (one-time):** `git config core.hooksPath scripts/git-hooks`
+- **Normal flow:** `git push origin master` → hook runs `fly deploy --remote-only` → if deploy succeeds the push completes; if deploy fails the push aborts. GitHub and Fly cannot drift.
+- **Skip deploy for one push:** `git push --no-verify` (e.g. docs-only change, or you've already deployed).
+- **Manual deploy anytime:** `fly deploy --remote-only` from the repo root.
+- **CI (`.github/workflows/deploy.yml`)** runs the web/api test job on every push and pull request. It does NOT deploy — the old `deploy` job was removed because it required `FLY_API_TOKEN` in GitHub Secrets, and we deliberately keep the Fly token local rather than proliferating it. See `scripts/git-hooks/pre-push` for the hook source.
 
 ## Known issues
 
