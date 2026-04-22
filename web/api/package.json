@@ -8,7 +8,9 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
     "@libsql/client": "^0.17.2",
+    "hono": "^4.12.10",
     "js-yaml": "^4.1.1"
   }
 }
