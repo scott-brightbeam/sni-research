@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'bun:test'
 
+// Integration tests — these hit a live server on localhost:3900.
+// Skip the whole suite when no dev server is reachable (notably on CI,
+// where no server is started). Run `bun --watch web/api/server.js` first
+// if you want them to execute locally.
+const SERVER_URL = 'http://localhost:3900'
+let serverUp = false
+try {
+  const probe = await fetch(`${SERVER_URL}/api/health`, {
+    signal: AbortSignal.timeout(500),
+  })
+  serverUp = probe.ok
+} catch {
+  serverUp = false
+}
+const itLive = serverUp ? it : it.skip
+
 describe('GET /api/subscriptions', () => {
-  it('returns configured sources', async () => {
+  itLive('returns configured sources', async () => {
     const resp = await fetch('http://localhost:3900/api/subscriptions')
     const data = await resp.json()
     expect(Array.isArray(data.sources)).toBe(true)
@@ -9,7 +25,7 @@ describe('GET /api/subscriptions', () => {
     expect(data.sources[0].name).toBeDefined()
   })
 
-  it('each source has expected fields', async () => {
+  itLive('each source has expected fields', async () => {
     const resp = await fetch('http://localhost:3900/api/subscriptions')
     const data = await resp.json()
     for (const s of data.sources) {
@@ -26,7 +42,7 @@ describe('GET /api/subscriptions', () => {
 })
 
 describe('PUT /api/subscriptions/credentials', () => {
-  it('rejects missing sources array with 400', async () => {
+  itLive('rejects missing sources array with 400', async () => {
     const resp = await fetch('http://localhost:3900/api/subscriptions/credentials', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -39,7 +55,7 @@ describe('PUT /api/subscriptions/credentials', () => {
 })
 
 describe('POST /api/subscriptions/fetch', () => {
-  it('accepts empty body gracefully', async () => {
+  itLive('accepts empty body gracefully', async () => {
     // Sending POST with no body should not throw — triggerFetch handles missing source
     const resp = await fetch('http://localhost:3900/api/subscriptions/fetch', {
       method: 'POST',
