@@ -6,15 +6,19 @@ Living document. Updated when reality diverges from plan.
 
 ## 1. Architecture & Isolation
 
-The UI is a read/write layer over the existing file-based data. Pipeline scripts are never modified or wrapped — they keep running via launchd exactly as they do now.
+The UI is a read/write layer over the existing file-based data plus a Turso mirror (since Phase 5). Pipeline scripts are never modified or wrapped — they keep running via launchd exactly as they do now.
 
 Two servers, two concerns:
 - **Port 3847** — existing ingest server (`scripts/server.js`), untouched
-- **Port 3900** — new API + SPA server (`web/api/server.js`), serves the dashboard
+- **Port 3900** — API + SPA server (`web/api/server.js`), serves the dashboard
 
-The API server reads `data/`, `output/`, `config/`, `logs/`. It never imports pipeline modules — it reads their output files. If the API server is down, the pipeline doesn't care.
+**Reads: Turso (since Phase 5).** The web API queries Turso via `getDb()` in `web/api/lib/db.js`. Articles, analysis entries, themes, posts, podcasts, activity, etc. — all query the DB. File reads remain only for: raw article bodies (`data/verified/*/full.md`), drafts (`output/drafts/week-N/*`), and configs (`config/*.yaml`).
 
-For the Claude co-pilot: the API server holds the Anthropic SDK connection. Chat messages go to `/api/chat` which streams responses back via SSE.
+**Writes: files + Turso.** Pipeline scripts write to `data/` as before. `scripts/sync-to-turso.js` (launchd 07:40, 13:00, 22:00) syncs `data/` → Turso. The web API's mutations (flag article, PATCH sector, save draft, chat threads/pins) write to the file system AND upsert into Turso directly so the change is visible on the next page load without waiting for the sync.
+
+The API server never imports pipeline modules — it reads their output files and the DB. If the API server is down, the pipeline doesn't care.
+
+For the Claude co-pilot: the API server holds the Anthropic SDK connection (`web/api/lib/claude.js`). Chat messages go to `/api/editorial/chat` (SSE streaming) for editorial/draft workflows, or `/api/chat` (legacy) for the original per-week Copilot page.
 
 ### Pipeline data changes (fetch enhancement)
 
@@ -113,8 +117,9 @@ Both share `POST /api/chat` with an `ephemeral` flag.
 - **Two system prompts:** editorial analyst (co-pilot page) and draft assistant (panel)
 
 ### Model selection
-- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-6`
+- Per-message toggle everywhere: `claude-sonnet-4-20250514` (default), `claude-opus-4-7` (previously `-4-6`; upgraded Phase 7)
 - User principle: "Always use a toggle"
+- 1M-context opt-in via `contextWindow: '1m'` adds `context-1m-2025-08-07` beta header — see `scripts/lib/editorial-multi-model.js:buildAnthropicCreateOpts()`
 
 ### Token & cost counting
 - Per-message: SDK `usage` field stored in JSONL, returned in SSE `done` event
@@ -187,7 +192,7 @@ Vite + React scaffold, Bun API server, Dashboard, Articles, routing, layout, des
 - Review/evaluation/link-check overlays
 - Save back to file
 
-### Phase 3: Co-pilot 📐
+### Phase 3: Co-pilot ✅
 - Design doc: `docs/plans/2026-03-04-copilot-design.md`
 - Implementation plan: `docs/plans/2026-03-04-copilot-plan.md` (16 tasks)
 - `/api/chat` with SSE streaming (Anthropic SDK) + threads + pins + usage
@@ -197,12 +202,33 @@ Vite + React scaffold, Bun API server, Dashboard, Articles, routing, layout, des
 - Token/cost counting with daily ceiling
 - Article injection via explicit picker
 
-### Phase 4: Polish
+### Phase 4: Polish ✅
 - Article actions (sector override, flag, delete, manual ingest)
 - Article detail expand panel
 - Config viewer
-- Real-time updates (file watcher or polling)
+- Real-time updates (polling)
 - UI refinements
+
+### Phase 5: Turso migration ✅
+- 26-table libSQL schema (v4), `scripts/sync-to-turso.js` launchd job
+- Web API query layer rewritten — `getDb()` via `@libsql/client`
+- Fly deployment with embedded replica + `sni_data` volume mount
+
+### Phase 6: Editorial intelligence platform ✅
+- Named pipeline stages: ANALYSE, DISCOVER, HEADLINES, GEOGRAPHIC-SWEEP, WEDNESDAY-SWEEP, QUALITY-DIGEST, DRAFT, CRITIQUE-REVISE, AUDIT-UPSTREAM
+- Full editorial co-pilot (`/api/editorial/chat`) with tool use across up to 6 rounds
+- State persistence in `data/editorial/state.json` mirrored to Turso
+
+### Phase 7: Opus 4.7 + CEO empathy ✅
+- Shared principles module (`scripts/lib/editorial-principles.js`) — single source of truth for sectors, evidence calibration, "matters" ban, CEO empathy
+- CEO empathy pass in the drafting pipeline (one Opus 4.7 call per detected sector, `Promise.all`, consolidated notes → final revision)
+- Claude-Code-native upstream audit (`/editorial-audit-upstream`)
+
+### Phase 8: Ops 🟡 In progress
+- Pre-push deploy hook (`scripts/git-hooks/pre-push`)
+- Test-only CI (`.github/workflows/deploy.yml`)
+- Cost-protection guards (bunfig preload + SNI_TEST_MODE mandatory)
+- Production-migration checklist (`.claude/context/production-migration.md`)
 
 Each phase is independently useful.
 

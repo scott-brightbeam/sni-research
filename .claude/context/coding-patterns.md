@@ -400,3 +400,195 @@ Currently: 68 tests, 279 assertions covering articles (CRUD + inline actions), s
 ### Pipeline isolation
 
 `bun scripts/pipeline.js --mode daily --dry-run` — must succeed regardless of web/ state.
+
+---
+
+## Shared principles module (Phase 7)
+
+`scripts/lib/editorial-principles.js` is the single source of truth for the editorial rules — sector detection, evidence calibration, must-catch patterns, CEO empathy, prompt builders. It's imported by BOTH sides of the API boundary.
+
+```js
+// Fly-hosted drafting pipeline imports the shared module:
+// web/api/lib/draft-flow.js
+import {
+  SECTORS,
+  SECTOR_CEO_LABELS,
+  detectSectors,
+  buildEvidenceCalibrationSection,
+  buildMustCatchPatternsSection,
+  buildCEOEmpathySection,
+  buildCEOCritiquePrompt,
+  buildCEORevisionInstruction,
+} from '../../../scripts/lib/editorial-principles.js'
+
+// Local upstream audit imports the same module:
+// scripts/lib/editorial-audit-lib.js
+import { buildEvidenceCalibrationSection, buildMustCatchPatternsSection, buildCEOEmpathySection } from './editorial-principles.js'
+```
+
+**Fly image requirement:** the Dockerfile explicitly copies `scripts/lib/` — only scripts/lib/, not the scripts/ root:
+```dockerfile
+# Dockerfile
+COPY scripts/lib/ ./scripts/lib/
+```
+If you add a new runtime import from scripts/lib/ in web/api/, the Dockerfile is already covered. If you ever move the module or split it across multiple dirs, update the Dockerfile copy directive.
+
+**Never duplicate the principles text.** If a prompt needs them, it imports from this module. `config/prompts/editorial-analyse.v1.txt` is the one exception — it's a text file Claude Code reads at skill-run-time, so the principles are quoted inline there.
+
+---
+
+## Cost-protection guards (Phase 8)
+
+Two layers protect against accidental API spend:
+
+### Layer 1 — mandatory SNI_TEST_MODE on tests
+
+`bunfig.toml` at BOTH project root and `web/api/` preloads a guard file before every `bun test`:
+
+```toml
+# web/api/bunfig.toml
+[test]
+preload = ["./tests/guard.ts"]
+```
+
+```ts
+// web/api/tests/guard.ts
+if (!process.env.SNI_TEST_MODE) {
+  console.error('❌ SNI_TEST_MODE is not set. Refusing to run tests — they may hit real APIs or Turso writes.')
+  console.error('   Run: SNI_TEST_MODE=1 bun test')
+  process.exit(1)
+}
+```
+
+The preload path MUST start with `./` — bun silently skips it otherwise.
+
+### Layer 2 — getDb() refuses under test mode without the flag
+
+```js
+// web/api/lib/db.js
+function isRunningUnderBunTest() {
+  const argv1 = process.argv[1] || ''
+  return /\.test\.(js|ts|jsx|tsx)$/.test(argv1)
+}
+
+export function getDb() {
+  if (isRunningUnderBunTest() && !process.env.SNI_TEST_MODE) {
+    throw new Error('getDb() called from bun test without SNI_TEST_MODE=1')
+  }
+  // ...
+}
+```
+
+### Layer 3 — SDK maxRetries=0
+
+```js
+// web/api/lib/claude.js
+_client = new Anthropic({ apiKey: key, maxRetries: 0 })
+```
+
+The SDK default is 2. On transient failures this 3x-multiplies token spend silently.
+
+### Layer 4 — subprocess stubs
+
+Pipeline scripts that `Bun.spawn()` other scripts check `SNI_TEST_MODE` and skip spawning. Look for the `TEST MODE — skipping spawn` log line.
+
+---
+
+## Claude-Code-native I/O scripts (Phase 7)
+
+Pattern for scripts that want Claude Code reasoning without an Anthropic API call.
+
+**Split into three CLI modes:**
+1. `--list-targets` — output JSON with everything Claude Code needs (material to reason over, the system prompt)
+2. `--print-principles` — output the system prompt text for inspection
+3. `--apply-patches FILE` — accept a JSON patches file and apply them deterministically
+
+**Canonical example: `scripts/editorial-audit-upstream.js`**
+
+```js
+// Mode switching
+switch (opts.mode) {
+  case 'list-targets':     return modeListTargets(opts)
+  case 'print-principles': return modePrintPrinciples()
+  case 'apply-patches':    return modeApplyPatches(opts)
+}
+```
+
+**Slash command (`.claude/commands/editorial-audit-upstream.md`) drives the loop:**
+1. `bun scripts/editorial-audit-upstream.js --list-targets --since YESTERDAY` → parse JSON → iterate batches
+2. Claude Code reads each batch's `rendered` text + the shared `systemPrompt`, reasons, produces patches
+3. Write patches to `/tmp/patches.json`
+4. `bun scripts/editorial-audit-upstream.js --apply-patches /tmp/patches.json`
+
+**Idempotency via audit-version stamping:**
+```js
+// scripts/lib/editorial-audit-lib.js
+export const AUDIT_VERSION = 1
+
+export function collectAuditTargets(state, opts) {
+  const alreadyAudited = (state.editorialAudits || [])
+    .filter(a => a.auditVersion === (opts.auditVersion ?? AUDIT_VERSION))
+    .map(a => `${a.kind}:${a.id}`)
+  // ... return only targets NOT in alreadyAudited
+}
+```
+
+**Whitelist-guarded patch application:**
+```js
+const ANALYSIS_WHITELISTED_FIELDS = ['summary', 'keyThemes', 'postPotentialReasoning']
+// Patches to any other field are rejected and logged
+```
+
+**Stale-snapshot rejection:**
+```js
+// oldValue must match current field text (whitespace-tolerant)
+if (normaliseWhitespace(currentValue) !== normaliseWhitespace(patch.oldValue)) {
+  skipped++
+  continue
+}
+```
+
+Use this pattern whenever the "LLM reasoning" step is better served by a subscription Claude Code session than a metered API call. Reserve callOpus for the Fly-hosted surfaces (the web app) and scripts that must run without Claude Code available.
+
+---
+
+## Pre-push deploy hook (Phase 8)
+
+`scripts/git-hooks/pre-push` deploys to Fly BEFORE every push to master. If deploy fails, the push aborts — GitHub and Fly can never drift.
+
+```bash
+#!/usr/bin/env bash
+# scripts/git-hooks/pre-push
+set -e
+
+z40="0000000000000000000000000000000000000000"
+deploy_needed=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$local_ref" in
+        refs/heads/master|refs/heads/main)
+            [ "$local_sha" = "$z40" ] && continue      # delete
+            [ "$local_sha" = "$remote_sha" ] && continue  # no-op
+            deploy_needed=1
+            ;;
+    esac
+done
+
+[ "$deploy_needed" -eq 0 ] && exit 0
+
+if ! fly deploy --remote-only; then
+    echo "[pre-push] Fly deploy FAILED — aborting push to keep origin and Fly in sync."
+    exit 1
+fi
+```
+
+**Activation (one-time per clone):**
+```bash
+git config core.hooksPath scripts/git-hooks
+```
+
+**Escape hatch:** `git push --no-verify` skips the hook for one push (docs-only change, or you've already deployed manually).
+
+**Why not CI deploy:** a CI-based `fly deploy` would need `FLY_API_TOKEN` in GitHub Secrets. Keeping the token local (in `~/.fly/`) is simpler and more secure.
+
+**Writing git hooks in the repo:** standard git hooks live in `.git/hooks/` (not tracked). Using `core.hooksPath` lets us track them in `scripts/git-hooks/` and activate via one config command on any clone.
