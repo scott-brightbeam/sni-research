@@ -350,12 +350,11 @@ function Search(){
 
 /* ---------- Section Page shell ---------- */
 /* ---------- Section Page shell ----------
-   The L3 in-page TOC has moved into the Rail (left side, app-wide).
-   This component now just lays out the section main column with its
-   prev/next footer. The `anchors` prop is accepted for back-compat with
-   call sites in sections.jsx but no longer used internally — the rail
-   reads SECTION_ANCHORS directly. */
-function SectionPage({ sectionId, sectionTitle, sectionNum, anchors, children, nextLink, prevLink }){
+   The L3 in-page TOC lives in the Rail (left side, app-wide). This
+   component just lays out the section main column with its prev/next
+   footer. Anchors are owned by SECTION_ANCHORS above (single source of
+   truth for the rail). */
+function SectionPage({ sectionId, sectionTitle, sectionNum, children, nextLink, prevLink }){
   return (
     <div className="section-page">
       {children}

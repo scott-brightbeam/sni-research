@@ -148,10 +148,6 @@ function SecContext(){
   return (
     <SectionPage
       sectionId="context" sectionNum="02" sectionTitle="Context & Case"
-      anchors={[
-        { id:'starting-point', label:'The starting point' },
-        { id:'business-case',  label:'The business case' },
-      ]}
       prevLink={{ id:'home', title:'Home' }}
       nextLink={{ id:'proposal', title:'The proposal' }}>
 
@@ -291,36 +287,13 @@ function SecProposal({ tab }){
   };
 
   let body = null;
-  let anchors = [];
-  if (value === 'shape'){
-    anchors = [
-      { id:'streams',  label:'The three workstreams' },
-      { id:'usecases', label:'The candidate set' },
-      { id:'alpha',    label:'Selecting the candidates' },
-      { id:'gmp',      label:'Phase 2 / GMP pathway' },
-    ];
-    body = <ProposalShape/>;
-  } else if (value === 'commercials'){
-    anchors = [
-      { id:'investment',  label:'Investment' },
-      { id:'bdp',         label:'BDP application' },
-      { id:'timeline',    label:'Timeline' },
-      { id:'assumptions', label:'Assumptions & exclusions' },
-    ];
-    body = <ProposalCommercials/>;
-  } else {
-    anchors = [
-      { id:'governance', label:'Governance, risk & change' },
-      { id:'appa',       label:'BDP technical reference' },
-      { id:'close',      label:'Next steps' },
-    ];
-    body = <ProposalDetail/>;
-  }
+  if (value === 'shape')             body = <ProposalShape/>;
+  else if (value === 'commercials')  body = <ProposalCommercials/>;
+  else                                body = <ProposalDetail/>;
 
   return (
     <SectionPage
       sectionId="proposal" sectionNum="03" sectionTitle="The proposal"
-      anchors={anchors}
       prevLink={{ id:'context', title:'Context & business case' }}
       nextLink={{ id:'tacit', title:'Tacit knowledge' }}>
       {body}
@@ -622,16 +595,9 @@ function ProposalDetail(){
 
 /* ======================== 04 TACIT KNOWLEDGE ======================== */
 function SecTacit(){
-  const anchors = [
-    { id:'why',      label:'The background of tacit knowledge' },
-    { id:'taxonomy', label:'The Unified Taxonomy' },
-    { id:'method',   label:'How Brightbeam captures' },
-    { id:'karr',     label:'Knowledge-at-risk register' },
-  ];
   return (
     <SectionPage
       sectionId="tacit" sectionNum="04" sectionTitle="Tacit knowledge"
-      anchors={anchors}
       prevLink={{ id:'proposal', title:'The proposal' }}
       nextLink={{ id:'aimn', title:'Becoming AI-native' }}>
       <PageHead
@@ -761,20 +727,9 @@ function SecTacit(){
 
 /* ======================== 05 BECOMING AI-NATIVE ======================== */
 function SecAIN(){
-  const anchors = [
-    { id:'destination', label:'AI-native as a destination' },
-    { id:'survival',    label:'Why AI-native is a survival question' },
-    { id:'regulation',  label:'The regulatory environment' },
-    { id:'position',    label:'Our position' },
-    { id:'phase1',      label:'Starting the flywheel · Phase 1' },
-    { id:'phase2',      label:'Phase 2 – Scale and integration' },
-    { id:'phase3',      label:'Phase 3 – AI-native' },
-    { id:'benefits',    label:'Benefits that accrue along the way' },
-  ];
   return (
     <SectionPage
       sectionId="aimn" sectionNum="05" sectionTitle="Becoming AI-native"
-      anchors={anchors}
       prevLink={{ id:'tacit', title:'Tacit knowledge' }}>
       <PageHead
         eyebrow="§ 05 · Becoming AI-native · Appendix E"
@@ -860,19 +815,9 @@ function SecAIN(){
 
 /* ======================== 06 WHY BRIGHTBEAM ======================== */
 function SecWhyBB(){
-  const anchors = [
-    { id:'opening',     label:'Right of selection, right of scrutiny' },
-    { id:'track',       label:'A delivery track record' },
-    { id:'methodology', label:'A methodology grounded in published validity' },
-    { id:'grant',       label:'Our grant experience' },
-    { id:'infra',       label:'Operational infrastructure match' },
-    { id:'close',       label:'The cumulative effect' },
-    { id:'glossary',    label:'Glossary · Appendix B' },
-  ];
   return (
     <SectionPage
       sectionId="why" sectionNum="06" sectionTitle="Why Brightbeam"
-      anchors={anchors}
       prevLink={{ id:'aimn', title:'Becoming AI-native' }}
       nextLink={{ id:'home', title:'Home' }}>
       <PageHead
