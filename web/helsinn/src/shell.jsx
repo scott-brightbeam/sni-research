@@ -1,7 +1,9 @@
 /* =========================================================================
    Brightbeam × Helsinn proposal site – shell
-   TopNav, router, SectionPage, Tabs, SideTOC, LiveCall mode, Search
-   Exports: App, SectionPage, Tabs, PageHead, Sub, useScrollSpy, setHash
+   Rail (left-side primary navigation), TopBar (slim, Contact-only),
+   router, SectionPage, Tabs, LiveCall mode, Search.
+   Exports: App, SectionPage, Tabs, PageHead, Sub, Footer, Rail, TopBar,
+            BrightbeamLogo, SECTIONS, setHash, parseHash, useScrollSpy.
    ========================================================================= */
 
 import React from 'react';
@@ -31,77 +33,222 @@ function setHash(section, tab, anchor){
   }
 }
 
-/* ---------- Site-wide primary nav ---------- */
+/* ---------- Site-wide primary nav ----------
+   `hasTabs` flags sections whose body has sub-tabs — currently only `proposal`.
+   The rail uses this to know whether to render L2 (sub-tabs) under the L1 entry. */
 const SECTIONS = [
-  { id: 'home',      num: '01', short: 'Home',              title: 'Home' },
-  { id: 'context',   num: '02', short: 'Context & Case',     title: 'Context & Case' },
-  { id: 'proposal',  num: '03', short: 'The proposal',      title: 'The proposal' },
-  { id: 'tacit',     num: '04', short: 'Tacit knowledge',   title: 'Tacit knowledge' },
-  { id: 'aimn',      num: '05', short: 'Becoming AI-native',title: 'Becoming AI-native' },
+  { id: 'home',      num: '01', short: 'Home',                title: 'Home',                hasTabs: false },
+  { id: 'context',   num: '02', short: 'Context & Case',      title: 'Context & Case',      hasTabs: false },
+  { id: 'proposal',  num: '03', short: 'The proposal',        title: 'The proposal',        hasTabs: true  },
+  { id: 'tacit',     num: '04', short: 'Tacit knowledge',     title: 'Tacit knowledge',     hasTabs: false },
+  { id: 'aimn',      num: '05', short: 'Becoming AI-native',  title: 'Becoming AI-native',  hasTabs: false },
 ];
 
-/* ---------- Top Nav ---------- */
-const PROPOSAL_SUBTABS = [
-  { id:'shape',       label:'The programme shape' },
-  { id:'commercials', label:'The commercials' },
-  { id:'detail',      label:'The detail' },
+/* ---------- Proposal sub-tabs (L2 under "The proposal" in the rail) ---------- */
+const PROPOSAL_TABS = [
+  { id: 'shape',       label: 'The programme shape' },
+  { id: 'commercials', label: 'The commercials' },
+  { id: 'detail',      label: 'The detail' },
 ];
 
-function TopNav({ route, onLiveToggle, liveCall }){
-  const onProposal = route.section === 'proposal';
-  const activeTab = onProposal ? (route.tab || 'shape') : null;
+/* ---------- L3 anchor map ----------
+   Mirrors the anchor lists hardcoded in sections.jsx. Keyed by section id, or
+   `${section}:${tab}` for proposal panes. The rail reads this to render the
+   in-page TOC. Keep in sync with sections.jsx if anchors change. */
+const SECTION_ANCHORS = {
+  context: [
+    { id: 'starting-point', label: 'The starting point' },
+    { id: 'business-case',  label: 'The business case' },
+  ],
+  'proposal:shape': [
+    { id: 'streams',  label: 'The three workstreams' },
+    { id: 'usecases', label: 'The candidate set' },
+    { id: 'alpha',    label: 'Selecting the candidates' },
+    { id: 'gmp',      label: 'Phase 2 / GMP pathway' },
+  ],
+  'proposal:commercials': [
+    { id: 'investment',  label: 'Investment' },
+    { id: 'bdp',         label: 'BDP application' },
+    { id: 'timeline',    label: 'Timeline' },
+    { id: 'assumptions', label: 'Assumptions & exclusions' },
+  ],
+  'proposal:detail': [
+    { id: 'governance', label: 'Governance, risk & change' },
+    { id: 'appa',       label: 'BDP technical reference' },
+    { id: 'close',      label: 'Next steps' },
+  ],
+  tacit: [
+    { id: 'why',      label: 'The background of tacit knowledge' },
+    { id: 'taxonomy', label: 'The Unified Taxonomy' },
+    { id: 'method',   label: 'How Brightbeam captures' },
+    { id: 'karr',     label: 'Knowledge-at-risk register' },
+  ],
+  aimn: [
+    { id: 'destination', label: 'AI-native as a destination' },
+    { id: 'survival',    label: 'Why AI-native is a survival question' },
+    { id: 'regulation',  label: 'The regulatory environment' },
+    { id: 'position',    label: 'Our position' },
+    { id: 'phase1',      label: 'Starting the flywheel · Phase 1' },
+    { id: 'phase2',      label: 'Phase 2 – Scale and integration' },
+    { id: 'phase3',      label: 'Phase 3 – AI-native' },
+    { id: 'benefits',    label: 'Benefits that accrue along the way' },
+  ],
+};
+
+/* ---------- Brightbeam logo (inline SVG; no external assets) ----------
+   Two-tone A-frame: black outline + ember inner V. Wordmark in Arial to
+   match the site's typography (no serif font dependency). */
+function BrightbeamLogo(){
   return (
-    <header className="topnav">
-      <div className="topnav__inner">
-        <a className="topnav__brand" href="#home" onClick={(e)=>{e.preventDefault(); setHash('home'); window.dispatchEvent(new HashChangeEvent('hashchange'))}}>
-          <img className="topnav__brand-logo" src="assets/brightbeam-logo.png" alt="Brightbeam" />
-          <span className="topnav__brand-sub">× Helsinn · Phase 1</span>
+    <svg viewBox="0 0 140 32" aria-hidden="true">
+      <path d="M6 26 L18 6 L30 26 Z" fill="none" stroke="#111" strokeWidth="2.4" strokeLinejoin="round"/>
+      <path d="M12 26 L18 16 L24 26" fill="none" stroke="#EA4700" strokeWidth="2.4" strokeLinejoin="round"/>
+      <text x="40" y="22" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="600" fill="#111" letterSpacing="-0.3">Brightbeam</text>
+    </svg>
+  );
+}
+
+/* ---------- Slim top bar (functions only) ----------
+   The rail handles all content navigation. The top bar is reserved for
+   functions — currently just the Contact mailto. */
+function TopBar(){
+  return (
+    <header className="topbar">
+      <div className="topbar__inner">
+        <a className="topbar__contact" href="mailto:scott.wilkinson@brightbeam.com">
+          Contact
         </a>
-        <nav className="topnav__nav" aria-label="Primary">
-          {SECTIONS.map(s => (
-            <a
-              key={s.id}
-              href={'#' + s.id}
-              className={route.section === s.id ? 'is-active' : ''}
-              onClick={(e)=>{
-                e.preventDefault();
-                setHash(s.id);
-                window.dispatchEvent(new HashChangeEvent('hashchange'));
-                window.scrollTo({ top:0, behavior:'instant' });
-              }}>
-              {s.short}
-            </a>
-          ))}
-          <a
-            className="topnav__contact"
-            href="mailto:scott.wilkinson@brightbeam.com">
-            Contact
-          </a>
-        </nav>
       </div>
-      {onProposal && (
-        <div className="topnav__subrow">
-          <div className="topnav__subinner">
-            <nav className="topnav__subnav" aria-label="Proposal sub-sections">
-              {PROPOSAL_SUBTABS.map((t, i) => (
-                <a
-                  key={t.id}
-                  href={`#proposal:${t.id}`}
-                  className={'topnav__subnav-item ' + (activeTab === t.id ? 'is-active' : '')}
-                  onClick={(e)=>{
-                    e.preventDefault();
-                    setHash('proposal', t.id);
-                    window.dispatchEvent(new HashChangeEvent('hashchange'));
-                    window.scrollTo({ top:0, behavior:'instant' });
-                  }}>
-                  <span className="topnav__subnav-label">{t.label}</span>
-                </a>
-              ))}
-            </nav>
-          </div>
-        </div>
-      )}
     </header>
+  );
+}
+
+/* ---------- Rail (left-side primary navigation) ----------
+   Three nested levels:
+     L1 — site sections (always visible)
+     L2 — sub-tabs of the current section (only Proposal has them)
+     L3 — in-page anchors of the current section/tab (scroll-spy active)
+
+   Click handlers route through setHash(); identical pattern to the prior
+   TopNav so the URL hash is the single source of truth. */
+function Rail({ route }){
+  const currentSection = SECTIONS.find(s => s.id === route.section) || SECTIONS[0];
+  const currentTabId = currentSection.hasTabs ? (route.tab || PROPOSAL_TABS[0].id) : null;
+
+  const anchorKey = currentSection.hasTabs ? `${currentSection.id}:${currentTabId}` : currentSection.id;
+  const currentAnchors = SECTION_ANCHORS[anchorKey] || [];
+
+  const activeAnchor = useScrollSpy(currentAnchors.map(a => a.id));
+
+  const goToAnchor = (e, anchorId) => {
+    e.preventDefault();
+    const el = document.getElementById(anchorId);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  };
+
+  const goToSection = (e, sectionId, tabId) => {
+    e.preventDefault();
+    setHash(sectionId, tabId || null);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.scrollTo({ top:0, behavior:'instant' });
+  };
+
+  return (
+    <aside className="rail" aria-label="Site navigation">
+      <a
+        className="rail__logo"
+        href="#home"
+        aria-label="Brightbeam home"
+        onClick={(e) => goToSection(e, 'home')}>
+        <BrightbeamLogo/>
+      </a>
+
+      <nav className="rail__nav" aria-label="Primary">
+        <ul className="rail__list">
+          {SECTIONS.map(s => {
+            const isCurrent = route.section === s.id;
+            const hasL2 = s.hasTabs;
+            const isOpen = isCurrent;
+            const itemCls = ['rail__item']
+              .concat(hasL2 ? [] : ['rail__item--leaf'])
+              .concat(isCurrent ? ['is-current'] : [])
+              .concat(isOpen ? ['is-open'] : [])
+              .join(' ');
+
+            return (
+              <li key={s.id} className={itemCls}>
+                <a
+                  className="rail__l1"
+                  href={'#' + s.id}
+                  onClick={(e) => goToSection(e, s.id)}>
+                  <span className="rail__l1-num">{s.num}</span>
+                  <span className="rail__l1-label">{s.short}</span>
+                  {hasL2 && (
+                    <svg className="rail__l1-chev" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M5 3 L11 8 L5 13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </a>
+
+                {hasL2 && (
+                  <div className="rail__l2-wrap">
+                    <ul className="rail__l2-list">
+                      {PROPOSAL_TABS.map(t => {
+                        const isCurrentTab = isCurrent && currentTabId === t.id;
+                        const tabAnchors = isCurrentTab ? currentAnchors : [];
+                        return (
+                          <li key={t.id} className={'rail__l2-item' + (isCurrentTab ? ' is-current' : '')}>
+                            <a
+                              className="rail__l2"
+                              href={`#${s.id}:${t.id}`}
+                              onClick={(e) => goToSection(e, s.id, t.id)}>
+                              {t.label}
+                            </a>
+                            {isCurrentTab && tabAnchors.length > 0 && (
+                              <div className="rail__l3-wrap">
+                                <ul className="rail__l3-list">
+                                  {tabAnchors.map(a => (
+                                    <li key={a.id} className="rail__l3-item">
+                                      <a
+                                        className={'rail__l3' + (activeAnchor === a.id ? ' is-active' : '')}
+                                        href={`#${s.id}:${t.id}#${a.id}`}
+                                        onClick={(e) => goToAnchor(e, a.id)}>
+                                        {a.label}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {!hasL2 && isCurrent && currentAnchors.length > 0 && (
+                  <div className="rail__l3-wrap">
+                    <ul className="rail__l3-list">
+                      {currentAnchors.map(a => (
+                        <li key={a.id} className="rail__l3-item">
+                          <a
+                            className={'rail__l3' + (activeAnchor === a.id ? ' is-active' : '')}
+                            href={`#${s.id}#${a.id}`}
+                            onClick={(e) => goToAnchor(e, a.id)}>
+                            {a.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </aside>
   );
 }
 
@@ -202,63 +349,40 @@ function Search(){
 }
 
 /* ---------- Section Page shell ---------- */
+/* ---------- Section Page shell ----------
+   The L3 in-page TOC has moved into the Rail (left side, app-wide).
+   This component now just lays out the section main column with its
+   prev/next footer. The `anchors` prop is accepted for back-compat with
+   call sites in sections.jsx but no longer used internally — the rail
+   reads SECTION_ANCHORS directly. */
 function SectionPage({ sectionId, sectionTitle, sectionNum, anchors, children, nextLink, prevLink }){
-  // Scroll spy for tertiary TOC
-  const activeAnchor = useScrollSpy(anchors.map(a => a.id));
-
   return (
-    <>
-      <div className="section-page">
-        <aside className="section-page__side" aria-label="Section navigation">
-          <span className="side-marker">{sectionTitle}</span>
-          <p className="side-toc__label">On this page</p>
-          <ul className="side-toc__list">
-            {anchors.map(a => (
-              <li key={a.id}>
-                <a
-                  href={'#' + a.id}
-                  className={`side-toc__link ${activeAnchor === a.id ? 'is-active' : ''}`}
-                  onClick={(e)=>{
-                    e.preventDefault();
-                    const el = document.getElementById(a.id);
-                    if (el){
-                      el.scrollIntoView({ behavior:'smooth', block:'start' });
-                    }
-                  }}>
-                  {a.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </aside>
-        <main className="section-page__main">
-          {children}
+    <div className="section-page">
+      {children}
 
-          {(nextLink || prevLink) && (
-            <div className="section-footer">
-              <div>
-                {prevLink && (
-                  <a className="section-footer__link" href={'#' + prevLink.id}
-                    onClick={(e)=>{ e.preventDefault(); setHash(prevLink.id); window.dispatchEvent(new HashChangeEvent('hashchange')); window.scrollTo({top:0, behavior:'instant'}) }}>
-                    <span className="section-footer__caps">← Previous</span>
-                    <span className="section-footer__title">{prevLink.title}</span>
-                  </a>
-                )}
-              </div>
-              <div>
-                {nextLink && (
-                  <a className="section-footer__link section-footer__link--next" href={'#' + nextLink.id}
-                    onClick={(e)=>{ e.preventDefault(); setHash(nextLink.id); window.dispatchEvent(new HashChangeEvent('hashchange')); window.scrollTo({top:0, behavior:'instant'}) }}>
-                    <span className="section-footer__caps">Next →</span>
-                    <span className="section-footer__title">{nextLink.title}</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    </>
+      {(nextLink || prevLink) && (
+        <div className="section-footer">
+          <div>
+            {prevLink && (
+              <a className="section-footer__link" href={'#' + prevLink.id}
+                onClick={(e)=>{ e.preventDefault(); setHash(prevLink.id); window.dispatchEvent(new HashChangeEvent('hashchange')); window.scrollTo({top:0, behavior:'instant'}) }}>
+                <span className="section-footer__caps">← Previous</span>
+                <span className="section-footer__title">{prevLink.title}</span>
+              </a>
+            )}
+          </div>
+          <div>
+            {nextLink && (
+              <a className="section-footer__link section-footer__link--next" href={'#' + nextLink.id}
+                onClick={(e)=>{ e.preventDefault(); setHash(nextLink.id); window.dispatchEvent(new HashChangeEvent('hashchange')); window.scrollTo({top:0, behavior:'instant'}) }}>
+                <span className="section-footer__caps">Next →</span>
+                <span className="section-footer__title">{nextLink.title}</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -430,12 +554,17 @@ function App(){
 
   return (
     <>
-      <TopNav route={route} liveCall={liveCall} onLiveToggle={()=>setLiveCall(v=>!v)}/>
-      <div
-        key={route.section + ':' + (route.tab || '')}
-        className="route-fade"
-        data-screen-label={`${route.section}${route.tab ? ':' + route.tab : ''}`}>
-        {body}
+      <TopBar/>
+      <div className="shell">
+        <Rail route={route}/>
+        <main
+          className="shell__main"
+          key={route.section + ':' + (route.tab || '')}
+          data-screen-label={`${route.section}${route.tab ? ':' + route.tab : ''}`}>
+          <div className="route-fade">
+            {body}
+          </div>
+        </main>
       </div>
       <Footer/>
     </>
@@ -443,6 +572,6 @@ function App(){
 }
 
 export {
-  App, SectionPage, Tabs, PageHead, Sub, Footer, TopNav,
+  App, SectionPage, Tabs, PageHead, Sub, Footer, Rail, TopBar, BrightbeamLogo,
   SECTIONS, setHash, parseHash, useScrollSpy,
 };

@@ -82,163 +82,225 @@ li{ margin-bottom:0.4em; color:var(--ink-2); max-width:64ch }
 ::selection{ background:var(--ember); color:var(--paper) }
 
 /* =========================================================================
-   TOP NAV (primary)
+   APP SHELL — rail + main (left-rail navigation pattern)
+   The rail is the canonical content navigation surface.
+   The topbar (below) is functions-only (Contact).
    ========================================================================= */
-.topnav{
+:root{
+  --rail-w: 280px;
+  --rail-gutter: 48px;
+  --topbar-h: 56px;
+}
+
+.shell{
+  max-width:var(--maxw-wide);
+  margin:0 auto;
+  padding:0 var(--gutter);
+  display:grid;
+  grid-template-columns: var(--rail-w) 1fr;
+  gap: var(--rail-gutter);
+  align-items:start;
+}
+
+/* ---------- Rail (left, sticky) ---------- */
+.rail{
+  position:sticky; top:0;
+  align-self:start;
+  max-height:100vh;
+  overflow-y:auto;
+  padding:24px 16px 48px 0;
+  margin-right:-16px;
+  border-right:var(--rule-thin);
+  scrollbar-width:thin;
+  scrollbar-color:var(--faint) transparent;
+}
+.rail::-webkit-scrollbar{ width:6px }
+.rail::-webkit-scrollbar-track{ background:transparent }
+.rail::-webkit-scrollbar-thumb{ background:var(--faint); border-radius:3px }
+.rail::-webkit-scrollbar-thumb:hover{ background:var(--gray-2) }
+
+.rail__logo{
+  display:inline-flex; align-items:center;
+  text-decoration:none; color:var(--ink);
+  height:36px; margin:4px 0 28px;
+}
+.rail__logo svg{ height:32px; width:auto; display:block }
+
+/* ---------- L1: site sections ---------- */
+.rail__nav{ font-size:14px }
+.rail__list{ list-style:none; margin:0; padding:0 }
+.rail__item{
+  margin:0;
+  border-bottom:1px solid var(--faint-2);
+}
+.rail__item:last-child{ border-bottom:none }
+
+.rail__l1{
+  display:grid; grid-template-columns:26px 1fr auto;
+  align-items:center; gap:6px;
+  padding:11px 0;
+  width:100%; background:none; border:none; cursor:pointer;
+  font:inherit; text-align:left; line-height:1.25;
+  color:var(--ink-2); text-decoration:none;
+  letter-spacing:0.1px;
+  transition:color var(--dur-fast) var(--ease);
+}
+.rail__l1:hover{ color:var(--ink) }
+.rail__l1-num{
+  font-size:10px; letter-spacing:1.4px; font-weight:700;
+  color:var(--gray); text-transform:uppercase;
+  transition:color var(--dur-fast) var(--ease);
+}
+.rail__l1-label{
+  font-size:14px; font-weight:500;
+  transition:font-weight var(--dur-fast) var(--ease);
+}
+.rail__l1-chev{
+  width:14px; height:14px; color:var(--gray);
+  transition:transform var(--dur-med) var(--ease);
+  flex-shrink:0;
+}
+.rail__item.is-open > .rail__l1 .rail__l1-chev{
+  transform:rotate(90deg); color:var(--ember);
+}
+.rail__item.is-current > .rail__l1{ color:var(--ember) }
+.rail__item.is-current > .rail__l1 .rail__l1-num{ color:var(--ember) }
+.rail__item.is-current > .rail__l1 .rail__l1-label{ font-weight:700 }
+
+/* L1 with no children — single column, no chevron, no kicker spacing */
+.rail__item--leaf .rail__l1{ grid-template-columns:26px 1fr }
+.rail__item--leaf .rail__l1 .rail__l1-chev{ display:none }
+
+/* ---------- L2: collapsible sub-list ---------- */
+.rail__l2-wrap{
+  max-height:0; overflow:hidden;
+  transition:max-height var(--dur-med) var(--ease);
+}
+.rail__item.is-open > .rail__l2-wrap{ max-height:1600px }
+
+.rail__l2-list{
+  list-style:none; margin:0;
+  padding:0 0 12px;
+}
+.rail__l2-item{ margin:0 }
+
+.rail__l2{
+  display:block;
+  padding:7px 0 7px 12px;
+  margin-left:6px;
+  font-size:13px; line-height:1.35;
+  color:var(--ink-2); text-decoration:none;
+  border-left:1.5px solid var(--faint);
+  font-weight:500;
+  transition:color var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             background var(--dur-fast) var(--ease);
+}
+.rail__l2:hover{
+  color:var(--ink);
+  border-left-color:var(--ink);
+}
+.rail__l2-item.is-current > .rail__l2{
+  color:var(--ember);
+  border-left-color:var(--ember);
+  font-weight:700;
+  background:linear-gradient(90deg, rgba(234,71,0,0.05), transparent 40%);
+}
+
+/* ---------- L3: in-page anchors (scroll-spy active) ---------- */
+.rail__l3-wrap{
+  max-height:0; overflow:hidden;
+  transition:max-height var(--dur-med) var(--ease);
+}
+.rail__l2-item.is-current > .rail__l3-wrap{ max-height:800px }
+/* Or, if there is no L2, L3 hangs off the L1 (leaf section like Context) */
+.rail__item.is-current.rail__item--leaf > .rail__l3-wrap{ max-height:800px }
+
+.rail__l3-list{
+  list-style:none;
+  margin:4px 0 8px 24px;
+  padding:4px 0 4px 0;
+  border-left:1.5px dashed var(--faint);
+}
+.rail__l3-item{ margin:0 }
+
+.rail__l3{
+  display:block;
+  padding:5px 0 5px 12px;
+  font-size:12px; line-height:1.4;
+  color:var(--gray); text-decoration:none;
+  transition:color var(--dur-fast) var(--ease);
+}
+.rail__l3:hover{ color:var(--ink-2) }
+.rail__l3.is-active{
+  color:var(--ember); font-weight:700;
+}
+
+/* When L1 is a leaf with L3 directly attached, the L3 list nests under the L1 not under an L2 */
+.rail__item--leaf .rail__l3-list{ margin-left:30px }
+
+/* ---------- TOP BAR (slim, functions only) ---------- */
+.topbar{
   position:sticky; top:0; z-index:40;
+  height:var(--topbar-h);
   background:rgba(255,255,255,0.96);
   backdrop-filter:blur(6px);
   border-bottom:var(--rule-thin);
 }
-.topnav__inner{
+.topbar__inner{
   max-width:var(--maxw-wide); margin:0 auto;
-  padding:14px var(--gutter);
-  display:grid; grid-template-columns:auto 1fr; gap:24px;
-  align-items:center;
+  height:100%;
+  padding:0 var(--gutter);
+  display:flex; align-items:center; justify-content:flex-end;
+  gap:18px;
 }
-.topnav__brand{
-  display:flex; align-items:baseline; gap:10px;
-  text-decoration:none; color:var(--ink);
+.topbar__contact{
+  font-size:13px; letter-spacing:var(--ls-caps-tight);
+  text-transform:uppercase;
+  color:var(--ink-2); text-decoration:none; font-weight:700;
+  padding:6px 14px;
+  border:1px solid var(--ink-2);
+  border-radius:999px;
+  transition:color var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             background var(--dur-fast) var(--ease);
 }
-.topnav__brand-mark{
-  font-weight:900; font-size:18px; letter-spacing:-0.4px;
-  color:var(--ink);
+.topbar__contact:hover{
+  color:var(--paper); background:var(--ink); border-color:var(--ink);
 }
-.topnav__brand-mark .dot{ color:var(--ember) }
-.topnav__brand-logo{
-  display:block; height:28px; width:auto;
+
+/* ---------- Mobile: rail stacks on top, no sticky ---------- */
+@media (max-width: 960px){
+  .shell{
+    grid-template-columns:1fr;
+    gap:0;
+    padding:0 var(--gutter);
+  }
+  .rail{
+    position:static; max-height:none; overflow:visible;
+    padding:24px 0 16px;
+    margin-right:0;
+    border-right:none;
+    border-bottom:var(--rule-thin);
+  }
 }
+
+/* Footer brand logo (separate from rail logo — used by Footer.jsx) */
 .footer__brand-logo{
   display:block; height:24px; width:auto; margin-bottom:14px;
 }
-.topnav__brand-sub{
-  font-size:11px; letter-spacing:var(--ls-caps);
-  text-transform:uppercase; color:var(--gray); font-weight:700;
-  white-space:nowrap;
-}
-.topnav__nav{
-  display:flex; gap:2px; justify-content:center; flex-wrap:nowrap;
-}
-.topnav__nav a{
-  text-decoration:none; color:var(--ink-2);
-  padding:8px 12px;
-  font-size:13px; font-weight:600;
-  border-radius:2px;
-  position:relative;
-  white-space:nowrap;
-  transition:color var(--dur-fast) var(--ease);
-}
-.topnav__nav a:hover{ color:var(--ember) }
-.topnav__nav a.is-active{ color:var(--ember) }
-.topnav__nav a.is-active::after{
-  content:''; position:absolute; left:12px; right:12px; bottom:2px;
-  height:2px; background:var(--ember);
-}
 
-/* Contact CTA – sits inside nav but styled distinctly */
-.topnav__nav a.topnav__contact{
-  margin-left:12px;
-  padding:8px 14px;
-  background:var(--ember);
-  color:#fff;
-  border-radius:2px;
-}
-.topnav__nav a.topnav__contact:hover{
-  color:#fff;
-  background:#000;
-}
-.topnav__nav a.topnav__contact::after{ display:none; }
-
-.topnav__search{
-  position:relative; width:220px;
-}
-.topnav__search input{
-  width:100%; padding:8px 12px 8px 30px;
-  font-family:var(--sans); font-size:13px;
-  border:1px solid var(--faint); background:var(--paper);
-  border-radius:2px;
-  color:var(--ink);
-}
-.topnav__search input:focus{
-  outline:none; border-color:var(--ink);
-}
-.topnav__search::before{
-  content:''; position:absolute; left:10px; top:50%;
-  width:12px; height:12px;
-  transform:translateY(-50%);
-  background:
-    radial-gradient(circle at 5px 5px, transparent 3px, var(--gray) 3px, var(--gray) 4px, transparent 4.5px);
-}
-.topnav__search-icon{
-  position:absolute; left:8px; top:50%; transform:translateY(-50%);
-  width:14px; height:14px; pointer-events:none; color:var(--gray);
-}
-
-.topnav__live{
-  background:var(--paper); color:var(--ink-2);
-  border:1px solid var(--faint);
-  padding:8px 14px; font-size:12px; font-weight:700;
-  letter-spacing:var(--ls-caps-tight); text-transform:uppercase;
-  cursor:pointer; border-radius:2px;
-  display:inline-flex; align-items:center; gap:8px;
-  transition:all var(--dur-fast) var(--ease);
-  font-family:var(--sans);
-}
-.topnav__live:hover{ border-color:var(--ink); color:var(--ink) }
-.topnav__live.is-on{
-  background:var(--ember); color:var(--paper); border-color:var(--ember);
-}
-.topnav__live-dot{
-  width:8px; height:8px; border-radius:50%;
-  border:1.5px solid currentColor; background:transparent;
-}
-.topnav__live.is-on .topnav__live-dot{ background:var(--paper); border-color:var(--paper) }
-
-/* Sub-nav row (under primary nav – used by The Proposal section) */
-.topnav__subrow{
-  border-top:var(--rule-thin);
-  background:rgba(255,255,255,0.96);
-}
-.topnav__subinner{
-  max-width:var(--maxw-wide); margin:0 auto;
-  padding:0 var(--gutter);
-}
-.topnav__subnav{
-  max-width:900px; margin:0 auto;
-  display:flex; gap:40px; align-items:stretch;
-}
-.topnav__subnav-item{
-  display:flex; align-items:center; gap:10px;
-  padding:14px 0;
-  text-decoration:none;
-  color:var(--ink-2);
-  font-size:13px; font-weight:700;
-  letter-spacing:0.02em;
-  border-bottom:2px solid transparent;
-  margin-bottom:-1px;
-  transition:color .15s ease, border-color .15s ease;
-}
-.topnav__subnav-item:hover{ color:var(--ink) }
-.topnav__subnav-item.is-active{
-  color:var(--ember);
-  border-bottom-color:var(--ember);
-}
-.topnav__subnav-num{
-  font-size:10px; letter-spacing:var(--ls-caps);
-  text-transform:uppercase; color:#888;
-  font-weight:600;
-}
-.topnav__subnav-item.is-active .topnav__subnav-num{ color:var(--ember); opacity:0.7 }
-
-/* Live-call mode: hide tertiary TOC for clean scroll */
-body.live-call .section-page__side,
+/* Live-call mode: hide chrome for clean scroll during presentations */
+body.live-call .topbar,
+body.live-call .rail,
 body.live-call .section-footer{
   display:none !important;
 }
-body.live-call .section-page{
+body.live-call .shell{
   grid-template-columns:1fr !important;
+  gap:0 !important;
 }
-body.live-call .section-page__main{
+body.live-call .shell__main{
   max-width:900px; margin:0 auto; width:100%;
 }
 
@@ -550,75 +612,16 @@ body.live-call .section-page__main{
 .btn-secondary:hover{ background:var(--ink); color:var(--paper) }
 
 /* =========================================================================
-   SECTION PAGE (layout: sticky side TOC + main)
+   SECTION PAGE (single column inside the .shell grid)
+   The L3 in-page TOC has moved into the rail.
    ========================================================================= */
 .section-page{
-  max-width:var(--maxw-wide); margin:0 auto;
-  padding:clamp(32px, 4vw, 56px) var(--gutter) 0;
-  display:grid; grid-template-columns:240px 1fr;
-  gap:clamp(32px, 4vw, 64px);
-  align-items:start;
-}
-@media (max-width:1024px){
-  .section-page{ grid-template-columns:1fr; padding-top:24px }
-}
-
-/* Side TOC */
-.section-page__side{
-  position:sticky; top:76px;
-  align-self:start;
-  padding-top:clamp(16px, 2vw, 40px);
-  max-height:calc(100vh - 90px);
-  overflow-y:auto;
-  padding-right:8px;
-}
-@media (max-width:1024px){
-  .section-page__side{
-    position:static; max-height:none; overflow:visible;
-    padding-right:0; padding-bottom:16px;
-    border-bottom:var(--rule-thin);
-    margin-bottom:24px;
-  }
-}
-.side-marker{
-  display:block;
-  font-size:var(--fs-caps); letter-spacing:var(--ls-caps);
-  text-transform:uppercase; color:var(--ember); font-weight:700;
-  margin-bottom:12px;
-}
-.side-section-title{
-  font-size:22px; font-weight:700; letter-spacing:-0.4px;
-  line-height:1.1; color:var(--ink);
-  margin:0 0 24px;
-  max-width:14ch;
-}
-.side-toc__label{
-  font-size:var(--fs-caps); letter-spacing:var(--ls-caps);
-  text-transform:uppercase; color:var(--gray); font-weight:700;
-  margin:0 0 12px;
-}
-.side-toc__list{
-  list-style:none; margin:0; padding:0;
-  border-left:1px solid var(--faint);
-}
-.side-toc__list li{ margin:0 }
-.side-toc__link{
-  display:block; padding:7px 14px;
-  font-size:13px; line-height:1.35; color:var(--gray);
-  text-decoration:none; font-weight:500;
-  border-left:2px solid transparent;
-  margin-left:-1px;
-  transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.side-toc__link:hover{ color:var(--ink-2) }
-.side-toc__link.is-active{
-  color:var(--ember); font-weight:700;
-  border-left-color:var(--ember);
-}
-
-/* Main section content */
-.section-page__main{
+  padding:clamp(24px, 3vw, 40px) 0 clamp(40px, 6vw, 80px);
   min-width:0; /* prevent grid overflow */
+}
+
+.shell__main{
+  min-width:0;
   padding-bottom:clamp(40px, 6vw, 80px);
 }
 
@@ -1363,24 +1366,16 @@ body.live-call .section-page__main{
    Print
    ========================================================================= */
 @media print{
-  .topnav, .footer, .section-page__side, .section-footer,
-  .topnav__live, .topnav__search{ display:none !important }
-  .section-page{ grid-template-columns:1fr; padding:0 }
+  .topbar, .rail, .footer, .section-footer{ display:none !important }
+  .shell{ grid-template-columns:1fr; gap:0; padding:0 }
   .karr-card__body{ max-height:none !important }
   .hero__word, .hero__lede, .hero__meta{ opacity:1 !important; animation:none !important }
 }
 
 /* =========================================================================
-   Responsive tweaks
+   Responsive tweaks (rail/topbar handled in their own block above;
+   these are content-side adjustments)
    ========================================================================= */
-@media (max-width:900px){
-  .topnav__inner{
-    grid-template-columns:auto 1fr auto;
-    gap:12px;
-  }
-  .topnav__nav{ display:none }
-  .topnav__search{ width:140px }
-}
 @media (max-width:640px){
   :root{ --gutter:20px }
   .hero__reveal{ letter-spacing:-1.6px }
