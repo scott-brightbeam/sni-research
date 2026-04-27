@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Helsinn Phase 1 Proposal — Sign in</title>
+<meta name="description" content="Sign in required."/>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate"/>
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex"/>
+<meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex"/>
+<meta name="referrer" content="no-referrer"/>
+<meta name="theme-color" content="#EA4700"/>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<style>
+  :root{
+    --ember:#EA4700;
+    --ink:#111;
+    --ink-2:#2a2a2a;
+    --gray:#7a7a7a;
+    --gray-2:#a8a8a8;
+    --faint:#e6e6e6;
+    --paper:#ffffff;
+    --sans: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+    --ls-caps: 0.08em;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:inherit; text-decoration:none; }
+
+  /* ------- Top header ------- */
+  .top{
+    border-bottom:1px solid var(--faint);
+    padding:32px 48px 28px;
+  }
+  .top__inner{
+    max-width:1320px; margin:0 auto;
+    display:flex; align-items:center; gap:14px;
+    font-size:13px; font-weight:700; letter-spacing:var(--ls-caps); text-transform:uppercase;
+  }
+  .top__brand{ font-weight:800; letter-spacing:0.02em; }
+  .top__sep{ color:var(--gray-2); font-weight:400; }
+  .top__context{ color:var(--ink); }
+
+  /* ------- Main column ------- */
+  main{
+    flex:1 0 auto;
+    max-width:680px;
+    width:100%;
+    margin:0 auto;
+    padding:56px 48px 64px;
+  }
+  .eyebrow{
+    font-size:11px; letter-spacing:var(--ls-caps); text-transform:uppercase;
+    color:var(--ember); font-weight:700;
+    margin:0 0 24px;
+  }
+  h1{
+    font-size:clamp(48px, 7vw, 72px);
+    line-height:1.02;
+    letter-spacing:-0.02em;
+    font-weight:800;
+    margin:0 0 28px;
+    text-wrap:balance;
+  }
+  h1 .accent{ color:var(--ember); }
+  .lede{
+    font-size:16px; line-height:1.55; color:var(--ink-2);
+    max-width:520px; margin:0 0 40px;
+  }
+
+  /* ------- Form ------- */
+  form{ margin:0; }
+  .field{ margin:0 0 28px; }
+  .field__label{
+    display:block;
+    font-size:11px; letter-spacing:var(--ls-caps); text-transform:uppercase;
+    color:var(--ink); font-weight:700;
+    margin:0 0 10px;
+  }
+  .field__input{
+    width:100%; font:inherit; font-size:16px;
+    color:var(--ink);
+    background:transparent;
+    border:0; border-bottom:1px solid var(--ink);
+    border-radius:0;
+    padding:8px 0 10px;
+    outline:none;
+    -webkit-appearance:none; appearance:none;
+  }
+  .field__input::placeholder{ color:var(--gray-2); }
+  .field__input:focus{ border-bottom-color:var(--ember); }
+  .field__input:-webkit-autofill{
+    -webkit-box-shadow:0 0 0 1000px var(--paper) inset;
+    -webkit-text-fill-color:var(--ink);
+  }
+  /* Hide the native "reveal password" button — we provide our own. */
+  .field__input::-ms-reveal, .field__input::-ms-clear{ display:none; }
+
+  /* ------- Password reveal toggle ------- */
+  .field__wrap{ position:relative; }
+  .field__wrap .field__input{ padding-right:40px; }
+  .field__reveal{
+    position:absolute; right:0; bottom:6px;
+    width:32px; height:32px; padding:0;
+    background:transparent; border:0;
+    color:var(--gray); cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:color 120ms ease;
+  }
+  .field__reveal:hover{ color:var(--ember); }
+  .field__reveal:focus-visible{ outline:2px solid var(--ember); outline-offset:2px; }
+  .field__reveal-icon{ width:20px; height:20px; display:block; }
+
+  /* ------- Error banner ------- */
+  .err{
+    display:none;
+    margin:0 0 20px;
+    padding:10px 14px;
+    font-size:13px; color:#9b1c1c;
+    background:#fdecea; border:1px solid #f3b1ac; border-radius:2px;
+  }
+  .err.is-visible{ display:block; }
+
+  /* ------- Actions row ------- */
+  .actions{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    margin:12px 0 0;
+  }
+  .btn-submit{
+    font:inherit; font-size:12px; font-weight:700;
+    letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--paper); background:var(--ember);
+    border:0; border-radius:0;
+    padding:18px 28px; min-width:170px;
+    cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:space-between; gap:18px;
+    transition:background 120ms ease;
+  }
+  .btn-submit:hover{ background:#c93d0b; }
+  .btn-submit:disabled{ opacity:0.55; cursor:wait; }
+  .btn-submit .chev{ font-size:16px; font-weight:400; }
+  .need-access{
+    font-size:13px; color:var(--ink);
+    border-bottom:1px solid var(--ink);
+    padding-bottom:2px;
+  }
+  .need-access:hover{ color:var(--ember); border-bottom-color:var(--ember); }
+
+  /* ------- Divider + Google ------- */
+  .sep{
+    display:flex; align-items:center; gap:16px;
+    margin:48px 0 24px;
+    font-size:10px; letter-spacing:var(--ls-caps); text-transform:uppercase;
+    color:var(--gray);
+  }
+  .sep::before, .sep::after{
+    content:""; flex:1; height:1px; background:var(--faint);
+  }
+  .btn-google{
+    display:inline-flex; align-items:center; justify-content:center; gap:12px;
+    width:100%;
+    font:inherit; font-size:13px; font-weight:700;
+    letter-spacing:0.04em;
+    color:var(--ink); background:var(--paper);
+    border:1px solid var(--ink); border-radius:0;
+    padding:14px 20px;
+    cursor:pointer;
+    text-decoration:none;
+    transition:background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .btn-google:hover{ background:var(--ink); color:var(--paper); }
+  .btn-google:hover .g-mark circle{ fill:var(--paper); }
+  .btn-google.is-disabled{ opacity:0.45; pointer-events:none; }
+  .btn-google__note{
+    display:block; margin-top:10px;
+    font-size:11px; color:var(--gray); line-height:1.5;
+  }
+  .g-mark{ width:18px; height:18px; display:block; }
+
+  /* ------- Footer ------- */
+  footer{
+    border-top:1px solid var(--faint);
+    padding:20px 48px;
+    font-size:11px; letter-spacing:var(--ls-caps); text-transform:uppercase;
+    color:var(--ink); font-weight:700;
+  }
+  footer .foot__inner{
+    max-width:1320px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+  }
+  footer .foot__right{ color:var(--gray); font-weight:700; }
+
+  @media (max-width: 640px){
+    .top{ padding:24px 24px 20px; }
+    main{ padding:40px 24px 48px; }
+    footer{ padding:16px 24px; }
+    footer .foot__inner{ flex-direction:column; align-items:flex-start; gap:4px; }
+    .actions{ flex-direction:column; align-items:stretch; gap:24px; }
+    .need-access{ align-self:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top__inner">
+    <span class="top__brand">BRIGHTBEAM.</span>
+    <span class="top__sep">×</span>
+    <span class="top__context">HELSINN · PHASE 1</span>
+  </div>
+</header>
+
+<main>
+  <p class="eyebrow">Secure access</p>
+  <h1>Sign in to<br/>the <span class="accent">proposal.</span></h1>
+  <p class="lede">Access is limited to named Helsinn Birex and Brightbeam reviewers. Use the email you were invited with.</p>
+
+  <form id="login-form" autocomplete="on" novalidate>
+    <div class="err" id="err" role="alert" aria-live="polite"></div>
+
+    <div class="field">
+      <label class="field__label" for="email">Email</label>
+      <input class="field__input" id="email" name="email" type="email"
+             placeholder="name@helsinn.com" autocomplete="email" required/>
+    </div>
+
+    <div class="field">
+      <label class="field__label" for="password">Password</label>
+      <div class="field__wrap">
+        <input class="field__input" id="password" name="password" type="password"
+               autocomplete="current-password" required/>
+        <button type="button" class="field__reveal" id="reveal-password"
+                aria-label="Show password" aria-pressed="false" tabindex="0">
+          <svg class="field__reveal-icon" id="eye-show" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg class="field__reveal-icon" id="eye-hide" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true" hidden>
+            <path d="M2 12s4-7 10-7c2.2 0 4.1.7 5.7 1.7"/>
+            <path d="M22 12s-4 7-10 7c-2.2 0-4.1-.7-5.7-1.7"/>
+            <path d="M9 9.3A3 3 0 0 0 12 15a3 3 0 0 0 2.7-1.7"/>
+            <path d="M3 3l18 18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-submit" id="submit" type="submit">
+        <span>Submit</span><span class="chev" aria-hidden="true">›</span>
+      </button>
+      <a class="need-access" href="mailto:scott.wilkinson@brightbeam.com?subject=Helsinn%20Phase%201%20proposal%20access">Need access?</a>
+    </div>
+  </form>
+
+  <div class="sep" id="google-sep" hidden>Or</div>
+  <a class="btn-google" id="google-btn" href="/auth/google/start" hidden>
+    <svg class="g-mark" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    <span>Sign in with your Brightbeam Google account</span>
+  </a>
+  <p class="btn-google__note" id="google-note" hidden>Brightbeam staff only. Requires a <strong>@brightbeam.com</strong> Google Workspace account.</p>
+</main>
+
+<footer>
+  <div class="foot__inner">
+    <span>Brightbeam × Helsinn Birex</span>
+    <span class="foot__right">Released 23 April 2026</span>
+  </div>
+</footer>
+
+<script>
+  // Toggle the Google button visibility based on whether OAuth is configured.
+  fetch('/auth/google/available', { credentials: 'same-origin' })
+    .then(r => r.json()).then(j => {
+      if (j && j.available) {
+        for (const id of ['google-sep', 'google-btn', 'google-note']) {
+          const el = document.getElementById(id);
+          if (el) el.hidden = false;
+        }
+      }
+    }).catch(() => {});
+
+  // Password reveal toggle
+  const reveal = document.getElementById('reveal-password');
+  const pwInput = document.getElementById('password');
+  const eyeShow = document.getElementById('eye-show');
+  const eyeHide = document.getElementById('eye-hide');
+  reveal.addEventListener('click', () => {
+    const revealed = pwInput.type === 'text';
+    pwInput.type = revealed ? 'password' : 'text';
+    reveal.setAttribute('aria-label', revealed ? 'Show password' : 'Hide password');
+    reveal.setAttribute('aria-pressed', revealed ? 'false' : 'true');
+    eyeShow.hidden = !revealed;
+    eyeHide.hidden = revealed;
+    pwInput.focus();
+  });
+
+  const form = document.getElementById('login-form');
+  const err = document.getElementById('err');
+  const submit = document.getElementById('submit');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.classList.remove('is-visible');
+    submit.disabled = true;
+    try {
+      const res = await fetch('/auth/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials:'same-origin',
+        body: JSON.stringify({
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+        }),
+      });
+      if (res.ok) { window.location.href = '/'; return; }
+      const data = await res.json().catch(() => ({ error: 'Sign-in failed.' }));
+      err.textContent = data.error || 'Sign-in failed.';
+      err.classList.add('is-visible');
+    } catch {
+      err.textContent = 'Network error. Please try again.';
+      err.classList.add('is-visible');
+    } finally {
+      submit.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

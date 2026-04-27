@@ -1,0 +1,10 @@
+node_modules
+dist
+.vite
+.DS_Store
+*.log
+.git
+.env
+.env.local
+HANDOVER.md
+CLAUDE.md

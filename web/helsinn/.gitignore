@@ -1,0 +1,11 @@
+node_modules
+dist
+.vite
+.DS_Store
+*.log
+.env
+.env.local
+
+# HANDOVER.md contains live secret values (per Scott's request).
+# Do not commit. Treat like a credential file.
+HANDOVER.md
