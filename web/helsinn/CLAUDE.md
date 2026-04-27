@@ -4,6 +4,14 @@ You are working inside `web/helsinn/`, a self-contained sub-app of the SNI Resea
 
 Always read `web/helsinn/HANDOVER.md` first. It's the canonical narrative.
 
+## Status (2026-04-27)
+
+The proposal is live at `helsinn-proposal-1.fly.dev`, has been **sent to and socialised with the client**, and stays bespoke — there will be no rebase onto the new `brightbeam-proposal-template` repo, and no further deploys without explicit user approval.
+
+A left-rail navigation refactor lives on the SNI repo's `feature/left-rail-nav` branch (commits `e200b12` port the rail, `8ba8747` adds the `SECTION_ANCHORS` single-source-of-truth contract). **This branch is intentionally not deployed.** It mirrors the canonical pattern in the sibling [brightbeam-proposal-template](https://github.com/scott-brightbeam/brightbeam-proposal-template) and exists as a worked example showing how the rail applies to a real-content codebase.
+
+If you're asked to make a copy edit to the live Helsinn site, work on `master` (not the feature branch), redeploy via the manual `fly deploy` flow below, and confirm with the user before touching anything they didn't ask for.
+
 ## Hard rules
 
 1. **Never run `bun test` or any pipeline command from the SNI root that hits the Anthropic API.** SNI's cost-protection rule applies in this subtree too.
