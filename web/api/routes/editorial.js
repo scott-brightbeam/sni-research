@@ -797,19 +797,29 @@ export async function postEditorialChat(body, req) {
 
   acquireChatSlot()
 
-  const activeTab = tab || 'state'
-  const db = getDb()
+  // Slot leak guard. Anything between here and the ReadableStream's
+  // start() try/finally that throws would otherwise increment
+  // activeStreams without ever decrementing it. Three such failures and
+  // every subsequent request returns 429 "Too many in-flight streams"
+  // until the server restarts. Track whether release ownership has been
+  // handed off to the stream; if not (because we hit a setup-time error
+  // or take an early-return path), release here.
+  let slotOwnedByStream = false
+  let activeTab, db, context, tokenEstimate, trimmedHistory
+  try {
+  activeTab = tab || 'state'
+  db = getDb()
 
   // Only build context on first message per tab (lazy injection)
-  let context = null
-  let tokenEstimate = 0
+  context = null
+  tokenEstimate = 0
   if (injectContext !== false) {
     const ctx = await buildEditorialContext(activeTab, db, Array.isArray(sourceRefs) ? sourceRefs : null)
     context = ctx.context
     tokenEstimate = ctx.tokenEstimate
   }
 
-  const trimmedHistory = trimEditorialHistory(history || [])
+  trimmedHistory = trimEditorialHistory(history || [])
 
   // Build messages array
   const sdkMessages = []
@@ -1427,6 +1437,9 @@ export async function postEditorialChat(body, req) {
     }
   })
 
+  // Slot release ownership now belongs to the ReadableStream's start()
+  // try/finally — see slotOwnedByStream guard at top of function.
+  slotOwnedByStream = true
   return new Response(stream, {
     status: 200,
     headers: {
@@ -1436,4 +1449,11 @@ export async function postEditorialChat(body, req) {
       'Connection': 'keep-alive',
     }
   })
+  } catch (err) {
+    // Setup-time failure between acquireChatSlot() and the stream
+    // taking ownership. Without this release, every such failure leaks
+    // a slot — three failures and the endpoint returns 429 forever.
+    if (!slotOwnedByStream) releaseChatSlot()
+    throw err
+  }
 }
