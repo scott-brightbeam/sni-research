@@ -205,8 +205,36 @@ search_queries:
     - "AI safety incident containment alignment {month} {year}"
     - "foundation model benchmark evaluation release {month} {year}"
     - "hyperscaler AI enterprise announcement {month} {year}"
+    # Infrastructure-policy intersections (added Apr 2026 after Week 17 retro — NAACP v xAI, Denham/FANCO missed)
+    - "NAACP AI data center lawsuit emissions {month} {year}"
+    - "data center bridge power nuclear SMR AI {month} {year}"
+    - "AI data center zoning permit opposition {month} {year}"
+    - "civil rights litigation AI infrastructure {month} {year}"
+    # Regulator commencement notices (added Apr 2026 — missed MHRA 28 April, NICE HealthTech Access in Week 17)
+    - "NICE recommendation AI diagnostic NHS {month} {year}"
+    - "MHRA AI clinical trial commencement regulations {month} {year}"
+    - "EMA AI evidence guidance submission {month} {year}"
+    - "FDA warning letter AI compliance violation {month} {year}"
+    - "AI statutory instrument commencement come into force {month} {year}"
+    # Capital-market AI signals (added Apr 2026 — missed Anthropic $1T secondary in Week 17)
+    - "Anthropic OpenAI secondary market valuation {month} {year}"
+    - "AI startup tender offer secondary transaction {month} {year}"
+    - "Forge Global AI company valuation {month} {year}"
+    # Non-Western frontier model releases (added Apr 2026 — missed DeepSeek V4 in Week 17)
+    - "DeepSeek Qwen Kimi Baichuan release open weights {month} {year}"
+    - "Chinese AI lab frontier model launch {month} {year}"
+    # Irish / UK enterprise deployment (added Apr 2026 — missed MongoDB Ireland in Week 17)
+    - "Ireland AI investment enterprise jobs {month} {year}"
+    - "Lloyd's Lab AI underwriting cohort {month} {year}"
+    - "UK AI Sovereign fund enterprise deployment {month} {year}"
+    # Franco-German / European AI industrial strategy (added Apr 2026)
+    - "Franco-German AI industrial strategy IPCEI {month} {year}"
+    - "European sovereign AI Fraunhofer Inria {month} {year}"
 
-  layer4_enabled: true  # Toggle for daily experiment
+  layer4_enabled: false  # Disabled 2026-04-29 — L4 was burning ~600 Brave queries/day
+  # for marginal article gain and triggering 402 throttling on the L4 sub-quota
+  # while L1-L3 + headlines + RSS continued to work normally. Re-enable only after
+  # confirming Brave plan headroom can absorb the extra ~600 queries/day.
   # Layer 4 uses same queries as layer1 but with {date} instead of {month} {year}
 
 headline_sources:
