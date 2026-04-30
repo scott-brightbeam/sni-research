@@ -252,7 +252,7 @@ describe('buildCEORevisionInstruction', () => {
 // The analyse prompt file on disk must stay in agreement with the
 // shared principles module. If someone rewrites the module but
 // forgets to update the prompt (or vice versa), these assertions
-// catch it at test time — not months later in a Wednesday sweep.
+// catch it at test time — not months later in a Thursday sweep.
 
 describe('config/prompts/editorial-analyse.v1.txt canary', () => {
   const promptPath = resolve(ROOT, 'config/prompts/editorial-analyse.v1.txt')

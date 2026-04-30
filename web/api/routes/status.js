@@ -193,10 +193,15 @@ function getLastFridayRunAt() {
     .sort()
     .reverse()
 
+  // Accept the modes the weekly pipeline has actually used over time:
+  //   'friday' — the new Sat→Fri / Friday 13:00 launchd run (Apr 2026+)
+  //   'full'   — the legacy Thursday 13:00 run (Feb–Apr 2026)
+  // Either means the "weekly full pipeline" has just completed. Anything else
+  // (e.g. 'daily') is a daily fetch/score cycle, not the weekly.
   for (const file of files) {
     try {
       const data = JSON.parse(readFileSync(join(runsDir, file), 'utf-8'))
-      if (data.mode === 'friday' && data.completedAt) {
+      if ((data.mode === 'friday' || data.mode === 'full') && data.completedAt) {
         return data.completedAt
       }
     } catch { /* skip */ }
@@ -206,17 +211,19 @@ function getLastFridayRunAt() {
 }
 
 function getNextPipeline() {
-  // Thursday at 13:00 is the full pipeline run
+  // Friday at 13:00 is the weekly full pipeline run (launchd).
+  // Draft-generation (Claude Code pipeline-weekly-newsletter) fires at 15:00
+  // so Scott has the generated draft ready for 16:00 editing.
   const now = new Date()
-  const day = now.getDay() // 0=Sun, 4=Thu
-  let daysUntilThursday = (4 - day + 7) % 7
-  if (daysUntilThursday === 0) {
+  const day = now.getDay() // 0=Sun, 5=Fri
+  let daysUntilFriday = (5 - day + 7) % 7
+  if (daysUntilFriday === 0) {
     const hour = now.getHours()
-    if (hour >= 14) daysUntilThursday = 7 // Past 2pm, assume it ran; next Thursday
+    if (hour >= 14) daysUntilFriday = 7 // Past 2pm, assume it ran; next Friday
   }
 
   const nextFull = new Date(now)
-  nextFull.setDate(now.getDate() + daysUntilThursday)
+  nextFull.setDate(now.getDate() + daysUntilFriday)
   nextFull.setHours(13, 0, 0, 0)
 
   // Next daily fetch at 04:00

@@ -215,7 +215,7 @@ Vite + React scaffold, Bun API server, Dashboard, Articles, routing, layout, des
 - Fly deployment with embedded replica + `sni_data` volume mount
 
 ### Phase 6: Editorial intelligence platform ✅
-- Named pipeline stages: ANALYSE, DISCOVER, HEADLINES, GEOGRAPHIC-SWEEP, WEDNESDAY-SWEEP, QUALITY-DIGEST, DRAFT, CRITIQUE-REVISE, AUDIT-UPSTREAM
+- Named pipeline stages: ANALYSE, DISCOVER, HEADLINES, GEOGRAPHIC-SWEEP, THURSDAY-SWEEP, FRIDAY-READINESS, QUALITY-DIGEST, DRAFT, CRITIQUE-REVISE, AUDIT-UPSTREAM
 - Full editorial co-pilot (`/api/editorial/chat`) with tool use across up to 6 rounds
 - State persistence in `data/editorial/state.json` mirrored to Turso
 

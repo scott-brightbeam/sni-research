@@ -22,3 +22,45 @@ https://www.manufacturingdive.com/news/manufacturing-robotics-ai-automation-ener
 # Matches a current-week digest but the whitelist URL index lookup fails on an
 # edge case; add here so checkCorpusUrls accepts it directly.
 https://www.exponentialview.co/p/mythos-and-the-mispricing-of-everything
+
+# Week 17 — DeepSeek V4 launch (Apr 24). Hong Kong Free Press reporting on
+# the 1.6T-param open-weights release. Outside Fri-Thu window by one day;
+# included as crescendo per editorial call (globalises the worker-model pivot).
+https://hongkongfp.com/2026/04/24/chinas-deepseek-releases-long-awaited-new-ai-model/
+
+# Week 17 — First FDA warning letter naming AI-agent non-compliance in
+# pharmaceutical manufacturing. GMP Compliance is the primary trade outlet
+# covering the letter; not in our RSS set.
+https://www.gmp-compliance.org/gmp-news/use-of-ai-agents-leads-to-the-first-fda-warning-letter-relating-to-ai
+
+# Week 17 — UK MHRA new clinical trial regulations (incl. in-silico trial
+# acceptance) commence 28 Apr. gov.uk press releases are not in our RSS set.
+https://www.gov.uk/government/news/uk-clinical-trial-approval-times-twice-as-fast-with-ai-and-reforms
+
+# Week 17 — NHS HealthTech Access Programme — first NHS-wide reimbursement
+# route for AI diagnostics (prostate/breast pathology). Open Access Government
+# is the primary outlet covering the scheme; not in our RSS set.
+https://www.openaccessgovernment.org/nhs-healthtech-access-programme-promises-faster-fairer-rollout-of-innovation/204804/
+
+# Week 17 — Sherwood on Google DeepMind's Brin-led coding strike team to
+# close the Anthropic model-capability gap. Sherwood not in our RSS set.
+https://sherwood.news/tech/google-deepmind-builds-strike-team-to-catch-up-to-anthropic-models/
+
+# Week 17 — Denham Capital + First American Nuclear partnership announcing
+# SMR + bridge-power for hyperscale AI data centres. PR Newswire press release;
+# primary sectors outlet would be ROI-NJ, not in our RSS set.
+https://www.prnewswire.com/news-releases/denham-sustainable-infrastructure-executes-strategic-partnership-agreement-with-first-american-nuclear-to-accelerate-power-solutions-for-ai-and-hyperscale-data-centers-302748012.html
+
+# Week 17 — Testudo launches Lloyd's-Lab-backed AI insurance underwriting
+# platform. Reinsurance News is the canonical source; patchy RSS coverage.
+https://www.reinsurancene.ws/testudo-launches-ai-insurance-underwriting-platform-backed-by-lloyds-lab/
+
+# Week 17 — Moonshots #248 "Sam Altman's Attack, Amazon vs Starlink, and What
+# Opus 4.7 Actually Means" (18 Apr). YouTube episode URL after podscripts.co
+# returned 502 during Friday verification. YouTube is the more stable canonical.
+https://www.youtube.com/watch?v=LVvleNtllPk
+
+# Week 17 — Anthropic implied $1T secondary-market valuation on Forge Global,
+# overtaking OpenAI ($880bn). Driven by annualised revenue moving from $9bn
+# (end 2025) to $30bn (Q1 2026). Tom's Hardware covered; not in our RSS set.
+https://www.tomshardware.com/tech-industry/artificial-intelligence/anthropic-surpasses-biggest-rival-openai-in-secondary-market-valuation-surges-to-usd1-trillion-amid-frantic-investor-interest

@@ -350,9 +350,10 @@ The editorial workflow moved from ad-hoc scripts to a named, scheduled pipeline 
 - **DISCOVER** — `/editorial-discover` (daily 09:00). Three-tier search for podcast-mentioned stories: primary WebSearch → rephrase → site-specific. Mandatory verification agent before saving URLs.
 - **HEADLINES** — `/editorial-headlines` (daily 10:30). Broad AI news sweep across US + EU + UK + Ireland.
 - **GEOGRAPHIC-SWEEP** — `/editorial-geographic-sweep` (daily 11:00). Explicit Ireland/EU/UK gap-fill after headlines.
-- **WEDNESDAY-SWEEP** — `/editorial-sweep` (Wednesday 20:00). Final quality gate before Thursday newsletter.
+- **THURSDAY-SWEEP** — `/editorial-sweep` (Thursday 20:00). Final quality gate before Friday drafting. Renamed from editorial-wednesday-sweep Apr 2026 when the cadence shifted.
+- **FRIDAY-READINESS** — `editorial-friday-readiness` (Friday 13:00). Delta-sweep since Thursday 18:00, podcast-URL reconciliation, verifier dry-run, sector/geographic/podcast-digest flags.
 - **QUALITY-DIGEST** — `/editorial-quality-digest` (weekly). Schema validation + coverage + drift report.
-- **DRAFT** — `/editorial-draft` (Thursday 14:00). Newsletter generation (Opus 4.7) → CEO empathy → external critique (Gemini + GPT) → revision.
+- **DRAFT** — `/editorial-draft` (Friday 15:00, ready at 16:00). Newsletter generation (Opus 4.7) → CEO empathy → external critique (Gemini + GPT) → revision → hallucination gate.
 - **CRITIQUE-REVISE** — `/editorial-critique-revise` (on-demand). Re-run critique + revision against an existing draft.
 - **AUDIT-UPSTREAM** — `/editorial-audit-upstream` (daily 08:00 once registered). Applies editorial principles to raw upstream material — see Phase 7.
 

@@ -304,7 +304,7 @@ function loadCanonicalSources() {
 
 /**
  * Derive ISO week number from a YYYY-MM-DD string.
- * Matches getWeekWindow — Friday-Thursday convention.
+ * Matches getWeekWindow — Saturday-Friday convention (Apr 2026).
  */
 function digestDateToWeek(dateStr, windowStart, windowEnd) {
   // For simplicity, classify by whether the digest date falls in the window
@@ -549,6 +549,73 @@ export async function checkPodcastUrlsLive(classifiedLinks) {
     }
     await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS))
   }
+  return violations
+}
+
+/**
+ * Check HTTP liveness for all tl;dr and sector URLs (non-podcast). Catches URL
+ * typos and regional-variant mismatches that the corpus lookup would accept
+ * but a reader clicking the link would not.
+ *
+ * Added Apr 2026 after Week 17 retro: the draft carried
+ *   /us/...cfc-pilots-agentic...572446.aspx (draft) vs
+ *   /ca/...cfc-pilots-agentic...572448.aspx (corpus)
+ * and
+ *   /apple-new-ceo-john-ternus-... (draft) vs
+ *   /apple-ceo-john-ternus-...     (corpus)
+ * Both passed corpus_urls (close-enough string match) but would have been
+ * caught by a HEAD request.
+ *
+ * Parallelism: request concurrency = 5, rate-limited per host to avoid bans.
+ * Total time for ~40 links: ~10-15 seconds. Budget worth paying.
+ */
+export async function checkNonPodcastUrlsLive(classifiedLinks) {
+  const violations = []
+  const links = classifiedLinks.filter(l => l.section !== 'podcast')
+  if (links.length === 0) return violations
+
+  const CONCURRENCY = 5
+  const PER_HOST_DELAY_MS = 300
+  const hostLastHit = new Map()
+
+  async function checkOne(link) {
+    const host = (() => {
+      try { return new URL(link.url).hostname } catch { return '' }
+    })()
+    // Reserve a slot BEFORE awaiting so parallel workers don't all read
+    // the same "last hit" timestamp and stampede the same host.
+    const now = Date.now()
+    const nextFree = Math.max(now, hostLastHit.get(host) || 0)
+    hostLastHit.set(host, nextFree + PER_HOST_DELAY_MS)
+    const waitMs = nextFree - now
+    if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs))
+
+    const result = await checkUrlLive(link.url)
+    if (result.ok) return null
+
+    // Status 403 is often a bot-block on working pages — warn, don't fail.
+    const status = result.status
+    const looksLikeBotBlock = status === 403 || status === 429
+    const errLabel = result.error || (status ? `HTTP ${status}` : 'network error')
+    return {
+      severity: looksLikeBotBlock ? 'warn' : 'fail',
+      check: 'link_url_live',
+      message: `${link.section.toUpperCase()} URL does not resolve: ${link.url} (${errLabel}, line ${link.line})`,
+    }
+  }
+
+  // Simple worker pool
+  const queue = [...links]
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    while (queue.length) {
+      const link = queue.shift()
+      if (!link) break
+      const v = await checkOne(link)
+      if (v) violations.push(v)
+    }
+  })
+  await Promise.all(workers)
+
   return violations
 }
 
@@ -933,8 +1000,12 @@ export async function verifyDraft(draft, week, year, opts = {}) {
   // URLs that slipped into the digest corpus. Skipped with --skip-http flag.
   if (!skipHttp) {
     checks.podcast_url_live = await checkPodcastUrlsLive(classifiedLinks)
+    // Also check tl;dr and sector URLs — catches typos + regional variants
+    // that pass the corpus lookup but 404 in browsers.
+    checks.link_url_live = await checkNonPodcastUrlsLive(classifiedLinks)
   } else {
     checks.podcast_url_live = []
+    checks.link_url_live = []
   }
 
   const allViolations = Object.values(checks).flat()

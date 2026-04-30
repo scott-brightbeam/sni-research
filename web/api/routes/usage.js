@@ -71,10 +71,12 @@ function getCutoff(period) {
       return start.getTime()
     }
     case 'week': {
-      // Start of current editorial week (Friday)
+      // Start of current editorial week (Saturday — changed Apr 2026 from Friday).
+      // getDay(): 0=Sun, 1=Mon, ..., 6=Sat. Days since most-recent Saturday:
+      // Sat → 0, Sun → 1, Mon → 2, ..., Fri → 6.
       const start = new Date(now)
       const day = start.getDay()
-      const diff = (day + 2) % 7 // days since Friday
+      const diff = (day + 1) % 7 // days since Saturday
       start.setDate(start.getDate() - diff)
       start.setHours(0, 0, 0, 0)
       return start.getTime()

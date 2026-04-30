@@ -14,6 +14,40 @@ These are the most commonly violated rules. Check every instance before finalisi
 - **Quotes**: Single quotation marks only: 'like this' not "like this"
 - **Dashes**: Spaced en dashes: word – word (not em dashes, not hyphens)
 - **No rhetorical questions**: Never ask the reader a question. State the answer directly.
+- **Banned word 'matters' is a hard fail.** Not just in the constructions 'this matters' / 'what matters is' – the word itself has been abused into a tic. If you write 'the precedent matters', 'the data matters', 'it matters well beyond' — replace with `extends`, `reshapes`, `shifts`, `reaches`, `lands`, `sets`, or describe the specific effect. Grep your output for `matters` before returning.
+
+## Bullet format — hard rules (every sector bullet)
+
+1. **Headline is a complete clause with a present-tense verb.** Subject + verb + object.
+   - WRONG: `- [AI models generating and testing hypotheses autonomously](url):` (gerund, no verb)
+   - WRONG: `- [The AI drug discovery capital stack](url):` (noun phrase, no verb)
+   - RIGHT: `- [AI models now generate and test hypotheses autonomously](url):`
+   - RIGHT: `- [The AI drug discovery capital stack shows three distinct moat structures](url):`
+2. **No double colons.** If the headline itself contains a colon (e.g. 'Datadog report: AI failures at scale-up'), the format colon that follows creates an awkward double-colon bullet. Replace the headline colon with an em-dash `—` before the format colon is added.
+   - WRONG: `- [Datadog report: AI operational failures appear at scale-up, not the pilot](url): latency spikes…`
+   - RIGHT: `- [Datadog finds AI operational failures appear at scale-up, not the pilot](url): latency spikes…`
+   - RIGHT: `- [Pharma services Q1 roundup — regulatory AI guidance, CRO consolidation and digital CMC](url): the quarter produces…`
+3. **Present-tense across the bullet.** Do not mix `began` / `announced` / `cited` / `welcomed` (past) with `matters` / `has` (present). Pick present and stay there.
+   - WRONG: `Meta began tracking employee usage... the precedent matters well beyond Meta...`
+   - RIGHT: `Meta is tracking employee usage... the precedent extends well beyond Meta...`
+4. **No fragments after the colon.** The context sentence must be a complete sentence with a subject and verb, not a noun phrase or participial fragment.
+   - WRONG: `...: the commercial structure that closes the gap – the template for every campus.`
+   - RIGHT: `...: the commercial structure closes the gap and becomes the template for every campus.`
+
+Run a final lint pass on every bullet: does it have a present-tense verb in both the headline and the context sentence? Does the colon appear only once? If not, rewrite.
+
+## Podcast section — accessibility rule
+
+The podcast section is for general enterprise readers — CEOs, compliance officers, procurement leads, clinical and regulatory directors, underwriters. It is **not** for developers. When selecting cross-episode syntheses, reject any angle that requires the reader to understand specific tools, configs, CLI commands, protocols or version-control semantics. Lead with business implications.
+
+- ACCEPTABLE: 'jagged intelligence' as a procurement vocabulary for regulated sectors
+- ACCEPTABLE: competition between labs is economic, not technical
+- ACCEPTABLE: labour-market numbers for the handover have arrived
+- REJECT: rethinking Git for coding agents — too technical
+- REJECT: parallel branch strategies for multi-agent development — too technical
+- REJECT: MCP server patterns and harness engineering — too technical
+
+Test each proposed sub-section: could a pharmaceutical COO read it and immediately see the relevance to a decision they own? If not, swap in a different angle from the digest.
 
 ## Theme
 

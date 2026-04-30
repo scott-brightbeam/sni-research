@@ -10,15 +10,17 @@
 		<string>/Users/scott/.bun/bin/bun</string>
 		<string>/Users/scott/Projects/sni-research-v2/scripts/pipeline.js</string>
 		<string>--mode</string>
-		<string>full</string>
+		<string>friday</string>
 	</array>
 
 	<key>StartCalendarInterval</key>
 	<array>
-		<!-- Thursday -->
+		<!-- Friday 13:00 — weekly full pipeline (fetch → score → discover → report → draft).
+		     Moved from Thursday Apr 2026 to align with Sat-Fri editorial week and
+		     Friday 16:00 drafting. -->
 		<dict>
 			<key>Weekday</key>
-			<integer>4</integer>
+			<integer>5</integer>
 			<key>Hour</key>
 			<integer>13</integer>
 			<key>Minute</key>

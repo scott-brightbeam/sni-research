@@ -35,10 +35,20 @@ export function getISOYearForWeek(dateStr) {
 }
 
 /**
- * Get the Friday–Thursday editorial window for a given ISO week and year.
+ * Get the Saturday–Friday editorial window for a given ISO week and year.
+ *
+ * CHANGED Apr 2026: window was Friday–Thursday (drafting Thursday 14:00,
+ * publishing Thursday). Now Saturday–Friday (drafting Friday 16:00,
+ * publishing Saturday dawn). The longer tail lets us catch Thursday-evening
+ * and Friday-morning announcements that previously missed the cut.
+ *
+ * Convention: "Week N" refers to ISO week N; the editorial window is the
+ * seven days ending on the Friday of that ISO week. So ISO Week 18 (Mon
+ * 27 Apr 2026 – Sun 3 May 2026) has editorial window Sat 25 Apr – Fri 1 May.
+ *
  * @param {number} weekNum — ISO week number
  * @param {number} year — ISO year
- * @returns {{ start: string, end: string }} — 'YYYY-MM-DD' for Friday and Thursday
+ * @returns {{ start: string, end: string }} — 'YYYY-MM-DD' for Saturday and Friday
  */
 export function getWeekWindow(weekNum, year) {
   // Start from Jan 4 of the given year (always in ISO week 1)
@@ -46,16 +56,16 @@ export function getWeekWindow(weekNum, year) {
   const week1Start = startOfISOWeek(jan4);
   // Add (weekNum - 1) weeks to get to the target week's Monday
   const targetMonday = addWeeks(week1Start, weekNum - 1);
-  // Friday = Monday - 3 days (previous week's Friday)
+  // Saturday = Monday - 2 days (previous week's Saturday)
+  const saturday = new Date(targetMonday);
+  saturday.setDate(targetMonday.getDate() - 2);
+  // Friday = Monday + 4 days
   const friday = new Date(targetMonday);
-  friday.setDate(targetMonday.getDate() - 3);
-  // Thursday = Monday + 3 days
-  const thursday = new Date(targetMonday);
-  thursday.setDate(targetMonday.getDate() + 3);
+  friday.setDate(targetMonday.getDate() + 4);
 
   return {
-    start: fmt(friday),
-    end: fmt(thursday),
+    start: fmt(saturday),
+    end: fmt(friday),
   };
 }
 

@@ -85,6 +85,10 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 - Phase 4 (Polish): article CRUD, detail panel, manual ingest, config viewer, real-time updates
 - All phases: zero modification to pipeline scripts, all code in `web/`, tests pass, Vite builds clean
 
+## Related repo
+
+The Helsinn Phase 1 Proposal lives in a separate repo at `~/Projects/helsinn-proposal-1` (GitHub: `scott-brightbeam/helsinn-proposal-1`). It shares the Turso database under the `helsinn_*` table prefix; nothing in this repo touches those tables. Fly app: `helsinn-proposal-1`. See that repo's `CLAUDE.md` + `HANDOVER.md` before working in it.
+
 ## Architecture constraints
 
 - Web UI code lives in `web/`. Pipeline scripts in `scripts/`. Config in `config/`.
@@ -119,7 +123,9 @@ URLs flow forward through every stage. They are never reconstructed after the fa
 
 ## Scheduled jobs
 
-Two runners: **launchd** (macOS user agents at `~/Library/LaunchAgents/`) and **Claude Code scheduled tasks** (SKILL.md files at `~/.claude/scheduled-tasks/`). launchd jobs run Bun/Python scripts directly. Claude Code tasks drive a Claude Code session (subscription-backed, no metered API cost).
+Two runners: **launchd** (macOS user agents at `~/Library/LaunchAgents/`) for Bun/Python jobs, and **Claude Code Routines** (native scheduler in the Claude Code app, managed in the Routines side-panel) for Claude Code tasks. Routines run on your subscription — **no metered API cost**. Do not use `claude -p` from launchd for scheduled tasks; that meters to the API.
+
+SKILL.md files at `~/.claude/scheduled-tasks/{task}/SKILL.md` are the instruction sets a Routine points at. The Routines UI stores the schedule and the prompt; the prompt typically says "execute the skill at ~/.claude/scheduled-tasks/{task}/SKILL.md".
 
 ### launchd jobs
 
@@ -130,30 +136,38 @@ Two runners: **launchd** (macOS user agents at `~/Library/LaunchAgents/`) and **
 | `com.sni.alerts-post-fetch.plist` | Daily 04:45 | Post-fetch health alerts (Telegram) |
 | `com.sni.sync-to-cloud.plist` | 07:40, 13:00, 22:00 | Push `data/` + `output/` to Turso and Fly volume |
 | `com.sni.alerts-post-satellite.plist` | Daily 08:00 | Post-satellite alerts (Telegram) |
-| `com.sni.pipeline.plist` | Thursday 13:00 | Full pipeline (fetch → score → discover → report → draft). Uses GPT+Gemini for discover (separate from the Claude Code 09:00 discover); may produce duplicate articles. |
+| `com.sni.friday-topup.plist` | Friday 12:00 | Late-capture fetch — L1+L2 Brave queries over the last 18 hours; catches Thursday-evening + Friday-morning announcements before 15:00 drafting |
+| `com.sni.pipeline.plist` | Friday 13:00 | Full pipeline (fetch → score → discover → report → draft). Uses GPT+Gemini for discover (separate from the Claude Code 09:00 discover); may produce duplicate articles. |
 | `com.scott.podcast-pipeline.plist` | 22:00, 23:00, 00:00, 02:00, 04:00, 06:00 (6 runs nightly) | Monitor podcast RSS, transcribe new episodes via `~/Projects/Claude/HomeBrew/podcasts/` |
 | ~~`com.sni.podcast-import.plist`~~ | ~~07:00~~ | **Disabled** — replaced by Claude Code `podcast-import-daily` |
 
-### Claude Code scheduled tasks
+### Claude Code Routines (managed in the Routines panel in Claude Code)
 
-Registered via the `scheduled-tasks` MCP (runtime state — not tracked in the repo). SKILL.md files are the task definitions; the scheduler itself holds the cron.
+Each routine fires its SKILL.md at `~/.claude/scheduled-tasks/{task}/SKILL.md`. Routines run on the Claude Code subscription (no metered API cost). The Routines panel is the canonical schedule store; the table below is a doc mirror and may drift — check the panel for the live state.
 
-| Task | Schedule | What |
-|------|----------|------|
-| `podcast-import-daily` | Daily 07:00 | Import new podcast digests, update manifest |
-| `editorial-analyse-daily` | Daily 07:30 | Process all unprocessed transcripts → state + stories file (Claude-Code-native, Opus 4.7) |
-| `editorial-audit-upstream-daily` | Daily ~08:00 (NOT yet registered — SKILL.md exists, scheduler registration pending) | Apply editorial principles (evidence calibration, CEO empathy, "matters" ban) to yesterday's new analysis/theme-evidence/backlog via `/editorial-audit-upstream` slash command |
-| `editorial-discover` | Daily 09:00 | Three-tier WebSearch for podcast story references + verification |
-| `editorial-headlines` | Daily 10:30 | Broad AI news sweep (US + EU + UK + Ireland), fill corpus gaps |
-| `editorial-geographic-sweep` | Daily 11:00 | Ireland/EU/UK gap-fill — ensure geographic balance |
-| `editorial-wednesday-sweep` | Wednesday 20:00 | Final quality gate before Thursday newsletter |
-| `editorial-quality-digest` | Weekly | State quality report — schema validation, coverage, drift |
-| `vocabulary-fingerprint-refresh` | Weekly | Regenerate Scott's vocabulary fingerprint from `published_posts` table |
-| `pipeline-weekly-newsletter` | Thursday 14:00 | Generate newsletter: draft (Opus 4.7) → CEO empathy → critique (Gemini + GPT) → revision |
-| `editorial-critique-revise` | On-demand | Re-run external critique + revision against an existing draft |
-| `bug-triage` | On-demand | Triage open bugs — security screen, validate, propose fixes on branches |
+| Routine | Schedule | What |
+|---------|----------|------|
+| Podcast import daily | Daily ~07:00 | Import new podcast digests, update `data/podcasts/manifest.json` |
+| Editorial analyse daily | Daily ~07:30 | Transcripts → state.json entries, theme evidence, stories-session-N.json |
+| Editorial audit upstream daily | Daily ~08:00 *(needs creation — see below)* | Apply editorial principles to yesterday's new analysis/theme-evidence/backlog |
+| Editorial discover | Daily ~09:00 | Three-tier WebSearch with verification sub-agent for unresolved story URLs |
+| Editorial headlines | Daily ~10:30 | Broad AI news sweep (US + EU + UK + IE), corpus gap fill |
+| Editorial geographic sweep | Daily ~11:00 | Ireland/EU/UK gap-fill (covers Sat–Fri editorial week) |
+| Editorial thursday sweep | Thursday ~20:00 *(needs creation — see below)* | Final quality gate before Friday drafting (renamed from wednesday-sweep Apr 2026) |
+| Editorial friday readiness | Friday ~13:00 *(needs creation — see below)* | Delta-sweep since Thu 18:00, podcast-URL reconciliation, verifier dry-run, sector + geographic + digest-count checks |
+| Pipeline weekly newsletter | Friday ~15:00 | Draft (Opus 4.7) → CEO empathy → critique (Gemini + GPT) → revision → hallucination gate. Draft ready for Scott at 16:00. |
+| Editorial critique revise | Friday ~15:30 | Re-run external critique + revision against the latest draft |
+| ~~Editorial wednesday sweep~~ | *(disabled 24 Apr 2026 — safe to delete from Routines panel)* | Replaced by editorial-thursday-sweep |
+| Editorial quality digest | Weekly (Monday) | State quality report — schema, coverage, drift |
+| Vocabulary fingerprint refresh | Weekly (optional) | Regenerate vocabulary fingerprint from `published_posts` |
+| Bug triage | Thrice daily weekdays | Triage open bugs via Kanban (not directly related to the newsletter pipeline) |
 
-### Daily flow (Mon–Wed)
+### Editorial week: Saturday → Friday
+
+The editorial week runs Saturday 00:00 through Friday 23:59 (Apr 2026+).
+Drafting happens Friday 16:00; publication is Saturday dawn.
+
+### Daily flow (Sat–Wed)
 ```
 22:00–06:00  Podcast pipeline (launchd)    — 6 runs: detect episodes, transcribe, deliver .md
 03:30        AI NewsHub fetch (launchd)    — curated articles from 7,000+ sources (IE/GB/EU/US)
@@ -171,13 +185,32 @@ Registered via the `scheduled-tasks` MCP (runtime state — not tracked in the r
 22:00        Sync to cloud (launchd)       — final catch-up before the night's podcast runs
 ```
 
-### Thursday flow
+### Thursday flow (day before drafting)
+```
+Same as Sat–Wed, plus:
+20:00        Editorial thursday-sweep      — final quality gate before Friday drafting
+```
+
+### Friday flow (drafting day)
 ```
 03:30        AI NewsHub fetch (launchd)
 04:00        Brave fetch (launchd)
-13:00        Full pipeline (launchd)       — fetch → score → discover (GPT+Gemini) → report → draft
-14:00        Newsletter pipeline           — draft (Opus 4.7) → CEO empathy → critique → revision
-20:00        Wednesday-sweep equivalent runs Wednesday 20:00, preceding this
+07:00–11:00  Daily analyse + discover + headlines + geographic-sweep (as other days)
+12:00        Friday top-up fetch (launchd) — L1+L2 queries, last 18 hours; catches Thu-evening + Fri-morning news
+13:00        Full pipeline (launchd)       — fetch → score → discover (GPT+Gemini) → report → draft (mode=friday)
+13:00        Editorial friday-readiness    — delta-sweep, podcast-URL reconciliation, verifier dry-run, gap flags
+15:00        Newsletter pipeline           — draft (Opus 4.7) → CEO empathy → critique → revision → verifier
+16:00        Scott edits                   — Claude-generated draft ready for review
+22:00        Sync to cloud (launchd)       — push post-edit state to Turso + Fly
+```
+
+### Saturday flow (publication day)
+```
+22:00 Fri–06:00 Sat  Podcast pipeline      — catches Friday-evening podcasts
+03:30         AI NewsHub fetch             — new editorial week begins
+04:00         Brave fetch                  — new editorial week begins
+05:00         Publish                      — scheduled via platform, or manual
+07:00+        Resume daily flow            — Saturday is day 1 of the next editorial week
 ```
 
 ### Key design decisions (Week 13 post-mortem)
@@ -186,7 +219,7 @@ Registered via the `scheduled-tasks` MCP (runtime state — not tracked in the r
 - **The tl;dr is editor-rewritten.** The pipeline generates a tl;dr draft, but it consistently requires editorial rewriting to achieve the right analytical voice. The pipeline's draft context now includes post backlog, theme cross-connections, and ranked analysis entries as editorial fuel. The editor rewrites the tl;dr and podcast sections from this material.
 - **Draft follows week 13 published structure** — welcome line → tl;dr editorial prose → sector bullets inline → expanded analysis → podcast commentary with zero URL overlap.
 - **Geographic balance is mandatory** — Irish, EU and UK stories are first-class content, not footnotes. The audience is global enterprise leaders.
-- **Date validation at write time** — every article must be within the newsletter window (Friday–Thursday). Reject anything outside.
+- **Date validation at write time** — every article must be within the newsletter window (Saturday–Friday as of Apr 2026; was Friday–Thursday until Week 17). Reject anything outside.
 
 ## How to run
 
@@ -462,7 +495,7 @@ sni-research-v2/                          # Main project (the repo you're readin
 ├── editorial-discover/SKILL.md
 ├── editorial-headlines/SKILL.md
 ├── editorial-geographic-sweep/SKILL.md
-├── editorial-wednesday-sweep/SKILL.md
+├── editorial-thursday-sweep/SKILL.md
 ├── editorial-quality-digest/SKILL.md
 ├── editorial-critique-revise/SKILL.md
 ├── pipeline-weekly-newsletter/SKILL.md

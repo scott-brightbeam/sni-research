@@ -274,12 +274,13 @@ rsync -av old-mac:~/.claude/scheduled-tasks/ ~/.claude/scheduled-tasks/
 | `editorial-discover` | 09:00 daily |
 | `editorial-headlines` | 10:30 daily |
 | `editorial-geographic-sweep` | 11:00 daily |
-| `editorial-wednesday-sweep` | Wednesday 20:00 |
-| `editorial-quality-digest` | Sunday or Monday (weekly) |
-| `vocabulary-fingerprint-refresh` | Sunday (weekly) |
-| `pipeline-weekly-newsletter` | Thursday 14:00 |
-| `editorial-critique-revise` | On-demand (no schedule) |
-| `bug-triage` | On-demand (no schedule) |
+| `editorial-thursday-sweep` | Thursday 20:00 *(renamed from editorial-wednesday-sweep 24 Apr 2026)* |
+| `editorial-friday-readiness` | Friday 13:00 |
+| `editorial-quality-digest` | Monday (weekly) |
+| `vocabulary-fingerprint-refresh` | Sunday (weekly, optional) |
+| `pipeline-weekly-newsletter` | Friday 15:00 |
+| `editorial-critique-revise` | Friday 15:30 |
+| `bug-triage` | Thrice-daily weekdays |
 
 ---
 

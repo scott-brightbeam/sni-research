@@ -17,7 +17,11 @@ export function getISOWeek(date = new Date()) {
 }
 
 export function getWeekDateRange(week, year = new Date().getFullYear()) {
-  // Editorial week: Friday (Mon-3) through Thursday (Mon+3)
+  // Editorial week: Saturday (Mon-2) through Friday (Mon+4).
+  // Changed Apr 2026 from Fri–Thu to Sat–Fri to match the new Friday-16:00
+  // drafting cadence and Saturday-dawn publication. Must stay in sync with
+  // scripts/lib/week.js:getWeekWindow — the verifier and the web UI share
+  // this convention.
   const jan4 = new Date(Date.UTC(year, 0, 4))
   const dayOfWeek = jan4.getUTCDay() || 7
   const mondayWeek1 = new Date(jan4)
@@ -27,14 +31,14 @@ export function getWeekDateRange(week, year = new Date().getFullYear()) {
   const monday = new Date(mondayWeek1)
   monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7)
 
-  // Friday of previous week = Monday - 3
-  const friday = new Date(monday)
-  friday.setUTCDate(monday.getUTCDate() - 3)
+  // Saturday of previous week = Monday - 2
+  const saturday = new Date(monday)
+  saturday.setUTCDate(monday.getUTCDate() - 2)
 
-  // Thursday = Monday + 3
-  const thursday = new Date(monday)
-  thursday.setUTCDate(monday.getUTCDate() + 3)
+  // Friday = Monday + 4
+  const friday = new Date(monday)
+  friday.setUTCDate(monday.getUTCDate() + 4)
 
   const fmt = d => d.toISOString().slice(0, 10)
-  return { start: fmt(friday), end: fmt(thursday) }
+  return { start: fmt(saturday), end: fmt(friday) }
 }

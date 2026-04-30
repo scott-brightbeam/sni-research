@@ -398,9 +398,10 @@ export async function runPipeline(args = {}) {
   }
   const year = args.year || new Date().getFullYear();
 
-  // Determine mode
-  const dayOfWeek = new Date().getDay(); // 0=Sun, 4=Thu
-  const mode = args.mode || (dayOfWeek === 4 ? 'full' : 'daily');
+  // Determine mode. Friday is the weekly-full day as of Apr 2026 (was Thursday);
+  // pass --mode friday explicitly from the launchd plist. Manual runs auto-detect.
+  const dayOfWeek = new Date().getDay(); // 0=Sun, 5=Fri
+  const mode = args.mode || (dayOfWeek === 5 ? 'friday' : 'daily');
 
   // Date window: daily uses yesterday (runs at 04:00), full uses editorial week
   let dateWindow;

@@ -802,6 +802,13 @@ async function syncOutputFiles() {
  * each `.new` file into place. This is atomic-ish (mv is a rename on the
  * same filesystem) and avoids the stale-file bug where state.json on Fly
  * was 690KB while local was 1.2MB because `put` silently skipped it.
+ *
+ * Apr 2026 fix: the rename step used to chain every mv with `&&` in a single
+ * `fly ssh console --command` call. For 60 files the command string exceeded
+ * what the console reliably delivered, so most mv's silently dropped and
+ * `.new` files stacked on the volume (weeks 8–17 all had stuck `.new` files).
+ * Now chunks the renames into batches of 10, checks exit codes, and does a
+ * post-rename audit listing any .new files still present.
  */
 async function runSftp(filesToSync, mkdirs = []) {
   // Step 1: SFTP upload to .new paths
@@ -823,20 +830,70 @@ async function runSftp(filesToSync, mkdirs = []) {
     return
   }
 
-  // Step 2: Rename .new files into place on the VM
-  const mvCommands = filesToSync
-    .map(f => `mv ${f.remote}.new ${f.remote}`)
-    .join(' && ')
+  // Step 2: Rename .new files into place in batches of 10 (command-length safe)
+  const BATCH_SIZE = 10
+  let renameSuccess = 0
+  let renameFailed = 0
 
-  try {
-    const proc = Bun.spawn(
-      ['fly', 'ssh', 'console', '--command', mvCommands, '-a', 'sni-research'],
-      { stdout: 'pipe', stderr: 'pipe',
-        env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` } }
-    )
-    await proc.exited
-  } catch (err) {
-    console.error('[sync] SFTP rename failed (non-fatal):', err.message)
+  for (let i = 0; i < filesToSync.length; i += BATCH_SIZE) {
+    const batch = filesToSync.slice(i, i + BATCH_SIZE)
+    // Guard against quotes in remote paths — we wrap the mv script in `sh -c '…'`,
+    // so a single quote in a filename would break out of the outer string.
+    // All current paths are ASCII slugs, but fail loud rather than silently corrupt.
+    const badPath = batch.find(f => /['"`\\]/.test(f.remote))
+    if (badPath) {
+      console.error(`[sync] unsafe char in remote path: ${badPath.remote}`)
+      renameFailed += batch.length
+      continue
+    }
+    // Use `;` so one failure doesn't abort the batch.
+    // Collect per-file stderr via a server-side shell loop.
+    const mvScript = batch
+      .map(f => `mv "${f.remote}.new" "${f.remote}" 2>&1 && echo OK:${f.remote} || echo FAIL:${f.remote}`)
+      .join('; ')
+
+    try {
+      const proc = Bun.spawn(
+        ['fly', 'ssh', 'console', '--command', `sh -c '${mvScript}'`, '-a', 'sni-research'],
+        { stdout: 'pipe', stderr: 'pipe',
+          env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` } }
+      )
+      const [stdout] = await Promise.all([new Response(proc.stdout).text(), proc.exited])
+      for (const line of stdout.split('\n')) {
+        if (line.startsWith('OK:')) renameSuccess++
+        else if (line.startsWith('FAIL:')) {
+          renameFailed++
+          console.error(`[sync] rename failed: ${line.slice(5)}`)
+        }
+      }
+    } catch (err) {
+      console.error(`[sync] rename batch ${i}-${i + batch.length} failed:`, err.message)
+      renameFailed += batch.length
+    }
+  }
+
+  log(`Output rename: ${renameSuccess} ok, ${renameFailed} failed`)
+
+  // Step 3: post-rename audit — scan for any .new files still present in our
+  // target directories and flag them. A successful sync leaves zero .new files
+  // in the specific subtrees we just wrote to.
+  if (renameFailed > 0) {
+    try {
+      const auditDirs = [...new Set(filesToSync.map(f => f.remote.replace(/\/[^/]+$/, '')))]
+      const auditCmd = auditDirs.map(d => `find "${d}" -maxdepth 1 -name '*.new' 2>/dev/null`).join('; ')
+      const proc = Bun.spawn(
+        ['fly', 'ssh', 'console', '--command', `sh -c '${auditCmd}'`, '-a', 'sni-research'],
+        { stdout: 'pipe', stderr: 'pipe',
+          env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` } }
+      )
+      const [stdout] = await Promise.all([new Response(proc.stdout).text(), proc.exited])
+      const leftover = stdout.split('\n').filter(l => l.endsWith('.new')).length
+      if (leftover > 0) {
+        console.error(`[sync] WARN: ${leftover} .new files still present on volume — manual mv needed`)
+      }
+    } catch (err) {
+      console.error('[sync] post-rename audit failed (non-fatal):', err.message)
+    }
   }
 }
 

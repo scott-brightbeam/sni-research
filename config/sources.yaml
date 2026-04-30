@@ -18,6 +18,10 @@ rss_feeds:
       name: Endpoints News                  # Re-added Mar 2026 — feed serving despite partial paywall
     - url: https://www.nature.com/nbt.rss
       name: Nature Biotechnology            # Added Mar 2026 — high-quality, "Agentic AI in biomedical research" etc.
+    - url: https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=medicines-and-healthcare-products-regulatory-agency
+      name: UK MHRA news                    # Added Apr 2026 — caught in-silico trial commencement gap in Week 17 retro
+    - url: https://www.ema.europa.eu/en/rss.xml
+      name: EMA news                        # Added Apr 2026 — EU regulator AI guidance stream
     # Removed (dead/blocked): medcitynews.com/feed (403), pharmatimes.com/rss (paywalled),
     #   biospace.com/rss/ (404), drugdiscoveryonline.com/feed (404),
     #   fiercebiotech.com/rss/xml (RSS 403 to bots), fiercepharma.com/rss/xml (articles 403)
@@ -31,6 +35,12 @@ rss_feeds:
       name: Rock Health
     - url: https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml
       name: FDA Press Releases
+    - url: https://www.nice.org.uk/news/rss
+      name: NICE news                       # Added Apr 2026 — UK HealthTech Access Programme & AI diagnostic guidance
+    - url: https://www.nihr.ac.uk/news/rss.xml
+      name: NIHR news                       # Added Apr 2026 — UK clinical research feed
+    - url: https://www.nationalhealthexecutive.com/articles.rss
+      name: National Health Executive       # Added Apr 2026 — NHS policy trade press
     # Removed (dead Feb 2026): healthcareitnews.com/feed (paywalled),
     #   fiercehealthcare.com/rss/xml (403), massdevice.com/feed (404)
 
@@ -41,16 +51,22 @@ rss_feeds:
       name: The Robot Report
     - url: https://semiengineering.com/feed/
       name: Semiconductor Engineering
+    - url: https://www.roi-nj.com/category/energy-utilities/feed/
+      name: ROI-NJ Energy & Utilities       # Added Apr 2026 — SMR + data-centre commercial structures (missed Denham/FANCO in Week 17)
+    - url: https://earthjustice.org/press/feed
+      name: Earthjustice Press              # Added Apr 2026 — infra-policy litigation around AI data centres
     # Removed (dead Feb 2026): roboticsandautomationnews.com/feed (0 content),
     #   automationworld.com/rss (404)
 
   insurance:
     - url: https://insurancethoughtleadership.com/feed/
       name: Insurance Thought Leadership
+    - url: https://www.reinsurancene.ws/feed/
+      name: Reinsurance News                # Re-added Apr 2026 — Lloyd's Lab coverage (Testudo missed in Week 17); retry after timeouts
     # Removed (dead/blocked): insurancejournal.com/rss/news (paywalled),
     #   eu-startups.com/feed (paywalled), intelligentinsurer.com/rss (404),
     #   insnerds.com/feed (404), insuranceciooutlook.com/rss_feed (malformed XML),
-    #   reinsurancene.ws/feed (timeouts), dig-in.com/feed (returns HTML not RSS),
+    #   dig-in.com/feed (returns HTML not RSS),
     #   insurtechdigital.com/rss (404 as of Mar 2026),
     #   coverager.com/feed (articles 403 to bots), carriermanagement.com/feed (paywalled)
 
@@ -61,6 +77,16 @@ rss_feeds:
       name: Samsung Newsroom
     - url: https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114
       name: CNBC Technology             # Added Mar 2026 — 8 saves from L2 query; RSS avoids Brave cost
+    - url: https://www.siliconrepublic.com/feed
+      name: Silicon Republic            # Added Apr 2026 — Irish tech/AI coverage (missed MongoDB Ireland commitment in Week 17)
+    - url: https://www.rte.ie/news/rss/business.xml
+      name: RTÉ Business                # Added Apr 2026 — Irish mainstream business feed
+    - url: https://www.fraunhofer.de/content/dam/zv/en/press-media/press-releases.rss
+      name: Fraunhofer Press            # Added Apr 2026 — EU industrial AI research (missed Franco-German AI Dialogue in Week 17)
+    - url: https://www.inria.fr/en/rss.xml
+      name: Inria News                  # Added Apr 2026 — French AI research institute
+    - url: https://www.medianama.com/feed/
+      name: Medianama                   # Added Apr 2026 — India AI regulation (missed MeitY continuous-visibility labels in Week 17)
 
   # AI lab newsrooms — direct source for frontier AI announcements
   ai_labs:
@@ -90,6 +116,10 @@ rss_feeds:
       name: Ars Technica
     - url: https://www.theregister.com/headlines.atom
       name: The Register
+    - url: https://sherwood.news/tech/feed/
+      name: Sherwood News — Tech        # Added Apr 2026 — AI business beat (missed Google DeepMind strike team in Week 17)
+    - url: https://hongkongfp.com/feed/
+      name: Hong Kong Free Press        # Added Apr 2026 — China AI beat (missed DeepSeek V4 launch in Week 17)
 
   # Curated AI digests with RSS feeds
   newsletters:
