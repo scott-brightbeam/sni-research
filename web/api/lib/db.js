@@ -12,7 +12,7 @@
  *                           (throws unless SNI_TEST_MODE=1)
  */
 
-const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
@@ -435,6 +435,38 @@ const BATCH_STATEMENTS = [
 
   `CREATE INDEX IF NOT EXISTS idx_style_edits_processed ON style_edits(processed)`,
 
+  // -- mcp_contributions (v5: MCP server audit log)
+  `CREATE TABLE IF NOT EXISTS mcp_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL DEFAULT (datetime('now')),
+    user_email TEXT NOT NULL,
+    jti TEXT,
+    tool TEXT NOT NULL,
+    payload TEXT,
+    outcome TEXT NOT NULL CHECK (outcome IN ('success','sidecar_failed','auth_failed','tool_error','rate_limited','validation_error','audit_only')),
+    error TEXT,
+    latency_ms INTEGER,
+    contribution_id TEXT,
+    client_request_id TEXT
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_mcp_contributions_user_ts
+    ON mcp_contributions(user_email, ts DESC)`,
+
+  `CREATE INDEX IF NOT EXISTS idx_mcp_contributions_outcome_ts
+    ON mcp_contributions(outcome, ts DESC) WHERE outcome != 'success'`,
+
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_contributions_clientreq
+    ON mcp_contributions(client_request_id, user_email) WHERE client_request_id IS NOT NULL`,
+
+  // -- mcp_revoked_tokens (v5: JWT revocation list)
+  `CREATE TABLE IF NOT EXISTS mcp_revoked_tokens (
+    jti TEXT PRIMARY KEY,
+    revoked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    revoked_by TEXT NOT NULL,
+    reason TEXT
+  )`,
+
   // -- schema_version
   `CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
@@ -500,12 +532,15 @@ const COUNTER_SEEDS = [
  * @param {import('@libsql/client').Client} db
  */
 export async function migrateSchema(db) {
-  // Check current schema version — skip if already up to date
-  try {
+  // Check current schema version — skip if already up to date.
+  // Probe sqlite_master first so a real connection error here propagates
+  // instead of being swallowed as "table doesn't exist".
+  const versionTable = await db.execute(
+    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_version'"
+  )
+  if (versionTable.rows.length > 0) {
     const vResult = await db.execute('SELECT MAX(version) AS v FROM schema_version')
     if (vResult.rows[0]?.v >= SCHEMA_VERSION) return
-  } catch {
-    // schema_version table doesn't exist yet — first run
   }
 
   // 1. Batch-safe DDL (tables + indexes)
@@ -528,9 +563,13 @@ export async function migrateSchema(db) {
   }
 
   // 4. Schema v3 additions: published_posts enrichment columns
+  // Narrow catch to the expected "duplicate column name" case so genuine
+  // schema/connection errors propagate instead of being silently swallowed.
   const addCol = async (table, col, type) => {
     try { await db.execute(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`) }
-    catch { /* column already exists */ }
+    catch (e) {
+      if (!/duplicate column/i.test(e.message)) throw e
+    }
   }
   await addCol('published_posts', 'format', 'TEXT')            // LinkedIn format classification
   await addCol('published_posts', 'opening_line', 'TEXT')      // First sentence for pattern matching

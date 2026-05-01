@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'bun:test'
-import { createTestDb, migrateSchema } from '../lib/db.js'
+import { createTestDb, migrateSchema, SCHEMA_VERSION } from '../lib/db.js'
 
 describe('db module', () => {
   const db = createTestDb()
@@ -82,9 +82,7 @@ describe('db module', () => {
   it('sets schema_version to the current SCHEMA_VERSION', async () => {
     const result = await db.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
     expect(result.rows.length).toBe(1)
-    // Matches SCHEMA_VERSION constant at the top of lib/db.js.
-    // Bump this when the schema version in the source is bumped.
-    expect(result.rows[0].version).toBe(4)
+    expect(result.rows[0].version).toBe(SCHEMA_VERSION)
   })
 
   afterAll(() => db.close())
