@@ -13,7 +13,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { bodyLimit } from 'hono/body-limit'
 import { authenticateMcpRequest } from '../lib/mcp-auth.js'
-// TODO(task-3.5): import { rateLimitCheck } from '../lib/mcp-rate-limit.js'
+import { rateLimitCheck } from '../lib/mcp-rate-limit.js'
 // TODO(task-4):    import { registerReadTools } from '../lib/mcp-tools/reads.js'
 // TODO(task-5):    import { registerWriteTools } from '../lib/mcp-tools/writes.js'
 
@@ -77,7 +77,12 @@ export function mountMcp(app) {
       return c.json({ error: 'unauthorized', detail: e.message }, 401)
     }
 
-    // TODO(task-3.5): rate-limit check here — return 429 + Retry-After when over.
+    // Per-user rate limit (60/min sliding window).
+    const rl = rateLimitCheck(user.sub)
+    if (!rl.ok) {
+      c.header('Retry-After', String(rl.retryAfterSec))
+      return c.json({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec }, 429)
+    }
 
     // Bridge user identity into the tool callback via Hono ctx.
     // wrapTool (Task 4) reads this from extra.authInfo.
