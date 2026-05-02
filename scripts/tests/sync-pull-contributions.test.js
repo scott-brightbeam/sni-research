@@ -979,3 +979,70 @@ describe('pullContributions — operational', () => {
     expect(typeof success.elapsedMs).toBe('number')
   })
 })
+
+// ── payloadHash tampered quarantine (case 49) ─────────────────────────────────
+
+import { createHash } from 'crypto'
+
+describe('pullContributions — payloadHash mismatch quarantined to tampered/', () => {
+  let root, fixtureDir
+  const telegramCalls = []
+
+  beforeEach(() => {
+    root = makeRoot()
+    fixtureDir = mkdtempSync(join(tmpdir(), 'sni-fixtures-'))
+    telegramCalls.length = 0
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(fixtureDir, { recursive: true, force: true })
+  })
+
+  // Case 49
+  it('sidecar with payloadHash mismatch is quarantined to tampered/', async () => {
+    setState(root, makeState())
+
+    const goodHash = createHash('sha256').update(JSON.stringify({ title: 'Original' })).digest('hex')
+    const sidecar = {
+      ...makeSidecar(),
+      payload: { title: 'Tampered payload' },  // payload differs from hash
+      payloadHash: goodHash,                    // hash of original payload
+    }
+    writeSidecar(fixtureDir, sidecar)
+
+    const sftp = makeSftpStub(fixtureDir)
+    const telegram = async (msg) => { telegramCalls.push(msg) }
+
+    const result = await pullContributionsTest({ root, sftp, telegram })
+
+    expect(result.mergedIds).toEqual([])
+    expect(result.quarantined).toContain(sidecar.contributionId)
+
+    const tamperedDir = join(root, 'data/editorial/contributions/tampered')
+    const allTampered = readdirSync(tamperedDir, { recursive: true }).filter(f => String(f).endsWith('.json'))
+    expect(allTampered.length).toBeGreaterThan(0)
+
+    expect(telegramCalls.some(m => m.includes('tampered'))).toBe(true)
+
+    const state = getState(root)
+    expect(state.pendingContributions ?? []).toHaveLength(0)
+  })
+
+  // Case 50
+  it('sidecar with correct payloadHash is accepted normally', async () => {
+    setState(root, makeState())
+
+    const payload = { title: 'Authentic payload', format: 'Format 1: The Concept Contrast' }
+    const hash = createHash('sha256').update(JSON.stringify(payload)).digest('hex')
+    const sidecar = { ...makeSidecar(), payload, payloadHash: hash }
+    writeSidecar(fixtureDir, sidecar)
+
+    const sftp = makeSftpStub(fixtureDir)
+
+    const result = await pullContributionsTest({ root, sftp })
+
+    expect(result.mergedIds).toContain(sidecar.contributionId)
+    expect(result.quarantined).toEqual([])
+  })
+})

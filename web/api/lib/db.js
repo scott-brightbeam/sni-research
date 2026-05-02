@@ -12,7 +12,7 @@
  *                           (throws unless SNI_TEST_MODE=1)
  */
 
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 import { createClient } from '@libsql/client'
 import { loadEnvKey } from './env.js'
@@ -435,7 +435,7 @@ const BATCH_STATEMENTS = [
 
   `CREATE INDEX IF NOT EXISTS idx_style_edits_processed ON style_edits(processed)`,
 
-  // -- mcp_contributions (v5: MCP server audit log)
+  // -- mcp_contributions (v6: lifecycle columns + payload hash + rollback FK)
   `CREATE TABLE IF NOT EXISTS mcp_contributions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts TEXT NOT NULL DEFAULT (datetime('now')),
@@ -446,8 +446,12 @@ const BATCH_STATEMENTS = [
     outcome TEXT NOT NULL CHECK (outcome IN ('success','sidecar_failed','auth_failed','tool_error','rate_limited','validation_error','audit_only')),
     error TEXT,
     latency_ms INTEGER,
-    contribution_id TEXT,
-    client_request_id TEXT
+    contribution_id TEXT UNIQUE,
+    client_request_id TEXT,
+    lifecycle_state TEXT NOT NULL DEFAULT 'submitted' CHECK (lifecycle_state IN ('submitted','pulled','merged','consumed','rolled_back','quarantined','lost')),
+    lifecycle_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    rollback_of TEXT REFERENCES mcp_contributions(contribution_id),
+    payload_hash TEXT
   )`,
 
   `CREATE INDEX IF NOT EXISTS idx_mcp_contributions_user_ts
@@ -590,7 +594,18 @@ export async function migrateSchema(db) {
   )`)
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_style_edits_processed ON style_edits(processed)`)
 
-  // 6. Record schema version
+  // 6. Schema v6: lifecycle columns + payloadHash on mcp_contributions.
+  // addCol narrows its catch to "duplicate column" so real errors propagate.
+  await addCol('mcp_contributions', `lifecycle_state TEXT NOT NULL DEFAULT 'submitted' CHECK (lifecycle_state IN ('submitted','pulled','merged','consumed','rolled_back','quarantined','lost'))`, '')
+  await addCol('mcp_contributions', 'lifecycle_updated_at TEXT NOT NULL DEFAULT (datetime(\'now\'))', '')
+  // rollback_of references contribution_id; on existing v5 DBs contribution_id is
+  // not UNIQUE so we create a partial unique index first, then add the FK column.
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_contributions_cid
+    ON mcp_contributions(contribution_id) WHERE contribution_id IS NOT NULL`)
+  await addCol('mcp_contributions', 'rollback_of TEXT REFERENCES mcp_contributions(contribution_id)', '')
+  await addCol('mcp_contributions', 'payload_hash TEXT', '')
+
+  // 7. Record schema version
   await db.execute({
     sql: "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
     args: [SCHEMA_VERSION],

@@ -627,6 +627,18 @@ export function validatePendingContributions(pending) {
         message: `pendingContributions[${i}]: ts is not an ISO timestamp`,
       })
     }
+
+    // payloadHash is optional (v1 sidecars without it are still valid).
+    // When present, must be a 64-char lowercase hex string (SHA-256 digest).
+    if ('payloadHash' in entry) {
+      if (typeof entry.payloadHash !== 'string' || !/^[0-9a-f]{64}$/.test(entry.payloadHash)) {
+        errors.push({
+          code: 'PENDING_CONTRIBUTION_PAYLOAD_HASH',
+          id,
+          message: `pendingContributions[${i}]: payloadHash must be a 64-char lowercase hex string`,
+        })
+      }
+    }
   }
 
   return { errors, warnings }

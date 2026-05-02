@@ -815,4 +815,33 @@ describe('validatePendingContributions', () => {
     expect(result.valid).toBe(false)
     expect(hasError(result, 'PENDING_CONTRIBUTION_VERSION')).toBe(true)
   })
+
+  it('payloadHash is optional — sidecar without it still validates', () => {
+    const sidecar = makeValidSidecar()
+    expect('payloadHash' in sidecar).toBe(false)
+    const result = validatePendingContributions([sidecar])
+    expect(result.errors).toEqual([])
+  })
+
+  it('payloadHash accepts a 64-char hex string', () => {
+    const hash = 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d'
+    const result = validatePendingContributions([makeValidSidecar({ payloadHash: hash })])
+    expect(result.errors).toEqual([])
+  })
+
+  it('payloadHash rejects a non-64-char string', () => {
+    const result = validatePendingContributions([makeValidSidecar({ payloadHash: 'tooshort' })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_PAYLOAD_HASH')).toBe(true)
+  })
+
+  it('payloadHash rejects uppercase hex (must be lowercase)', () => {
+    const hash = 'A'.repeat(64)
+    const result = validatePendingContributions([makeValidSidecar({ payloadHash: hash })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_PAYLOAD_HASH')).toBe(true)
+  })
+
+  it('payloadHash rejects non-string type', () => {
+    const result = validatePendingContributions([makeValidSidecar({ payloadHash: 12345 })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_PAYLOAD_HASH')).toBe(true)
+  })
 })

@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { randomUUID, createHash } from 'crypto'
 import { writeFile, rename, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { getDb } from '../db.js'
@@ -60,11 +60,13 @@ export async function submitContribution(type, payload, user, clientRequestId) {
   }
 
   const id = randomUUID()
+  const payloadJson = JSON.stringify(payload)
   const sidecar = {
     version: 1,
     contributionId: id,
     type,
     payload,
+    payloadHash: createHash('sha256').update(payloadJson).digest('hex'),
     user: { email: user.sub, name: user.name ?? null },
     ts: new Date().toISOString(),
     clientRequestId: clientRequestId ?? null,

@@ -100,7 +100,7 @@ describe('sni_submit_post_candidate', () => {
     expect(files).toHaveLength(2)
   })
 
-  it('sidecar contains version=1, contributionId, type, payload, user, ts', async () => {
+  it('sidecar contains version=1, contributionId, type, payload, user, ts, payloadHash', async () => {
     const db = getDb()
     const r = await callTool({
       register: registerWriteTools, name: 'sni_submit_post_candidate',
@@ -119,6 +119,9 @@ describe('sni_submit_post_candidate', () => {
     // clientRequestId belongs at the top level, not duplicated inside payload.
     // Pins the strip-before-pass contract so Task 7 copies the right pattern.
     expect(sidecar.payload).not.toHaveProperty('clientRequestId')
+    // v1.1: payloadHash is a 64-char lowercase hex SHA-256 of JSON.stringify(payload)
+    expect(typeof sidecar.payloadHash).toBe('string')
+    expect(sidecar.payloadHash).toMatch(/^[0-9a-f]{64}$/)
   })
 
   it('sidecar uses .tmp + rename atomic pattern — no .tmp left over', async () => {

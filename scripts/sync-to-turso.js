@@ -792,6 +792,28 @@ async function syncOutputFiles() {
     return
   }
 
+  // Ring buffer: before uploading state.json, rename the existing copy on the
+  // volume to state.json.previous (one-deep rollback point). The check and
+  // rename happen via a single sh -c call; if state.json doesn't exist yet the
+  // mv is skipped silently. This runs BEFORE the put so .previous always holds
+  // the version that was live before this sync.
+  const stateSynced = filesToSync.some(f => f.remote === '/app/data/editorial/state.json')
+  if (stateSynced) {
+    try {
+      const proc = Bun.spawn(
+        ['fly', 'ssh', 'console', '--command',
+          `sh -c 'if [ -f /app/data/editorial/state.json ]; then mv /app/data/editorial/state.json /app/data/editorial/state.json.previous; fi'`,
+          '-a', 'sni-research'],
+        { stdout: 'pipe', stderr: 'pipe',
+          env: { ...process.env, PATH: `/Users/scott/.fly/bin:${process.env.PATH}` } }
+      )
+      await proc.exited
+      log('Output: rotated state.json → state.json.previous on volume')
+    } catch (err) {
+      console.error('[sync] state.json.previous rotation failed (non-fatal):', err.message)
+    }
+  }
+
   await runSftp(filesToSync, [
     'mkdir /app/data/editorial',
     'mkdir /app/data/editorial/drafts',
@@ -933,6 +955,10 @@ function getQuarantineDir(root = ROOT, date) {
 
 function getFailedDir(root = ROOT) {
   return join(root, 'data/editorial/contributions', 'failed')
+}
+
+function getTamperedDir(root = ROOT, date) {
+  return join(root, 'data/editorial/contributions', 'tampered', date)
 }
 
 function getProcessedDir(root = ROOT) {
@@ -1196,6 +1222,19 @@ export async function pullContributions({
           await telegram(`🚨 SNI sync quarantine — ${uuid} has failed ${attempts} times (validator threw). Manual review needed.`)
         }
         continue
+      }
+
+      // payloadHash verification (v1.1+ sidecars only — field is optional)
+      if (sidecar.payloadHash !== undefined) {
+        const expected = sha256(JSON.stringify(sidecar.payload))
+        if (sidecar.payloadHash !== expected) {
+          const tamperedDir = getTamperedDir(root, today)
+          mkdirSync(tamperedDir, { recursive: true })
+          try { copyFileSync(localPath, join(tamperedDir, basename(localPath))) } catch { /* best-effort */ }
+          quarantinedIds.push(uuid)
+          await telegram(`🚨 SNI sync tampered — ${uuid} payloadHash mismatch. Storage corruption or sender bug. Manual review needed.`)
+          continue
+        }
       }
 
       validSidecars.push(sidecar)
