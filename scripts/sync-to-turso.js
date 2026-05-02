@@ -14,12 +14,19 @@
  *  3. Podcast episodes from data/podcasts/
  */
 
-import { readdirSync, readFileSync, existsSync, statSync } from 'fs'
+import { readdirSync, readFileSync, writeFileSync, existsSync, statSync, mkdirSync, renameSync, unlinkSync, copyFileSync } from 'fs'
 import { join, basename, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { createHash } from 'crypto'
+import { mkdtempSync } from 'fs'
+import { tmpdir } from 'os'
 import { createSyncDb } from './lib/db.js'
 import { migrateSchema } from '../web/api/lib/db.js'
-import { validateEditorialState } from './validate-editorial-state.js'
+import { validateEditorialState, validatePendingContributions } from './validate-editorial-state.js'
+import { acquireStateLock, releaseStateLock, waitAndAcquireStateLock } from './lib/state-lock.js'
+import { snapshotState, pruneSnapshots } from './lib/state-snapshot.js'
+import { appendSyncLog, readSyncLog } from './lib/sync-journal.js'
+import { sendTelegram } from './lib/telegram.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
@@ -898,6 +905,422 @@ async function runSftp(filesToSync, mkdirs = []) {
 }
 
 // ---------------------------------------------------------------------------
+// pullContributions — phase-0 reverse-merge from Fly volume
+// ---------------------------------------------------------------------------
+
+const CONTRIBUTIONS_REMOTE_DIR = '/app/data/editorial/contributions'
+const FLY_APP = 'sni-research'
+const FLY_BIN = `/Users/scott/.fly/bin`
+const FLY_ENV = { ...process.env, PATH: `${FLY_BIN}:${process.env.PATH}` }
+
+// Path helpers — each accepts an optional root override so tests can
+// isolate filesystem state via mkdtemp without forking the production code.
+function getSyncLogPath(root = ROOT) {
+  return join(root, 'data/editorial/sync-log.jsonl')
+}
+
+function getStateLockPath(root = ROOT) {
+  return join(root, 'data/editorial/.state-pull.lock')
+}
+
+function getBackupDir(root = ROOT) {
+  return join(root, 'data/editorial/backups')
+}
+
+function getQuarantineDir(root = ROOT, date) {
+  return join(root, 'data/editorial/contributions', 'quarantine', date)
+}
+
+function getFailedDir(root = ROOT) {
+  return join(root, 'data/editorial/contributions', 'failed')
+}
+
+function getProcessedDir(root = ROOT) {
+  return join(root, 'data/editorial/contributions', 'processed')
+}
+
+/** Remove stale .tmp files left by prior crashes in a directory. */
+function cleanupStaleTmpFiles(dir) {
+  if (!existsSync(dir)) return
+  try {
+    const files = readdirSync(dir).filter(f => f.endsWith('.tmp'))
+    for (const f of files) {
+      try { unlinkSync(join(dir, f)) } catch { /* best-effort */ }
+    }
+    if (files.length > 0) {
+      log(`Cleaned up ${files.length} stale .tmp file(s) in ${dir}`)
+    }
+  } catch { /* best-effort */ }
+}
+
+/** SHA-256 of a buffer, returned as hex. */
+function sha256(buf) {
+  return createHash('sha256').update(buf).digest('hex')
+}
+
+/** Derive syncRunId from a Date (or 'now'). */
+function makeSyncRunId(d = new Date()) {
+  return d.toISOString()
+    .replace(/[-:]/g, '')
+    .replace('T', 'T')
+    .slice(0, 15)  // 'YYYYMMDDTHHmmss'
+}
+
+/**
+ * Real SFTP implementation — wraps `fly ssh sftp shell` and `fly ssh console`.
+ * Used in production; tests inject a stub.
+ */
+const realSftp = {
+  /**
+   * List JSON sidecar filenames in the remote contributions directory.
+   * Excludes subdirectories (processed/, failed/, quarantine/) and *.tmp files.
+   * Returns an array of bare filenames like ['uuid1.json', 'uuid2.json'].
+   */
+  async ls() {
+    try {
+      const proc = Bun.spawn(
+        ['fly', 'ssh', 'console', '--command',
+          `sh -c 'ls -1 "${CONTRIBUTIONS_REMOTE_DIR}" 2>/dev/null || true'`,
+          '-a', FLY_APP],
+        { stdout: 'pipe', stderr: 'pipe', env: FLY_ENV }
+      )
+      const [stdout] = await Promise.all([new Response(proc.stdout).text(), proc.exited])
+      return stdout
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.endsWith('.json') && !l.includes('/'))
+    } catch (err) {
+      throw new Error(`sftp.ls failed: ${err.message}`)
+    }
+  },
+
+  /**
+   * Download files from the remote contributions directory to a local tmpDir.
+   * Returns an array of local paths for the files actually written.
+   *
+   * @param {string[]} filenames  — bare filenames to fetch
+   * @param {string}   localDir   — directory to write into
+   */
+  async get(filenames, localDir) {
+    if (filenames.length === 0) return []
+    mkdirSync(localDir, { recursive: true })
+
+    // Build an SFTP batch script: one `get` per file
+    const commands = filenames
+      .map(f => `get "${CONTRIBUTIONS_REMOTE_DIR}/${f}" "${localDir}/${f}"`)
+      .join('\n')
+
+    try {
+      const proc = Bun.spawn(
+        ['fly', 'ssh', 'sftp', 'shell', '-a', FLY_APP],
+        { stdin: new Blob([commands]), stdout: 'pipe', stderr: 'pipe', env: FLY_ENV }
+      )
+      await proc.exited
+    } catch (err) {
+      throw new Error(`sftp.get failed: ${err.message}`)
+    }
+
+    // Return whichever files actually landed
+    return filenames
+      .map(f => join(localDir, f))
+      .filter(p => existsSync(p))
+  },
+}
+
+/**
+ * Read the processed/ dir recursively to collect all contributionIds that have
+ * already been merged in a prior cycle. Used for cross-cycle dedup.
+ */
+function collectProcessedIds(processedDir) {
+  const ids = new Set()
+  if (!existsSync(processedDir)) return ids
+  try {
+    const recurse = (dir) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          recurse(join(dir, entry.name))
+        } else if (entry.name.endsWith('.json')) {
+          // filename is {uuid}.json — the uuid IS the contributionId
+          ids.add(basename(entry.name, '.json'))
+        }
+      }
+    }
+    recurse(processedDir)
+  } catch { /* best-effort */ }
+  return ids
+}
+
+/**
+ * Increment the attempts counter for a quarantined file.
+ * Returns the new count.
+ */
+function bumpAttempts(failedDir, uuid, lastError) {
+  mkdirSync(failedDir, { recursive: true })
+  const attFile = join(failedDir, `${uuid}.attempts`)
+  let data = { count: 0, lastError: '', lastAt: '' }
+  try { data = JSON.parse(readFileSync(attFile, 'utf8')) } catch { /* first attempt */ }
+  data.count++
+  data.lastError = lastError
+  data.lastAt = new Date().toISOString()
+  writeFileSync(attFile, JSON.stringify(data))
+  return data.count
+}
+
+/**
+ * pullContributions — phase-0 of each sync run.
+ *
+ * Downloads MCP write-tool sidecars from the Fly volume and merges them into
+ * local data/editorial/state.json before the destructive Turso sync runs.
+ *
+ * @param {{ sftp?: object }} opts — inject a stub for tests
+ * @returns {{ syncRunId, mergedIds, preStatePath, quarantined }}
+ */
+export async function pullContributions({
+  sftp = realSftp,
+  root = ROOT,
+  telegram = sendTelegram,
+} = {}) {
+  const statePath = join(root, 'data/editorial/state.json')
+  const lockPath = getStateLockPath(root)
+  const backupDir = getBackupDir(root)
+  const processedDir = getProcessedDir(root)
+  const failedDir = getFailedDir(root)
+  const journalPath = getSyncLogPath(root)
+  const runStart = Date.now()
+  const syncRunId = makeSyncRunId()
+
+  // 0. Acquire state lock (60s timeout)
+  await waitAndAcquireStateLock(lockPath, { owner: 'pullContributions', timeoutMs: 60_000, intervalMs: 500 })
+
+  let preStatePath = null
+
+  try {
+    // 1. Stale .tmp cleanup
+    cleanupStaleTmpFiles(join(root, 'data/editorial'))
+
+    // 2. Snapshot state.json before any mutation
+    if (!existsSync(statePath)) {
+      // No state.json yet — nothing to protect, but we can still proceed
+      log('pullContributions: state.json not found — proceeding without snapshot')
+    } else {
+      try {
+        preStatePath = snapshotState(statePath, backupDir, 'pre-pull')
+        pruneSnapshots(backupDir, 'pre-pull', 30)
+      } catch (snapErr) {
+        const msg = `snapshot failed: ${snapErr.message}`
+        appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'snapshot_failed', error: msg })
+        await telegram(`🚨 SNI sync snapshot_failed — ${msg}. Cannot proceed safely.`)
+        throw new Error(`pullContributions: ${msg}`)
+      }
+    }
+
+    // 3. SFTP ls + get with partial-listing detection
+    let remoteFilenames
+    try {
+      remoteFilenames = await sftp.ls()
+    } catch (lsErr) {
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'sftp_failed', error: lsErr.message, preStatePath, elapsedMs: Date.now() - runStart })
+      return { syncRunId, mergedIds: [], preStatePath, quarantined: [] }
+    }
+
+    if (remoteFilenames.length === 0) {
+      log('pullContributions: no contributions on Fly — nothing to merge')
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'success', merged: [], skippedDuplicates: 0, quarantined: 0, elapsedMs: Date.now() - runStart })
+      return { syncRunId, mergedIds: [], preStatePath, quarantined: [] }
+    }
+
+    log(`pullContributions: found ${remoteFilenames.length} sidecar(s) on Fly`)
+
+    const pullDir = mkdtempSync(join(tmpdir(), 'sni-mcp-pull-'))
+    let localFiles
+    try {
+      localFiles = await sftp.get(remoteFilenames, pullDir)
+    } catch (getErr) {
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'sftp_failed', error: getErr.message, preStatePath, elapsedMs: Date.now() - runStart })
+      return { syncRunId, mergedIds: [], preStatePath, quarantined: [] }
+    }
+
+    // Count check: if we got fewer files than ls reported, abort
+    if (localFiles.length < remoteFilenames.length) {
+      const msg = `ls reported ${remoteFilenames.length} files but get only returned ${localFiles.length}`
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'sftp_partial', error: msg, preStatePath, elapsedMs: Date.now() - runStart })
+      log(`pullContributions: ${msg} — aborting (will retry next run)`)
+      return { syncRunId, mergedIds: [], preStatePath, quarantined: [] }
+    }
+
+    // 4. Parse + validate each sidecar; quarantine failures
+    const validSidecars = []
+    const quarantinedIds = []
+    const today = new Date().toISOString().slice(0, 10)
+    const quarantineDir = getQuarantineDir(root, today)
+
+    for (const localPath of localFiles) {
+      const uuid = basename(localPath, '.json')
+      let sidecar
+
+      // Parse
+      try {
+        sidecar = JSON.parse(readFileSync(localPath, 'utf8'))
+      } catch (parseErr) {
+        const attempts = bumpAttempts(failedDir, uuid, `parse error: ${parseErr.message}`)
+        mkdirSync(quarantineDir, { recursive: true })
+        try { copyFileSync(localPath, join(quarantineDir, basename(localPath))) } catch { /* best-effort */ }
+        quarantinedIds.push(uuid)
+        if (attempts >= 3) {
+          await telegram(`🚨 SNI sync quarantine — ${uuid} has failed ${attempts} times (parse error). Manual review needed.`)
+        }
+        continue
+      }
+
+      // Validate shape via single-element array call
+      try {
+        const r = validatePendingContributions([sidecar])
+        if (r.errors.length > 0) {
+          const errMsg = r.errors.map(e => e.message).join('; ')
+          const attempts = bumpAttempts(failedDir, uuid, `validation error: ${errMsg}`)
+          mkdirSync(quarantineDir, { recursive: true })
+          try { copyFileSync(localPath, join(quarantineDir, basename(localPath))) } catch { /* best-effort */ }
+          quarantinedIds.push(uuid)
+          if (attempts >= 3) {
+            await telegram(`🚨 SNI sync quarantine — ${uuid} has failed ${attempts} times (validation: ${errMsg}). Manual review needed.`)
+          }
+          continue
+        }
+      } catch (valErr) {
+        // Validator threw — treat as invalid
+        const attempts = bumpAttempts(failedDir, uuid, `validator threw: ${valErr.message}`)
+        mkdirSync(quarantineDir, { recursive: true })
+        try { copyFileSync(localPath, join(quarantineDir, basename(localPath))) } catch { /* best-effort */ }
+        quarantinedIds.push(uuid)
+        if (attempts >= 3) {
+          await telegram(`🚨 SNI sync quarantine — ${uuid} has failed ${attempts} times (validator threw). Manual review needed.`)
+        }
+        continue
+      }
+
+      validSidecars.push(sidecar)
+    }
+
+    // 5. Load state, initialise pendingContributions if absent
+    let state = {}
+    if (existsSync(statePath)) {
+      try {
+        state = JSON.parse(readFileSync(statePath, 'utf8'))
+      } catch (parseErr) {
+        // Corrupt state — snapshot exists, validation will catch it below
+        warn(`pullContributions: state.json parse error: ${parseErr.message}`)
+      }
+    }
+    if (!Array.isArray(state.pendingContributions)) {
+      state.pendingContributions = []
+    }
+
+    // 6. Build dedup set: existing pendingContributions + processed/ files
+    const existingIds = new Set(state.pendingContributions.map(c => c.contributionId))
+    const processedIds = collectProcessedIds(processedDir)
+    const allKnownIds = new Set([...existingIds, ...processedIds])
+
+    // 7. Append non-duplicate sidecars
+    let skippedDuplicates = 0
+    const mergedIds = []
+    const warnings = []
+
+    for (const sidecar of validSidecars) {
+      if (allKnownIds.has(sidecar.contributionId)) {
+        skippedDuplicates++
+        continue
+      }
+
+      // Age warning for very old sidecars (>90 days)
+      const sidecarAge = sidecar.ts ? (Date.now() - new Date(sidecar.ts).getTime()) : 0
+      if (sidecarAge > 90 * 24 * 60 * 60 * 1000) {
+        warnings.push(`${sidecar.contributionId}: sidecar age ${Math.round(sidecarAge / 86400000)}d`)
+      }
+
+      state.pendingContributions.push(sidecar)
+      allKnownIds.add(sidecar.contributionId)
+      mergedIds.push(sidecar.contributionId)
+    }
+
+    // 8. Validate state with merged contributions (try/catch — throws = invalid)
+    let preStateSha = null
+    let postStateSha = null
+
+    if (preStatePath) {
+      try { preStateSha = sha256(readFileSync(preStatePath)) } catch { /* non-critical */ }
+    }
+
+    try {
+      const validation = validateEditorialState(state)
+      if (!validation.valid) {
+        const errMsg = validation.errors.slice(0, 3).map(e => e.message).join('; ')
+        appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'validation_failed', error: errMsg, preStatePath, elapsedMs: Date.now() - runStart })
+        await telegram(`🚨 SNI sync validation_failed — ${errMsg}. State snapshot: ${preStatePath}`)
+        // State is UNTOUCHED — we haven't written yet
+        return { syncRunId, mergedIds: [], preStatePath, quarantined: quarantinedIds }
+      }
+    } catch (valErr) {
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'validation_failed', error: valErr.message, preStatePath, elapsedMs: Date.now() - runStart })
+      await telegram(`🚨 SNI sync validation_failed — validator threw: ${valErr.message}. State snapshot: ${preStatePath}`)
+      return { syncRunId, mergedIds: [], preStatePath, quarantined: quarantinedIds }
+    }
+
+    // 9. Atomic write state.json (.tmp → rename)
+    const stateJson = JSON.stringify(state, null, 2)
+    const tmpPath = statePath + '.tmp'
+
+    try {
+      writeFileSync(tmpPath, stateJson)
+      renameSync(tmpPath, statePath)
+    } catch (writeErr) {
+      // Write failed — try to restore from snapshot
+      try { unlinkSync(tmpPath) } catch { /* cleanup best-effort */ }
+
+      if (preStatePath && existsSync(preStatePath)) {
+        try {
+          copyFileSync(preStatePath, statePath)
+          log('pullContributions: restored state.json from snapshot after write failure')
+        } catch (restoreErr) {
+          const msg = `write failed AND restore failed: ${writeErr.message} / ${restoreErr.message}`
+          appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'restore_failed', error: msg, preStatePath, elapsedMs: Date.now() - runStart })
+          await telegram(`🚨 SNI sync restore_failed — ${msg}. Manual restore from ${preStatePath} required.`)
+          throw new Error(`pullContributions: ${msg}`)
+        }
+      }
+
+      appendSyncLog(journalPath, { syncRunId, ts: new Date().toISOString(), outcome: 'write_failed', error: writeErr.message, preStatePath, elapsedMs: Date.now() - runStart })
+      throw new Error(`pullContributions: atomic write failed: ${writeErr.message}`)
+    }
+
+    try { postStateSha = sha256(readFileSync(statePath)) } catch { /* non-critical */ }
+
+    // 10. Append success to sync log
+    appendSyncLog(journalPath, {
+      syncRunId,
+      ts: new Date().toISOString(),
+      outcome: 'success',
+      merged: mergedIds,
+      skippedDuplicates,
+      quarantined: quarantinedIds.length,
+      preStateSha,
+      postStateSha,
+      elapsedMs: Date.now() - runStart,
+      ...(warnings.length > 0 ? { warnings } : {}),
+    })
+
+    if (mergedIds.length > 0) {
+      log(`pullContributions: merged ${mergedIds.length} contribution(s), skipped ${skippedDuplicates} duplicate(s)`)
+    }
+
+    return { syncRunId, mergedIds, preStatePath, quarantined: quarantinedIds }
+
+  } finally {
+    // 11. Always release the lock — even on thrown errors
+    releaseStateLock(lockPath)
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -905,10 +1328,24 @@ async function main() {
   const start = performance.now()
   log('Starting sync to Turso...')
 
+  // Stale .tmp cleanup at top of every run
+  cleanupStaleTmpFiles(join(ROOT, 'data/editorial'))
+
   const db = createSyncDb()
   if (!db) {
     // createSyncDb already logged the warning
     process.exit(0)
+  }
+
+  // Phase 0: pull MCP contributions from Fly volume → merge into state.json
+  // Must run BEFORE syncEditorialState (which does a destructive DELETE+INSERT).
+  let pullResult
+  try {
+    pullResult = await pullContributions()
+  } catch (e) {
+    // pullContributions handles its own logging + alerts; just exit non-zero
+    console.error('[sync] pullContributions failed:', e.message)
+    process.exit(1)
   }
 
   try {
@@ -950,8 +1387,19 @@ async function main() {
     log(`Complete in ${elapsed}s`)
     process.exit(0)
   } catch (err) {
-    console.error('[sync] FATAL:', err.message || err)
+    console.error('[sync] FATAL after phase-0 merge:', err.message || err)
     if (err.stack) console.error(err.stack)
+    if (pullResult?.preStatePath) {
+      console.error(`[sync] state.json snapshot at: ${pullResult.preStatePath}`)
+    }
+    appendSyncLog(getSyncLogPath(), {
+      syncRunId: pullResult?.syncRunId ?? new Date().toISOString(),
+      ts: new Date().toISOString(),
+      outcome: 'partial',
+      failedPhase: err.message,
+      preStatePath: pullResult?.preStatePath ?? null,
+    })
+    await sendTelegram(`🚨 SNI sync FATAL after phase-0 merge: ${err.message}. State snapshot: ${pullResult?.preStatePath ?? 'unknown'}`)
     process.exit(1)
   }
 }
