@@ -22,6 +22,7 @@ import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, tr
 import { listBugsHandler, getBugHandler, createBugHandler, updateBugHandler } from './routes/bugs.js'
 import { login, callback, me, logout } from './routes/auth.js'
 import { mintTokenHandler, listTokensHandler, revokeTokenHandler } from './routes/mcp-token.js'
+import { mountMcp } from './routes/mcp.js'
 import { authMiddleware } from './middleware/auth.js'
 import { audit } from './lib/audit.js'
 
@@ -111,6 +112,9 @@ app.post('/api/auth/logout', logout)
 app.get('/api/mcp/token', mintTokenHandler)
 app.get('/api/mcp/tokens', listTokensHandler)
 app.post('/api/mcp/token/revoke', revokeTokenHandler)
+
+// --- MCP route (Streamable HTTP) ---
+mountMcp(app)
 
 // --- Health ---
 app.get('/api/health', (c) => c.json({ status: 'ok', port: config.PORT }))

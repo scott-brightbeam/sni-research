@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
+    "@hono/mcp": "^0.2.5",
     "@libsql/client": "^0.17.2",
     "@modelcontextprotocol/sdk": "^1.29",
     "hono": "^4.12.10",
