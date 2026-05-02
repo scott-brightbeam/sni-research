@@ -1,5 +1,14 @@
 import { wrapTool } from './audit.js'
-import { SubmitPostCandidateIn, ContributionOut } from './schemas.js'
+import {
+  SubmitPostCandidateIn,
+  ContributionOut,
+  SubmitThemeEvidenceIn,
+  ProposeNewThemeIn,
+  SubmitArticleIn,
+  AddDecisionIn,
+  SubmitStoryReferenceIn,
+  SubmitDraftSuggestionIn,
+} from './schemas.js'
 import { submitContribution } from './contribute.js'
 
 /**
@@ -21,6 +30,48 @@ export function registerWriteTools(server) {
     async (args, { user }) => {
       const { clientRequestId, ...payload } = args
       return submitContribution('post_candidate', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_submit_theme_evidence', SubmitThemeEvidenceIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('theme_evidence', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_propose_new_theme', ProposeNewThemeIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('new_theme', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_submit_article', SubmitArticleIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('article', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_add_decision', AddDecisionIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('decision', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_submit_story_reference', SubmitStoryReferenceIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('story_reference', payload, user, clientRequestId)
+    }
+  )
+
+  wrapTool(server, 'sni_submit_draft_suggestion', SubmitDraftSuggestionIn, ContributionOut,
+    async (args, { user }) => {
+      const { clientRequestId, ...payload } = args
+      return submitContribution('draft_suggestion', payload, user, clientRequestId)
     }
   )
 }

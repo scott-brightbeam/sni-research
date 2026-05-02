@@ -70,3 +70,59 @@ export const GetDecisionsIn = z.object({
   archived: z.boolean().optional(),
   limit: z.number().int().min(1).max(100).optional().default(50),
 }).describe('List editorial decisions.')
+
+// ── Write-tool schemas (Task 7) ────────────────────────────────────────────
+
+const themeCodeRegex = /^T\d{1,4}$/
+
+export const SubmitThemeEvidenceIn = z.object({
+  themeCode: z.string().regex(themeCodeRegex, 'Theme code like T05 or T123').max(8),
+  content: z.string().max(2000),
+  source: z.string().max(500).optional(),
+  url: z.string().url().max(2000).optional(),
+  clientRequestId,
+}).describe('Submit a piece of evidence for an existing theme.')
+
+export const ProposeNewThemeIn = z.object({
+  name: z.string().max(80),
+  rationale: z.string().max(2000),
+  initialEvidence: z.array(z.object({
+    content: z.string().max(2000),
+    source: z.string().max(500).optional(),
+    url: z.string().url().max(2000).optional(),
+  })).max(5).optional(),
+  clientRequestId,
+}).describe('Propose a new editorial theme with optional initial evidence.')
+
+export const SubmitArticleIn = z.object({
+  url: z.string().url().max(2000),
+  title: z.string().max(200),
+  sector,
+  source: z.string().max(200).optional(),
+  snippet: z.string().max(2000).optional(),
+  scoreReason: z.string().max(500).optional(),
+  clientRequestId,
+}).describe('Submit a manually-curated article for the corpus.')
+
+export const AddDecisionIn = z.object({
+  title: z.string().max(200),
+  decision: z.string().max(2000),
+  reasoning: z.string().max(4000).optional(),
+  clientRequestId,
+}).describe('Record an editorial decision with optional reasoning.')
+
+export const SubmitStoryReferenceIn = z.object({
+  url: z.string().url().max(2000),
+  headline: z.string().max(300),
+  sector: sector.optional(),
+  context: z.string().max(1000).optional(),
+  clientRequestId,
+}).describe('Submit a story reference for the next DISCOVER pass.')
+
+export const SubmitDraftSuggestionIn = z.object({
+  week: z.number().int(),
+  target: z.enum(['tldr', 'sector_bullet', 'analysis', 'podcast_commentary']),
+  suggestion: z.string().max(4000),
+  rationale: z.string().max(2000).optional(),
+  clientRequestId,
+}).describe('Suggest a revision to a section of the current week\'s draft.')
