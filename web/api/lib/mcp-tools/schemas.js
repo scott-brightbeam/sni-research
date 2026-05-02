@@ -17,3 +17,20 @@ export const SearchArticlesIn = z.object({
   dateTo: dateString.optional(),
   limit: z.number().int().min(1).max(200).optional().default(20),
 }).describe('Search the SNI article corpus by keyword, sector, or date range.')
+
+export const SubmitPostCandidateIn = z.object({
+  title: z.string().max(120),
+  coreArgument: z.string().max(2000),
+  format: z.enum(['standalone', 'series', 'thread']).optional(),
+  freshness: z.enum(['evergreen', 'time-sensitive', 'urgent']).optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  sourceUrls: z.array(z.string().url().max(2000)).max(10).optional(),
+  notes: z.string().max(2000).optional(),
+  clientRequestId,
+}).describe('Submit a new post candidate for the editorial backlog.')
+
+export const ContributionOut = z.object({
+  contributionId: z.string().uuid(),
+  queuedFor: z.string(),
+  idempotent: z.boolean().optional(),
+})

@@ -15,7 +15,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { authenticateMcpRequest } from '../lib/mcp-auth.js'
 import { rateLimitCheck } from '../lib/mcp-rate-limit.js'
 import { registerReadTools } from '../lib/mcp-tools/reads.js'
-// TODO(task-5):    import { registerWriteTools } from '../lib/mcp-tools/writes.js'
+import { registerWriteTools } from '../lib/mcp-tools/writes.js'
 
 // Module-scope: one server, one transport per process. The closure flag
 // `connected` exists because the SDK does not expose isConnected().
@@ -33,7 +33,7 @@ async function ensureConnected() {
       if (!mcpServer) {
         mcpServer = new McpServer({ name: 'sni', version: '1.0.0' })
         registerReadTools(mcpServer)
-        // TODO(task-5): registerWriteTools(mcpServer)
+        registerWriteTools(mcpServer)
       }
       if (!transport) {
         transport = new StreamableHTTPTransport({ sessionIdGenerator: undefined })
