@@ -529,6 +529,109 @@ export function validateCounters(counters, analysisIndex, postBacklog) {
   return { errors, warnings }
 }
 
+// ── pendingContributions (MCP server reverse-merge) ─────
+
+const VALID_CONTRIBUTION_TYPES = new Set([
+  'post_candidate',
+  'theme_evidence',
+  'new_theme',
+  'article',
+  'decision',
+  'story_reference',
+  'draft_suggestion',
+])
+
+const SUPPORTED_SIDECAR_VERSION = 1
+
+/**
+ * Validate the pendingContributions array — the queue of MCP write-tool
+ * sidecars merged in by sync-to-turso's phase-0 pullContributions before
+ * the destructive editorial-table sync runs.
+ *
+ * Each entry mirrors the on-disk sidecar shape produced by submitContribution
+ * (web/api/lib/mcp-tools/contribute.js).
+ *
+ * @param {Array} pending
+ * @returns {{ errors: Array, warnings: Array }}
+ */
+export function validatePendingContributions(pending) {
+  const errors = []
+  const warnings = []
+
+  if (!Array.isArray(pending)) {
+    errors.push({
+      code: 'PENDING_CONTRIBUTIONS_TYPE',
+      id: null,
+      message: 'pendingContributions should be an array',
+    })
+    return { errors, warnings }
+  }
+
+  for (let i = 0; i < pending.length; i++) {
+    const entry = pending[i]
+    const id = entry?.contributionId ?? `index-${i}`
+
+    if (!entry || typeof entry !== 'object') {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_INVALID',
+        id,
+        message: `pendingContributions[${i}] is not an object`,
+      })
+      continue
+    }
+
+    if (entry.version !== SUPPORTED_SIDECAR_VERSION) {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_VERSION',
+        id,
+        message: `pendingContributions[${i}]: version ${entry.version} is not supported (expected ${SUPPORTED_SIDECAR_VERSION})`,
+      })
+    }
+
+    if (typeof entry.contributionId !== 'string' || entry.contributionId.length === 0) {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_ID',
+        id,
+        message: `pendingContributions[${i}]: contributionId is missing or not a string`,
+      })
+    }
+
+    if (!VALID_CONTRIBUTION_TYPES.has(entry.type)) {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_TYPE',
+        id,
+        message: `pendingContributions[${i}]: type "${entry.type}" not in valid set`,
+      })
+    }
+
+    if (!entry.payload || typeof entry.payload !== 'object') {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_PAYLOAD',
+        id,
+        message: `pendingContributions[${i}]: payload is missing or not an object`,
+      })
+    }
+
+    if (!entry.user || typeof entry.user !== 'object' || typeof entry.user.email !== 'string') {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_USER',
+        id,
+        message: `pendingContributions[${i}]: user.email is missing`,
+      })
+    }
+
+    if (typeof entry.ts !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(entry.ts)) {
+      errors.push({
+        code: 'PENDING_CONTRIBUTION_TS',
+        id,
+        message: `pendingContributions[${i}]: ts is not an ISO timestamp`,
+      })
+    }
+  }
+
+  return { errors, warnings }
+}
+
 /**
  * Validate the full editorial state document.
  * @param {Object} state - the parsed state.json
@@ -584,6 +687,14 @@ export function validateEditorialState(state) {
 
   if (state.counters) {
     const r = validateCounters(state.counters, state.analysisIndex || {}, state.postBacklog || {})
+    errors.push(...r.errors)
+    warnings.push(...r.warnings)
+  }
+
+  // pendingContributions is OPTIONAL (only present after Task 8b's
+  // pullContributions runs). Validate only when present.
+  if ('pendingContributions' in state) {
+    const r = validatePendingContributions(state.pendingContributions)
     errors.push(...r.errors)
     warnings.push(...r.warnings)
   }

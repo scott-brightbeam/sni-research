@@ -10,6 +10,7 @@ import {
   validateAnalysisIndex,
   validateThemeRegistry,
   validateCounters,
+  validatePendingContributions,
 } from './validate-editorial-state.js'
 
 // ── Factory ─────────────────────────────────────────────
@@ -738,5 +739,80 @@ describe('edge cases', () => {
     const registry = { 'T01': null }
     const result = validateThemeRegistry(registry)
     expect(hasError(result, 'THEME_INVALID')).toBe(true)
+  })
+})
+
+// ── pendingContributions ─────────────────────────────────
+
+function makeValidSidecar(overrides = {}) {
+  return {
+    version: 1,
+    contributionId: '11111111-2222-3333-4444-555555555555',
+    type: 'post_candidate',
+    payload: { title: 'A post', coreArgument: 'Argument' },
+    user: { email: 'alice@brightbeam.com', name: 'Alice' },
+    ts: '2026-05-01T12:00:00.000Z',
+    clientRequestId: null,
+    ...overrides,
+  }
+}
+
+describe('validatePendingContributions', () => {
+  it('accepts an empty array', () => {
+    const result = validatePendingContributions([])
+    expect(result.errors).toEqual([])
+  })
+
+  it('accepts a valid sidecar entry', () => {
+    const result = validatePendingContributions([makeValidSidecar()])
+    expect(result.errors).toEqual([])
+  })
+
+  it('rejects malformed sidecar entry (missing contributionId)', () => {
+    const bad = makeValidSidecar()
+    delete bad.contributionId
+    const result = validatePendingContributions([bad])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_ID')).toBe(true)
+  })
+
+  it('rejects unknown sidecar version', () => {
+    const result = validatePendingContributions([makeValidSidecar({ version: 2 })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_VERSION')).toBe(true)
+  })
+
+  it('rejects unknown contribution type', () => {
+    const result = validatePendingContributions([makeValidSidecar({ type: 'spam' })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_TYPE')).toBe(true)
+  })
+
+  it('rejects sidecar with missing user.email', () => {
+    const result = validatePendingContributions([makeValidSidecar({ user: { name: 'Alice' } })])
+    expect(hasError(result, 'PENDING_CONTRIBUTION_USER')).toBe(true)
+  })
+
+  it('rejects non-array input', () => {
+    const result = validatePendingContributions({ contributionId: 'x' })
+    expect(hasError(result, 'PENDING_CONTRIBUTIONS_TYPE')).toBe(true)
+  })
+
+  it('regression: pre-existing valid state.json (no pendingContributions key) still validates', () => {
+    const state = makeValidState()
+    const result = validateEditorialState(state)
+    expect(result.valid).toBe(true)
+  })
+
+  it('integration: state with pendingContributions:[] passes top-level validation', () => {
+    const state = makeValidState()
+    state.pendingContributions = []
+    const result = validateEditorialState(state)
+    expect(result.valid).toBe(true)
+  })
+
+  it('integration: state with bad pendingContributions entry fails top-level validation', () => {
+    const state = makeValidState()
+    state.pendingContributions = [makeValidSidecar({ version: 99 })]
+    const result = validateEditorialState(state)
+    expect(result.valid).toBe(false)
+    expect(hasError(result, 'PENDING_CONTRIBUTION_VERSION')).toBe(true)
   })
 })
