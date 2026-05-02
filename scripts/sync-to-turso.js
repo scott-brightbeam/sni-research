@@ -1051,6 +1051,25 @@ const realSftp = {
       .map(f => join(localDir, f))
       .filter(p => existsSync(p))
   },
+
+  /**
+   * Move a file on the remote Fly volume from remoteFrom to remoteTo.
+   * Creates the target directory if absent (via mkdir -p).
+   * Throws on spawn failure; the caller decides how to handle that.
+   */
+  async mv(remoteFrom, remoteTo) {
+    const remoteDir = remoteTo.replace(/\/[^/]+$/, '')
+    const mvScript = `mkdir -p "${remoteDir}" && mv "${remoteFrom}" "${remoteTo}"`
+    const proc = Bun.spawn(
+      ['fly', 'ssh', 'console', '--command', `sh -c '${mvScript}'`, '-a', FLY_APP],
+      { stdout: 'pipe', stderr: 'pipe', env: FLY_ENV }
+    )
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      const stderr = await new Response(proc.stderr).text()
+      throw new Error(`sftp.mv failed (exit ${exitCode}): ${stderr.trim()}`)
+    }
+  },
 }
 
 /**
@@ -1074,6 +1093,77 @@ function collectProcessedIds(processedDir) {
     recurse(processedDir)
   } catch { /* best-effort */ }
   return ids
+}
+
+/**
+ * archiveMergedSidecars — post-merge cleanup for phase-0.
+ *
+ * For each successfully merged contributionId:
+ *   1. Copies the local /tmp sidecar to local processed/{date}/{uuid}.json so
+ *      cross-cycle dedup works even if the remote mv fails.
+ *   2. MVs the source sidecar on Fly from contributions/{uuid}.json to
+ *      contributions/processed/{date}/{uuid}.json (permanent archive).
+ *      The mv is best-effort; failure is logged and journalled but non-fatal.
+ *
+ * @param {string[]}  mergedIds  — contributionIds that were just merged
+ * @param {{ sftp, root, localPathById, journalPath, syncRunId }} opts
+ * @returns {{ archivedIds: string[], failedMv: string[], date: string }}
+ */
+export async function archiveMergedSidecars(mergedIds, {
+  sftp = realSftp,
+  root = ROOT,
+  localPathById = {},
+  journalPath = getSyncLogPath(),
+  syncRunId = '',
+} = {}) {
+  if (mergedIds.length === 0) {
+    return { archivedIds: [], failedMv: [], date: '' }
+  }
+
+  const date = new Date().toISOString().slice(0, 10)
+  const localProcessedDateDir = join(getProcessedDir(root), date)
+  mkdirSync(localProcessedDateDir, { recursive: true })
+
+  const archivedIds = []
+  const failedMv = []
+
+  for (const id of mergedIds) {
+    const localSrc = localPathById[id]
+    const localDst = join(localProcessedDateDir, `${id}.json`)
+
+    // Step 1: local copy (must happen before remote mv so dedup holds even on mv failure)
+    if (localSrc && existsSync(localSrc)) {
+      try {
+        copyFileSync(localSrc, localDst)
+      } catch (copyErr) {
+        log(`archiveMergedSidecars: local copy failed for ${id}: ${copyErr.message}`)
+        // Non-fatal — proceed to remote mv attempt anyway
+      }
+    }
+
+    // Step 2: remote mv (best-effort)
+    const remoteFrom = `${CONTRIBUTIONS_REMOTE_DIR}/${id}.json`
+    const remoteTo = `${CONTRIBUTIONS_REMOTE_DIR}/processed/${date}/${id}.json`
+    try {
+      await sftp.mv(remoteFrom, remoteTo)
+      archivedIds.push(id)
+    } catch (mvErr) {
+      log(`archiveMergedSidecars: remote mv failed for ${id}: ${mvErr.message}`)
+      failedMv.push(id)
+      if (!archivedIds.includes(id)) archivedIds.push(id)
+    }
+  }
+
+  appendSyncLog(journalPath, {
+    syncRunId,
+    ts: new Date().toISOString(),
+    outcome: 'archived',
+    archivedIds,
+    failedMv,
+    date,
+  })
+
+  return { archivedIds, failedMv, date }
 }
 
 /**
@@ -1177,6 +1267,7 @@ export async function pullContributions({
     // 4. Parse + validate each sidecar; quarantine failures
     const validSidecars = []
     const quarantinedIds = []
+    const localPathById = {}  // contributionId → local tmp path (for archiveMergedSidecars)
     const today = new Date().toISOString().slice(0, 10)
     const quarantineDir = getQuarantineDir(root, today)
 
@@ -1237,6 +1328,7 @@ export async function pullContributions({
         }
       }
 
+      localPathById[sidecar.contributionId] = localPath
       validSidecars.push(sidecar)
     }
 
@@ -1346,6 +1438,12 @@ export async function pullContributions({
       elapsedMs: Date.now() - runStart,
       ...(warnings.length > 0 ? { warnings } : {}),
     })
+
+    // 11. Archive merged sidecars (best-effort — non-fatal on mv failure)
+    // Runs after success is journalled so the success entry always comes first.
+    if (mergedIds.length > 0) {
+      await archiveMergedSidecars(mergedIds, { sftp, root, localPathById, journalPath, syncRunId })
+    }
 
     if (mergedIds.length > 0) {
       log(`pullContributions: merged ${mergedIds.length} contribution(s), skipped ${skippedDuplicates} duplicate(s)`)

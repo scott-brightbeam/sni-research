@@ -83,6 +83,9 @@ function makeSftpStub(fixtureDir, opts = {}) {
       }
       return written
     },
+    async mv(_from, _to) {
+      // no-op in pull-contribution tests — archiveMergedSidecars is tested separately
+    },
   }
 }
 
