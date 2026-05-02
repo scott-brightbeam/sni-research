@@ -34,3 +34,39 @@ export const ContributionOut = z.object({
   queuedFor: z.string(),
   idempotent: z.boolean().optional(),
 })
+
+export const SearchPodcastsIn = z.object({
+  query: z.string().max(500).optional(),
+  source: z.string().max(100).optional(),
+  dateFrom: dateString.optional(),
+  limit: z.number().int().min(1).max(100).optional().default(20),
+}).describe('Search the SNI podcast episode corpus by source or date.')
+
+export const GetThemesIn = z.object({
+  archived: z.boolean().optional(),
+  limit: z.number().int().min(1).max(200).optional().default(50),
+}).describe('List active editorial themes.')
+
+export const GetThemeDetailIn = z.object({
+  code: z.string().regex(/^T\d{1,4}$/, 'Theme code like T05 or T123').max(8),
+}).describe('Get full detail for one theme — evidence, connections, linked entries.')
+
+export const GetPostBacklogIn = z.object({
+  status: z.enum(['suggested', 'approved', 'published', 'archived']).optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  limit: z.number().int().min(1).max(200).optional().default(50),
+}).describe('List items in the editorial post backlog.')
+
+export const GetWritingPreferencesIn = z.object({}).describe(
+  'Get the canonical writing preferences, vocabulary fingerprint, and permanent preferences.'
+)
+
+export const GetDraftsIn = z.object({
+  week: z.number().int().optional(),
+  limit: z.number().int().min(1).max(20).optional().default(5),
+}).describe('List newsletter drafts (metadata + summary; full body via dashboard).')
+
+export const GetDecisionsIn = z.object({
+  archived: z.boolean().optional(),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+}).describe('List editorial decisions.')

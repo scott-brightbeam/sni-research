@@ -88,7 +88,7 @@ function getEditorialDraftWeeks() {
   return map
 }
 
-function getAvailableWeeks() {
+export function getAvailableWeeks() {
   const weeks = new Set()
 
   // Weeks with draft files in output/
