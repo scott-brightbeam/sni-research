@@ -21,6 +21,7 @@ import { getEvRecommendations, updateEvRecommendation } from './routes/ev-recomm
 import { getSubscriptions, saveCredentials as saveSubCredentials, testLogins, triggerFetch } from './routes/subscriptions.js'
 import { listBugsHandler, getBugHandler, createBugHandler, updateBugHandler } from './routes/bugs.js'
 import { login, callback, me, logout } from './routes/auth.js'
+import { mintTokenHandler, listTokensHandler, revokeTokenHandler } from './routes/mcp-token.js'
 import { authMiddleware } from './middleware/auth.js'
 import { audit } from './lib/audit.js'
 
@@ -84,7 +85,7 @@ app.use('/api/*', async (c, next) => {
 app.use('*', cors({
   origin: config.CORS_ORIGIN || ((origin) => origin),
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
+  allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }))
 
@@ -105,6 +106,11 @@ app.get('/api/auth/login', login)
 app.get('/api/auth/callback', callback)
 app.get('/api/auth/me', me)
 app.post('/api/auth/logout', logout)
+
+// --- MCP token endpoints ---
+app.get('/api/mcp/token', mintTokenHandler)
+app.get('/api/mcp/tokens', listTokensHandler)
+app.post('/api/mcp/token/revoke', revokeTokenHandler)
 
 // --- Health ---
 app.get('/api/health', (c) => c.json({ status: 'ok', port: config.PORT }))

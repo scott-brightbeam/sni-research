@@ -19,4 +19,5 @@ export default {
   GOOGLE_CLIENT_ID: env('GOOGLE_CLIENT_ID', ''),
   GOOGLE_CLIENT_SECRET: env('GOOGLE_CLIENT_SECRET', ''),
   AUTH_DOMAIN: env('SNI_AUTH_DOMAIN', ''),
+  MCP_ADMINS: env('SNI_MCP_ADMINS', '').split(',').map(s => s.trim()).filter(Boolean),
 }
