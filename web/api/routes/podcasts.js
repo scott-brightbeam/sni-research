@@ -4,7 +4,9 @@ import { validateParam } from '../lib/walk.js'
 import { getDb } from '../lib/db.js'
 import * as pq from '../lib/podcast-queries.js'
 
-const ROOT = process.env.SNI_ROOT || resolve(import.meta.dir, '../../..')
+// Resolved per-call so that SNI_ROOT overrides (e.g. in tests) take effect
+// without requiring modules to be re-imported after the env var is set.
+function getRoot() { return process.env.SNI_ROOT || resolve(import.meta.dir, '../../..') }
 
 // ---------------------------------------------------------------------------
 // Normalise DB row (snake_case) → UI shape (camelCase + digest sub-object)
@@ -76,7 +78,7 @@ export async function handleGetPodcasts(query) {
 
   // Find the latest podcast-import run summary (stays on filesystem)
   let lastRun = null
-  const runsDir = join(ROOT, 'output/runs')
+  const runsDir = join(getRoot(), 'output/runs')
   if (existsSync(runsDir)) {
     try {
       const runFiles = readdirSync(runsDir)
@@ -118,7 +120,7 @@ export async function handleGetTranscript(query) {
     throw err
   }
 
-  const filePath = join(ROOT, 'data/podcasts', date, source, `${title}.md`)
+  const filePath = join(getRoot(), 'data/podcasts', date, source, `${title}.md`)
 
   if (!existsSync(filePath)) {
     const err = new Error('Transcript not found')

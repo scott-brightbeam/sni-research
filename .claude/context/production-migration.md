@@ -424,7 +424,60 @@ If something breaks on the new machine:
 
 ---
 
-## 16. Appendix: file inventory to back up BEFORE migration
+## 16. MCP server (Phase 9, May 2026)
+
+Required env on Fly:
+- `SNI_MCP_ADMINS=scott.wilkinson@brightbeam.com[,additional@brightbeam.com]`
+  (comma-separated emails authorised to revoke MCP Bearer tokens)
+
+Set with:
+```bash
+fly secrets set -a sni-research SNI_MCP_ADMINS=scott.wilkinson@brightbeam.com
+```
+
+Initial token mint (operator):
+1. Browse to `https://sni-research.fly.dev/api/mcp/token` (signed in with
+   @brightbeam.com Google account)
+2. Copy the returned `token` field
+3. Configure local Claude Code:
+   ```json
+   // ~/.config/claude/mcp_servers.json
+   {
+     "sni": {
+       "type": "streamable-http",
+       "url": "https://sni-research.fly.dev/mcp",
+       "headers": { "Authorization": "Bearer <token>" }
+     }
+   }
+   ```
+
+Token revocation (admin):
+```bash
+curl -X POST https://sni-research.fly.dev/api/mcp/token/revoke \
+  -H "Cookie: sni_session=<your-session-cookie>" \
+  -H "Content-Type: application/json" \
+  -d '{"jti": "<the-jti-to-revoke>", "reason": "offboarding"}'
+```
+
+Or query `mcp_contributions DISTINCT jti WHERE user_email = ?` to find a
+specific user's active jtis via the dashboard or Turso CLI.
+
+Rollback procedures: see `~/.claude/skills/sni/SKILL.md` "Rollback (operator
+reference)" section. Briefly:
+- Per-contribution: `bun scripts/undo-contribution.js <id>` (with `--dry-run`)
+- Whole-state local: `cp data/editorial/backups/state.pre-pull.{TS}.json
+  data/editorial/state.json` (last 30 retained)
+- Whole-state on Fly: `fly ssh console; mv /app/data/editorial/state.json.previous /app/data/editorial/state.json`
+- Bad-sidecar drain: `bun scripts/drain-contributions.js --to <quarantine>
+  --remove-from-source`
+
+The sync journal at `data/editorial/sync-log.jsonl` records each sync's
+outcome + merged ids + snapshot path. Start there for any "what changed
+when" forensic question.
+
+---
+
+## 17. Appendix: file inventory to back up BEFORE migration
 
 These files are gitignored or live outside the repo. Lose them and you lose history.
 

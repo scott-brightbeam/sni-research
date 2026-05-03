@@ -260,6 +260,51 @@ Fly deploys run **locally** via a git pre-push hook, not from CI.
 - **Phase 6: Editorial intelligence platform** ✅ Complete — full ANALYSE/DISCOVER/DRAFT/AUDIT pipeline covering five sectors. See `phase-status.md` for the build log.
 - **Phase 7: Opus 4.7 drafting + CEO empathy** ✅ Complete — shared principles module (`scripts/lib/editorial-principles.js`), evidence calibration + "matters" ban across audit/draft/analyse prompts, CEO empathy pass (per-sector critique + revise) in `web/api/routes/editorial.js`, Claude-Code-native upstream audit (`/editorial-audit-upstream` + `scripts/editorial-audit-upstream.js`)
 - **Phase 8: Ops** ✅ In progress — pre-push deploy hook (`scripts/git-hooks/pre-push`), test-only CI, cost-protection guards, podcast pipeline truncation fixes, production-migration docs (`.claude/context/production-migration.md`)
+- **Phase 9: MCP server** ✅ Complete (May 2026) — 15-tool Streamable-HTTP MCP at `/mcp`, hybrid cookie/bearer auth keyed to Google OAuth, sidecar/sync contribution model, full rollback architecture. See "MCP server" section below.
+
+## MCP server (Phase 9 — May 2026)
+
+The SNI editorial corpus is exposed via Model Context Protocol at
+`https://sni-research.fly.dev/mcp` for the Brightbeam team.
+
+**Tools (15):** 8 read + 7 write
+- Read: sni_search_articles, sni_search_podcasts, sni_get_themes,
+  sni_get_theme_detail, sni_get_post_backlog,
+  sni_get_writing_preferences, sni_get_drafts, sni_get_decisions
+- Write: sni_submit_post_candidate, sni_submit_theme_evidence,
+  sni_propose_new_theme, sni_submit_article, sni_add_decision,
+  sni_submit_story_reference, sni_submit_draft_suggestion
+
+**Auth:** hybrid cookie/bearer keyed to existing Google OAuth
+(`@brightbeam.com` only). Bearer tokens carry a `jti` for revocation;
+admins listed in `SNI_MCP_ADMINS` can revoke via
+`POST /api/mcp/token/revoke`. See `web/api/lib/mcp-auth.js`.
+
+**Sidecar/sync model:** writes go to `data/editorial/contributions/{uuid}.json`
+on the Fly volume. The 07:40/13:00/22:00 sync (`scripts/sync-to-turso.js`,
+phase 0 = `pullContributions`) pulls them into local
+`state.pendingContributions[]`. The morning `editorial-analyse-daily`
+routine drains that array into postBacklog/themeRegistry/etc., stamping
+each downstream record with `_origin: {contributionId, mergedAt, mergedBy}`.
+Max contribution-to-analyse lag: ~9h.
+
+**Audit:** every tool call writes a row to `mcp_contributions` (best-effort
+— sidecar is the durable record). Schema v6 added `lifecycle_state`
+(submitted/pulled/merged/consumed/rolled_back/quarantined/lost),
+`rollback_of` FK, `payload_hash`. See `web/api/lib/mcp-tools/audit.js`.
+
+**Permanent rollback** is layered:
+- Per-sync timestamped snapshots at `data/editorial/backups/state.pre-pull.{TS}.json` (last 30)
+- Append-only sync journal at `data/editorial/sync-log.jsonl`
+- Permanent sidecar archive at `data/editorial/contributions/processed/{YYYY-MM-DD-utc}/`
+- Volume-side `state.json.previous` ring buffer (one-deep)
+- `scripts/undo-contribution.js <id>` for surgical per-contribution undo
+- `scripts/drain-contributions.js` operational escape hatch
+
+**Required env:** `SNI_MCP_ADMINS=email1,email2,...` (comma-separated).
+
+**Skill:** `~/.claude/skills/sni/SKILL.md` — install once, triggers on
+"find me a story / submit a post idea / log evidence for theme T05" etc.
 
 ## When to read context files
 
