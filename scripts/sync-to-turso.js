@@ -732,7 +732,7 @@ async function syncOutputFiles() {
   // Editorial state + supporting files — the chat handler reads these from
   // the Fly volume, not Turso. If we don't sync them, the deployed chat
   // sees a stale state and can't find recent backlog items / themes / entries.
-  const editorialFiles = ['state.json', 'activity.json', 'writing-preferences.md']
+  const editorialFiles = ['state.json', 'activity.json', 'writing-preferences.md', 'sync-log.jsonl']
   for (const f of editorialFiles) {
     const local = join(editorialDir, f)
     if (existsSync(local)) {

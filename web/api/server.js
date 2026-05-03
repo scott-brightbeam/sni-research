@@ -7,6 +7,7 @@ import { getDb, migrateSchema } from './lib/db.js'
 
 // --- Route handler imports ---
 import { getStatus, getVerificationStatus } from './routes/status.js'
+import { getSyncStatus } from './routes/sync-status.js'
 import { getArticles, getArticle, getFlaggedArticles, patchArticle, deleteArticle, ingestArticle, getLastUpdated, getPublications, manualIngest } from './routes/articles.js'
 import { getDraft, saveDraft, getDraftHistory, handleCheckOverlap } from './routes/draft.js'
 import { handleChat, listThreads, createThread, renameThread, getHistory, createPin, listPins, deletePin, getUsage } from './routes/chat.js'
@@ -122,6 +123,7 @@ app.get('/api/health', (c) => c.json({ status: 'ok', port: config.PORT }))
 // --- Status ---
 app.get('/api/status', async (c) => c.json(await getStatus()))
 app.get('/api/status/verification', async (c) => c.json(getVerificationStatus()))
+app.get('/api/status/sync', async (c) => c.json(await getSyncStatus()))
 
 // --- Articles ---
 app.get('/api/articles', async (c) => c.json(await getArticles(c.req.query())))

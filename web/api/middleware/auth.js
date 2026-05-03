@@ -4,7 +4,7 @@ import config from '../lib/config.js'
 const COOKIE_NAME = 'sni_session'
 
 // Routes that don't require auth
-const PUBLIC_PATHS = ['/api/health', '/api/auth/login', '/api/auth/callback']
+const PUBLIC_PATHS = ['/api/health', '/api/auth/login', '/api/auth/callback', '/api/status/sync']
 
 /**
  * Auth middleware — verifies JWT from httpOnly cookie.
