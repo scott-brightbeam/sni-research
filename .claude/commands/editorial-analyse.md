@@ -27,8 +27,65 @@ Label editorial inferences explicitly: "Editorial inference: [your analysis]" �
 
 1. Read `data/editorial/state.json` — note the counters (nextSession, nextDocument, nextPost) and existing themes
 2. Read `config/editorial-sources.yaml` for source metadata (name, host, tier)
+
+### Phase 0: Consume `state.pendingContributions[]` (MCP write-tool sidecars)
+
+Before processing transcripts, drain any MCP-contributed material that the
+overnight `pullContributions` phase merged into state. Each entry in
+`state.pendingContributions[]` is a sidecar (shape per
+`scripts/validate-editorial-state.js:validatePendingContributions`):
+
+```json
+{ "version": 1, "contributionId": "uuid", "type": "...", "payload": {...},
+  "payloadHash": "sha256...", "user": {"email", "name"}, "ts": "ISO",
+  "clientRequestId": "string|null" }
+```
+
+Process each entry by `type`. **Every downstream record you create or
+mutate from a contribution MUST be stamped with `_origin`** — this is what
+`scripts/undo-contribution.js` (Task 8e) uses to find and reverse the
+mutation. Without it, surgical undo is impossible.
+
+```js
+_origin: { contributionId, mergedAt: <ISO ts of THIS run>, mergedBy: 'analyse-daily' }
+```
+
+For each entry:
+
+| `type` | Action |
+|---|---|
+| `post_candidate` | Append to `state.postBacklog[String(nextPost)]` with `status: 'suggested'`, payload fields mapped (`title`, `coreArgument`, `format`, `freshness`, `priority`, `sourceUrls`, `notes`), plus `_origin`, plus `submittedBy: payload.user.email`. Increment `counters.nextPost`. |
+| `theme_evidence` | Look up `state.themeRegistry[payload.themeCode]`. If found, append `{session: <this run's session>, source: payload.source ?? 'MCP contribution', url: payload.url ?? null, content: payload.content, _origin}` to its `evidence[]`. Trim to last 12. If themeCode doesn't exist, log + skip (no quarantine — analyse can re-run). |
+| `new_theme` | Allocate next T-code (max existing +1). Create `state.themeRegistry[code]` with `{name: payload.name, created: 'Session N', lastUpdated: 'Session N', documentCount: 1, evidence: [<from payload.initialEvidence + _origin>], crossConnections: [], _origin}`. |
+| `article` | Write a manual-style article file to `data/verified/{date}/{sector}/{slug}.json` — same shape as fetch.js outputs. Add `submittedBy: payload.user.email` and `_origin`. Pick `slug` from URL or title slugify. |
+| `decision` | Append to `state.decisionLog`: `{session, title: payload.title, decision: payload.decision, reasoning: payload.reasoning ?? null, _origin}`. |
+| `story_reference` | Append to `data/editorial/stories-session-{nextSession}.json` for the next DISCOVER pass: `{url: payload.url, headline: payload.headline, sector: payload.sector ?? null, context: payload.context ?? null, _origin}`. |
+| `draft_suggestion` | Log to `data/editorial/draft-suggestions/week-{payload.week}.json` (create if absent): `{target: payload.target, suggestion: payload.suggestion, rationale: payload.rationale ?? null, submittedBy: payload.user.email, ts: payload.ts, _origin}`. Editorial reviews these in the Friday drafting workflow. |
+
+After consuming each entry, update its lifecycle state in Turso:
+
+```sql
+UPDATE mcp_contributions
+   SET lifecycle_state = 'consumed', lifecycle_updated_at = datetime('now')
+ WHERE contribution_id = ?
+```
+
+When all entries are processed, **clear `state.pendingContributions = []`**.
+The original sidecars remain durably archived under
+`data/editorial/contributions/processed/{date}/` (Task 8c) — they are the
+permanent forward-replayable record. The audit row in `mcp_contributions`
+(now `lifecycle_state = 'consumed'`) is the per-row index.
+
+If a sidecar's payload fails the type-specific shape check (e.g. a
+`theme_evidence` entry whose `themeCode` doesn't match `/^T\d{1,4}$/`),
+log + skip; do NOT bury the entry — leave it in `pendingContributions[]`
+so an operator can investigate and either fix the data or run
+`scripts/undo-contribution.js` to roll it back cleanly.
+
+### Phase 1: Process podcast transcripts
+
 3. Scan `~/Desktop/Podcast Transcripts/*.md` for files NOT already in `state.analysisIndex` (match on `filename` field, case-insensitive)
-4. If no unprocessed transcripts, report "No new transcripts to process" and stop
+4. If no unprocessed transcripts (and Phase 0 produced no work), report "No new transcripts to process" and stop
 
 **For EACH unprocessed file (oldest first, loop until all done or context exhausted):**
 
