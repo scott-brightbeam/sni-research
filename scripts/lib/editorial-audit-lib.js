@@ -201,7 +201,7 @@ export function collectAuditTargets(state, opts = {}) {
     for (const rawId of opts.ids) {
       const id = String(rawId).trim()
       if (!id) continue
-      const themeMatch = id.match(/^(T\d{2}):(\d+)$/)
+      const themeMatch = id.match(/^(T\d{2,3}):(\d+)$/)
       if (themeMatch) {
         const [, code, idxStr] = themeMatch
         const idx = parseInt(idxStr, 10)
