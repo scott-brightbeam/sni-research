@@ -35,7 +35,7 @@ const VALID_PRIORITIES = new Set(['immediate', 'high', 'medium-high', 'medium', 
 const VALID_TIERS = new Set([-1, 0, 1, 2])
 const VALID_ANALYSIS_STATUSES = new Set(['active', 'retired', 'stub', 'unknown'])
 const STALE_POST_FIELDS = new Set(['sourceUrl', 'url', 'themes', 'sourceUrls', 'type', 'postType', 'editorialNotes', 'dateGenerated', 'angle', 'theme'])
-const THEME_CODE_RE = /^T\d{2}$/
+const THEME_CODE_RE = /^T\d{2,3}$/  // allow 3-digit codes once T99 is exhausted (May 2026)
 
 // ── Section validators ──────────────────────────────────
 

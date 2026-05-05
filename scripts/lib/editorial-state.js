@@ -169,7 +169,7 @@ export function validateState(state) {
   // Validate theme codes
   if (state.themeRegistry && typeof state.themeRegistry === 'object') {
     for (const code of Object.keys(state.themeRegistry)) {
-      if (!/^T\d{2}$/.test(code)) {
+      if (!/^T\d{2,3}$/.test(code)) {
         errors.push(`Invalid theme code: ${code}`)
       }
     }
@@ -368,8 +368,8 @@ export function addThemeEvidence(state, themeCode, evidence) {
  * @param {{ source: string, content: string }|null} evidence — initial evidence
  */
 export function addNewTheme(state, code, name, evidence) {
-  if (!/^T\d{2}$/.test(code)) {
-    throw new Error(`Invalid theme code: ${code}. Must be T followed by two digits.`)
+  if (!/^T\d{2,3}$/.test(code)) {
+    throw new Error(`Invalid theme code: ${code}. Must be T followed by 2 or 3 digits.`)
   }
 
   if (state.themeRegistry[code]) {
